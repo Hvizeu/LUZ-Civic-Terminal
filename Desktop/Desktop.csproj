@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>LUZ Civic Terminal</AssemblyName><Version>0.4.0</Version><Product>LUZ Civic Terminal</Product>
+    <ApplicationIcon>Assets/luz-icon.ico</ApplicationIcon>
+    <Description>Nivalis Nights mod registry and launcher</Description>
+    <SelfContained>true</SelfContained><PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RenderTools)' == 'true'"><DefineConstants>$(DefineConstants);PREVIEW_TOOL</DefineConstants></PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/luz-icon.png" />
+    <Content Include="Assets/luz-icon.png" Link="luz-icon.png" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../Core/Core.csproj"/>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.0"/>
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0"/>
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0"/>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0"/>
+    <PackageReference Include="Avalonia.Headless" Version="12.1.0" Condition="'$(RenderTools)' == 'true'"/>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,30 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="using:LuzDesktop" x:Class="LuzDesktop.TerminalStyles">
+  <Style Selector="Window"><Setter Property="FontFamily" Value="avares://Avalonia.Fonts.Inter/Assets#Inter"/><Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="#ECE4D4"/></Style>
+  <Style Selector="Button">
+    <Setter Property="Background" Value="#293940"/><Setter Property="BorderBrush" Value="#6D7A7D"/><Setter Property="Foreground" Value="#ECE4D4"/>
+    <Setter Property="Padding" Value="15,10"/><Setter Property="Margin" Value="0,0,8,8"/><Setter Property="MinHeight" Value="40"/>
+    <Setter Property="Template"><ControlTemplate>
+      <ui:CutBorder Name="Plate" Cut="10" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="{TemplateBinding Padding}">
+        <ContentPresenter Background="Transparent" Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center"/>
+      </ui:CutBorder>
+    </ControlTemplate></Setter>
+  </Style>
+  <Style Selector="Button:pointerover /template/ ui|CutBorder#Plate"><Setter Property="Background" Value="#41565D"/><Setter Property="BorderBrush" Value="#60C9CB"/></Style>
+  <Style Selector="Button:pointerover /template/ ContentPresenter"><Setter Property="Foreground" Value="White"/></Style>
+  <Style Selector="Button:pressed /template/ ui|CutBorder#Plate"><Setter Property="Background" Value="#15272F"/><Setter Property="BorderBrush" Value="#D5B176"/></Style>
+  <Style Selector="Button:focus-visible /template/ ui|CutBorder#Plate"><Setter Property="BorderBrush" Value="#60C9CB"/><Setter Property="BorderThickness" Value="2"/></Style>
+  <Style Selector="Button:disabled"><Setter Property="Opacity" Value="0.42"/></Style>
+  <Style Selector="TextBox"><Setter Property="Background" Value="#303D42"/><Setter Property="BorderBrush" Value="#657477"/><Setter Property="Foreground" Value="#ECE4D4"/><Setter Property="MinHeight" Value="40"/><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0,4,0,10"/><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="ComboBox"><Setter Property="Background" Value="#263238"/><Setter Property="BorderBrush" Value="#657477"/><Setter Property="Foreground" Value="#ECE4D4"/><Setter Property="MinHeight" Value="40"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="CornerRadius" Value="0"/></Style>
+  <Style Selector="ListBoxItem"><Setter Property="Template"><ControlTemplate>
+    <ui:CutBorder Name="Plate" Cut="16" Background="{TemplateBinding Background}" BorderBrush="#526064" BorderThickness="1" Padding="{TemplateBinding Padding}">
+      <ContentPresenter Background="Transparent" Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+    </ui:CutBorder>
+  </ControlTemplate></Setter></Style>
+  <Style Selector="ListBoxItem:pointerover /template/ ui|CutBorder#Plate"><Setter Property="Background" Value="#35464C"/><Setter Property="BorderBrush" Value="#60C9CB"/></Style>
+  <Style Selector="ListBoxItem:selected /template/ ui|CutBorder#Plate"><Setter Property="Background" Value="#3F4846"/><Setter Property="BorderBrush" Value="#D5B176"/><Setter Property="BorderThickness" Value="2"/></Style>
+  <Style Selector="ListBoxItem:focus-visible /template/ ui|CutBorder#Plate"><Setter Property="BorderBrush" Value="#60C9CB"/></Style>
+  <Style Selector="CheckBox"><Setter Property="MinHeight" Value="24"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Foreground" Value="#ECE4D4"/></Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter, ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+  <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter, Button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button:pressed /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+</Styles>

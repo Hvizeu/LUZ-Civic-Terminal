@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+build/
+dist/
+qa/
+/Assets/
+/DEVELOPMENT.md
+NEXUS-POST.txt
+.vs/
+*.user
+*.suo
+*.pdb
+*.log
+__pycache__/
+AGENTS.md

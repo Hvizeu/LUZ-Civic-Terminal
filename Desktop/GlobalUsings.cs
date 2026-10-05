@@ -1,0 +1,12 @@
+global using Avalonia;
+global using Avalonia.Controls;
+global using Avalonia.Controls.Primitives;
+global using Avalonia.Controls.Templates;
+global using Avalonia.Layout;
+global using Avalonia.Media;
+global using Avalonia.Interactivity;
+global using Avalonia.Input;
+global using Avalonia.VisualTree;
+global using Avalonia.Automation;
+global using Avalonia.Platform.Storage;
+global using Avalonia.Controls.Presenters;
