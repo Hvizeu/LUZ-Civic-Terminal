@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.4.2
+LUZ CIVIC TERMINAL 0.4.3
 Mod manager and launcher for Nivalis Nights
 
 UPDATING LUZ

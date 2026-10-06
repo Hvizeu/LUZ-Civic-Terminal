@@ -78,7 +78,8 @@ public sealed partial class MainWindow
         ReceiveLink("nxm://anothergame/mods/12/files/34?key=private-fixture&expires=4102444800");
         Check(incomingLinks.Count == 1 && !lastError.Contains("private-fixture"), "Unsupported browser link leaves queue intact and excludes token from diagnostics");
         PreviewPage("Maintenance"); Dispatcher.UIThread.RunJobs();
-        Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Enable browser downloads"), "Browser association action is available in Maintenance");
+        Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Change system-wide NXM handler"), "Browser association action describes its system-wide scope");
+        if (OperatingSystem.IsWindows()) Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Remove LUZ Nexus registration"), "Windows registration cleanup is reachable without altering defaults during this test");
         var clear = body.GetVisualDescendants().OfType<Button>().Single(b => AutomationProperties.GetName(b) == "Clear queued links");
         clear.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Check(incomingLinks.Count == 0, "Clear queue button removes retained links");
         File.WriteAllLines(output, results);

@@ -1,6 +1,6 @@
 # LUZ Civic Terminal
 
-A mod registry and launcher for Nivalis Nights. Version 0.4.2: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+A mod registry and launcher for Nivalis Nights. Version 0.4.3: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
 
 [Download releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases)
 
@@ -15,6 +15,18 @@ Only numbered stable GitHub releases with a matching package and SHA-256 digest 
 ## HUD Overhaul dependency error
 
 Version 0.4.1 fixes LUZ rejecting valid BepInEx dependency ranges such as `1.03 / >=1.03`. Upgrade LUZ and reopen your existing profile. Matching installed dependencies now pass validation; missing or incompatible dependencies still block Apply. This fixes the launcher check and does not establish HUD Overhaul gameplay compatibility.
+
+## Linked-folder installation error on Bazzite
+
+Version 0.4.3 resolves linked home and application roots before checking installation files. This supports paths reached through aliases such as `/home` to `/var/home`. Links inside the extracted application or managed mod folders remain unsupported. Install the updated Linux package; no game relocation or administrator access should be needed for this fix. The repair passes linked-directory fixtures on Windows; native Bazzite acceptance is pending.
+
+## Undo LUZ's Windows Nexus registration
+
+Use **Maintenance > Browser downloads > Remove LUZ Nexus registration**. If you already deleted LUZ, extract the Windows package and run **Install LUZ.exe**, then click **Remove LUZ from Nexus download handlers**. You do not need to install LUZ again.
+
+This removes LUZ's registration and opens Windows Default apps. Search for **NXM** and select your other manager. If that manager is missing, repair its installation or use its option to register Nexus links. Reauthorizing a Nexus account does not register a Windows link handler. Close and reopen Settings if it still displays the removed entry. LUZ does not rewrite Windows' protected default choice or invent a replacement for an unregistered manager.
+
+Windows has one default handler for the `nxm` scheme, shared by all games. Keep your other manager as that default and use **Paste download link** or manual ZIP import for Nivalis. Removing the registration leaves your mods, saves and LUZ profiles in place.
 
 ## Problems after a game patch
 

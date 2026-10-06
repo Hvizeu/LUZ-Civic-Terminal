@@ -1,9 +1,9 @@
-# LUZ Civic Terminal 0.4.2
+# LUZ Civic Terminal 0.4.3
 
-Fixes the recovery flow that could report a successful profile restore while an interrupted BepInEx installation still kept Apply and Play disabled. Maintenance now shows each pending operation at the top, with a direct action for its matching backup. Complete both actions if both are listed.
+Fixes installation and library startup through linked home folders, including the directory layout used by Bazzite. Selected roots resolve to their physical paths before validation; links inside payloads and managed data remain rejected.
 
-Missing or incomplete backups stay blocked with an explanation and an Export recovery diagnostics action. Loader restoration checks all original backup files before changing the installation. Existing profiles and recovery records are preserved when upgrading.
+Windows users can remove stale LUZ Nexus registration from Maintenance or directly from the extracted installer, without reinstalling LUZ. The cleanup preserves other managers and opens Windows Default apps for the user to select a replacement. Account authorization alone does not register another manager for NXM links.
 
-In LUZ 0.4.0 or newer, open **Maintenance > LUZ updates > Check LUZ updates**, then install the offered version. Users on 0.3.x need to download the ZIP for their operating system and run its installer once. Profiles and game files stay in place.
+Includes the 0.4.2 interrupted-operation recovery and 0.4.1 dependency-range fixes. Profiles and game files remain in place. Download the package for your operating system. Native Linux/macOS installation and the reporters' machines have not been tested.
 
-Includes the 0.4.1 dependency-range fix. Windows fixture and headless UI checks cover recovery; the reporter's own installation has not been tested. Linux/macOS builds remain experimental and have not been tested on native systems.
+In LUZ 0.4.0 or newer, open **Maintenance > LUZ updates > Check LUZ updates**, then install 0.4.3 when offered. Enabled startup checks also discover this update, at most once every 24 hours; installation still requires your confirmation. Users on 0.3.x need to download their platform ZIP and run its installer once.

@@ -32,7 +32,7 @@ public sealed class InstallerWindow : Window
             busy = true; install.IsEnabled = false; status.Text = "Copying application files…";
             try
             {
-                await Task.Run(() => DesktopInstallation.InstallFiles(source, destination));
+                destination = await Task.Run(() => DesktopInstallation.InstallFiles(source, destination));
                 // Windows shortcut COM runs on this STA UI thread.
                 string shortcut = DesktopInstallation.CreateShortcut(desktop, destination, HostPlatform.Current);
                 NxmRegistration.RefreshExistingWindowsRegistration(Path.Combine(destination, "LUZ Civic Terminal.exe"));
@@ -42,6 +42,26 @@ public sealed class InstallerWindow : Window
             catch (Exception ex) { status.Text = "Installation could not finish: " + ex.Message; }
             finally { busy = false; install.IsEnabled = true; }
         };
-        content.Children.Add(install); Content = content;
+        content.Children.Add(install);
+        if (OperatingSystem.IsWindows())
+        {
+            Height = 560;
+            var remove = new Button { Content = "Remove LUZ from Nexus download handlers", HorizontalAlignment = HorizontalAlignment.Left };
+            remove.Click += async (_, _) =>
+            {
+                if (busy) return;
+                busy = true; install.IsEnabled = remove.IsEnabled = false;
+                try
+                {
+                    NxmRegistration.RemoveWindowsRegistration();
+                    status.Text = NxmRegistration.RemovalGuidance;
+                    await HostPlatform.Open("ms-settings:defaultapps");
+                }
+                catch (Exception ex) { status.Text = "Nexus handler cleanup: " + ex.Message; }
+                finally { busy = false; install.IsEnabled = remove.IsEnabled = true; }
+            };
+            content.Children.Add(remove);
+        }
+        Content = new ScrollViewer { Content = content };
     }
 }

@@ -7,6 +7,26 @@ namespace Luz;
 public static class NxmRegistration
 {
     public const string ProgId = "LUZ.CivicTerminal.nxm", DesktopId = "luz-civic-terminal.desktop", BundleId = "tools.luz.civicterminal";
+    public const string RemovalGuidance = "LUZ's Nexus handler registration was removed. In Windows Default apps, search for NXM and choose your other mod manager. If it is missing, repair its installation or use its link-registration option; Nexus account authorization does not register Windows links. Existing mods and profiles were kept.";
+    public static void RemoveWindowsRegistration()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("This cleanup is for Windows Nexus registrations.");
+        RemoveWindowsRegistration(Registry.CurrentUser);
+    }
+    // Accept an isolated registry root so the real cleanup can be regression-tested
+    // without touching the host's application defaults.
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static void RemoveWindowsRegistration(RegistryKey userRoot)
+    {
+        const string capabilities = @"Software\LUZCivicTerminal\Capabilities";
+        using (var applications = userRoot.OpenSubKey(@"Software\RegisteredApplications", true))
+            if (string.Equals(applications?.GetValue("LUZ Civic Terminal") as string, capabilities, StringComparison.OrdinalIgnoreCase))
+                applications!.DeleteValue("LUZ Civic Terminal", false);
+        userRoot.DeleteSubKeyTree(capabilities, false);
+        userRoot.DeleteSubKeyTree(@"Software\Classes\" + ProgId, false);
+        // Never rewrite another manager's nxm command or Windows' protected
+        // UserChoice. Selecting the replacement remains a Windows Settings action.
+    }
     public static string WindowsCommand(string executable) => "\"" + SafeExecutable(executable) + "\" --nxm \"%1\"";
     public static void RefreshExistingWindowsRegistration(string executable)
     {

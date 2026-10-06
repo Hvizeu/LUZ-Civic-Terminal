@@ -17,7 +17,7 @@ public static class HostPlatform
         DesktopPlatform.MacOS => Path.Combine(home, "Library", "Application Support", "LUZCivicTerminal"),
         _ => Path.Combine(!string.IsNullOrWhiteSpace(xdg) && Path.IsPathFullyQualified(xdg) ? xdg : Path.Combine(home, ".local", "share"), "LUZCivicTerminal")
     };
-    public static string DataRoot() => DataRoot(Current, Home, Environment.GetEnvironmentVariable("XDG_DATA_HOME"));
+    public static string DataRoot() => FileSafety.ResolveFolder(DataRoot(Current, Home, Environment.GetEnvironmentVariable("XDG_DATA_HOME")));
     public static IEnumerable<string> SteamRoots(DesktopPlatform platform, string home, string? xdg = null)
     {
         if (platform == DesktopPlatform.Windows)

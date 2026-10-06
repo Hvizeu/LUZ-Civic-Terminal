@@ -14,7 +14,9 @@ public static class DesktopInstallation
 
     public static string InstallFiles(string source, string destination)
     {
-        source = Path.TrimEndingDirectorySeparator(Path.GetFullPath(source)); destination = Path.TrimEndingDirectorySeparator(Path.GetFullPath(destination));
+        // System/user roots may be aliases (for example /home -> /var/home).
+        // Resolve the chosen roots, then retain strict checks inside both trees.
+        source = Path.TrimEndingDirectorySeparator(FileSafety.ResolveFolder(source)); destination = Path.TrimEndingDirectorySeparator(FileSafety.ResolveFolder(destination));
         FileSafety.NoLinks(source); FileSafety.NoLinks(destination);
         if (source.Equals(destination, HostPlatform.PathComparison)) return destination;
         if (destination.StartsWith(source + Path.DirectorySeparatorChar, HostPlatform.PathComparison))
@@ -62,7 +64,7 @@ public static class DesktopInstallation
 
     public static string CreateShortcut(string desktop, string installed, DesktopPlatform platform)
     {
-        desktop = FileSafety.ResolveFolder(desktop); installed = Path.GetFullPath(installed);
+        desktop = FileSafety.ResolveFolder(desktop); installed = FileSafety.ResolveFolder(installed);
         FileSafety.NoLinks(installed); Directory.CreateDirectory(desktop);
         if (platform == DesktopPlatform.Windows)
         {

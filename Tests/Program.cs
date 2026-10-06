@@ -19,6 +19,8 @@ try
 {
     PlatformChecks.Run(root, Check, Reject);
     InstallationChecks.Run(root, Check, Reject);
+    LinkedRootChecks.Run(root, Check, Reject);
+    RegistrationRemovalChecks.Run(Check);
     await UpdateChecks.Run(root, Check, Reject);
     PluginDependencyChecks.Run(root, Check, Reject);
     RecoveryChecks.Run(root, Check, Reject);

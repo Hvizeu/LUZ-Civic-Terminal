@@ -13,7 +13,7 @@ public sealed class Library : IDisposable
     public Profile Active => State.Profiles.First(p => p.Id == State.ActiveProfileId);
     public Library(string root)
     {
-        Root = Path.GetFullPath(root); FileSafety.NoLinks(Root); Directory.CreateDirectory(Root);
+        Root = FileSafety.ResolveFolder(root); FileSafety.NoLinks(Root); Directory.CreateDirectory(Root);
         sessionLock = new FileStream(Path.Combine(Root, "session.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         try
         {

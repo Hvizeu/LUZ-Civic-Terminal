@@ -1,3 +1,10 @@
+0.4.3
+
+- Resolve linked home and application roots before installation and library startup, fixing the linked-folder rejection on layouts such as Bazzite's /home alias. Links inside application payloads and managed mod data remain blocked.
+- Add Remove LUZ Nexus registration to Windows Maintenance and the extracted installer. It removes LUZ's registration even after its application files were deleted, while preserving other managers and Windows' protected default choice.
+- Label browser registration as a system-wide NXM change. Choosing a replacement manager remains a Windows Default apps action; pasting a Nivalis link does not change defaults.
+- Linked-root and registry cleanup fixtures pass on Windows. Native Bazzite installation remains unverified.
+
 0.4.2
 
 - Identify interrupted profile deployments and BepInEx installations separately, with matching recovery actions at the top of Maintenance.
