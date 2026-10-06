@@ -1,6 +1,6 @@
 # LUZ Civic Terminal
 
-A mod registry and launcher for Nivalis Nights. Version 0.4.3: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+A mod registry and launcher for Nivalis Nights. Version 0.4.4: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
 
 [Download releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases)
 
@@ -22,9 +22,9 @@ Version 0.4.3 resolves linked home and application roots before checking install
 
 ## Undo LUZ's Windows Nexus registration
 
-Use **Maintenance > Browser downloads > Remove LUZ Nexus registration**. If you already deleted LUZ, extract the Windows package and run **Install LUZ.exe**, then click **Remove LUZ from Nexus download handlers**. You do not need to install LUZ again.
+Use **Maintenance > Browser downloads > Remove LUZ as NXM manager**, beside **Change system-wide NXM handler**. One click removes the registration and shows the result inline; there is no confirmation dialog. If you already deleted LUZ, extract the Windows package and run **Install LUZ.exe**, then click **Remove LUZ from Nexus download handlers**. You do not need to install LUZ again.
 
-This removes LUZ's registration and opens Windows Default apps. Search for **NXM** and select your other manager. If that manager is missing, repair its installation or use its option to register Nexus links. Reauthorizing a Nexus account does not register a Windows link handler. Close and reopen Settings if it still displays the removed entry. LUZ does not rewrite Windows' protected default choice or invent a replacement for an unregistered manager.
+This removes LUZ's registration while preserving mods, profiles and other managers. Use **Open Windows Default apps** to choose a replacement. The extracted installer's cleanup also opens Windows Default apps. Search for **NXM** and select your other manager. If that manager is missing, repair its installation or use its option to register Nexus links. Reauthorizing a Nexus account does not register a Windows link handler. Close and reopen Settings if it still displays the removed entry. LUZ does not rewrite Windows' protected default choice or invent a replacement for an unregistered manager.
 
 Windows has one default handler for the `nxm` scheme, shared by all games. Keep your other manager as that default and use **Paste download link** or manual ZIP import for Nivalis. Removing the registration leaves your mods, saves and LUZ profiles in place.
 
@@ -111,9 +111,11 @@ If **Apply profile** is unavailable, read the sidebar's blocking issue and **Mod
 
 ### Browser downloads (NXM links)
 
+**Warning:** Choosing LUZ as the default NXM manager routes Nexus links for every game to LUZ instead of your current manager. LUZ only supports Nivalis Nights. If you want to keep your current manager, do not register LUZ: use manual ZIP import or paste Nivalis links instead.
+
 1. Close an older LUZ window and open this version. Your existing profiles are retained.
 2. Add your Nexus API key under **Maintenance > Nexus connection**. Use a key belonging to the same account you use on the website.
-3. Under **Maintenance > Browser downloads**, click **Enable browser downloads**. On Windows, choose LUZ for **NXM** in the Default apps settings that open. Linux/macOS select LUZ after the confirmation. Keep the application at its installed location. On Windows, the installer and updater refresh an existing LUZ registration. Register again after moving a portable copy; Linux/macOS users should also register again after an update.
+3. Under **Maintenance > Browser downloads**, read the warning, then click **Change system-wide NXM handler**. On Windows, choose LUZ for **NXM** in the Default apps settings that open. Linux/macOS select LUZ after the confirmation. Keep the application at its installed location. On Windows, the installer and updater refresh an existing LUZ registration. Register again after moving a portable copy; Linux/macOS users should also register again after an update.
 4. Click **Mod Manager Download** for a Nivalis Nights file on Nexus, and allow your browser to open LUZ. An existing LUZ window receives the link; otherwise the terminal opens.
 5. Confirm the exact file and destination profile. The file is downloaded and imported. Click **Apply profile** separately when you want to change the game.
 

@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.4.3
+LUZ CIVIC TERMINAL 0.4.4
 Mod manager and launcher for Nivalis Nights
 
 UPDATING LUZ
@@ -108,6 +108,19 @@ Nexus lookup/download features require your own API key and the permissions
 available to your Nexus account. They do not bypass download restrictions.
 If a page only offers Manual Download, download the ZIP and import it as above.
 LUZ cannot make a missing Mod Manager Download button appear on Nexus.
+
+NXM DEFAULT MANAGER
+
+Making LUZ the default NXM manager sends Nexus links for ALL games to LUZ
+instead of your current manager. LUZ supports Nivalis Nights only. To keep
+your current manager, do not register LUZ. Import ZIPs manually or use
+Paste download link for Nivalis instead.
+
+On Windows, Maintenance > Browser downloads has Remove LUZ as NXM manager
+right beside Change system-wide NXM handler. One click removes LUZ's
+registration and shows the result. Mods, profiles and other managers stay
+in place. Open Windows Default apps lets you choose a replacement. If the
+other manager is missing, use its registration or repair procedure.
 
 PROFILES, UPDATES AND SORTING
 

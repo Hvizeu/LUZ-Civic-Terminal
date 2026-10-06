@@ -1,3 +1,9 @@
+0.4.4
+
+- Place Remove LUZ as NXM manager directly beside the registration button on Windows. Removal takes one click, with the result shown inline. Windows Default apps is a separate action.
+- Warn beside the controls and in the registration confirmation that the default NXM handler receives Nexus links for every game, replacing the current manager for those links. Explain manual ZIP import and pasted Nivalis links as alternatives.
+- Preserve other managers, mods and profiles during removal. Choosing a replacement manager remains a Windows action.
+
 0.4.3
 
 - Resolve linked home and application roots before installation and library startup, fixing the linked-folder rejection on layouts such as Bazzite's /home alias. Links inside application payloads and managed mod data remain blocked.

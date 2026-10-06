@@ -1,4 +1,5 @@
 #if PREVIEW_TOOL
+using Luz;
 using Avalonia.Threading;
 using Avalonia.LogicalTree;
 namespace LuzDesktop;
@@ -79,7 +80,31 @@ public sealed partial class MainWindow
         Check(incomingLinks.Count == 1 && !lastError.Contains("private-fixture"), "Unsupported browser link leaves queue intact and excludes token from diagnostics");
         PreviewPage("Maintenance"); Dispatcher.UIThread.RunJobs();
         Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Change system-wide NXM handler"), "Browser association action describes its system-wide scope");
-        if (OperatingSystem.IsWindows()) Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Remove LUZ Nexus registration"), "Windows registration cleanup is reachable without altering defaults during this test");
+        Check(body.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == NxmWarning), "System-wide warning and manual alternatives are visible beside registration");
+        if (OperatingSystem.IsWindows())
+        {
+            var register = body.GetVisualDescendants().OfType<Button>().Single(b => AutomationProperties.GetName(b) == "Change system-wide NXM handler");
+            var remove = body.GetVisualDescendants().OfType<Button>().Single(b => AutomationProperties.GetName(b) == "Remove LUZ as NXM manager");
+            var actions = (WrapPanel)register.Parent!;
+            Check(remove.Parent == actions && actions.Children.IndexOf(remove) == actions.Children.IndexOf(register) + 1, "Remove manager button sits immediately after registration");
+            string fixture = @"Software\LUZ-RemovalClickFixture-" + Guid.NewGuid().ToString("N");
+            var originalRemove = removeNxmRegistration;
+            try
+            {
+                using var user = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(fixture);
+                string command = @"Software\Classes\" + NxmRegistration.ProgId + @"\shell\open\command";
+                using (var key = user.CreateSubKey(command)) key.SetValue("", "deleted LUZ executable");
+                removeNxmRegistration = () => { if (OperatingSystem.IsWindows()) NxmRegistration.RemoveWindowsRegistration(user); };
+                remove.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+                using var remaining = user.OpenSubKey(command);
+                Check(remaining == null && status.Text!.Contains("registration removed"), "One click removes fixture registration and reports success without a confirmation or system opener");
+                Check(body.GetLogicalDescendants().OfType<TextBlock>().Any(t => t.IsVisible && t.Text == NxmRegistration.RemovalGuidance), "Removal result explains replacement manager selection inline");
+                removeNxmRegistration = () => throw new IOException("Fixture cleanup denied");
+                remove.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+                Check(status.Text == "Fixture cleanup denied" && !body.GetLogicalDescendants().OfType<TextBlock>().Any(t => t.IsVisible && t.Text == NxmRegistration.RemovalGuidance), "Failed removal reports the error instead of stale success");
+            }
+            finally { removeNxmRegistration = originalRemove; Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(fixture, false); }
+        }
         var clear = body.GetVisualDescendants().OfType<Button>().Single(b => AutomationProperties.GetName(b) == "Clear queued links");
         clear.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Check(incomingLinks.Count == 0, "Clear queue button removes retained links");
         File.WriteAllLines(output, results);

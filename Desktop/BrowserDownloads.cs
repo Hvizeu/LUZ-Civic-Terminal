@@ -5,6 +5,8 @@ public sealed partial class MainWindow
     private readonly NxmQueue incomingLinks = new();
     private readonly Dictionary<string, string> catalogueLinks = [];
     private bool processingLinks;
+    private Action removeNxmRegistration = NxmRegistration.RemoveWindowsRegistration;
+    private const string NxmWarning = "WARNING: Making LUZ the default NXM manager sends Nexus download links for ALL games to LUZ instead of your current manager. LUZ supports Nivalis Nights only. If you want to keep your current manager, do not register LUZ. Import ZIPs manually or use Paste download link for Nivalis instead.";
     private readonly Queue<string> incomingProjects = new();
     public void ReceiveLink(string address)
     {
@@ -69,24 +71,30 @@ public sealed partial class MainWindow
     {
         var content = new StackPanel();
         content.Children.Add(Label("Use Nexus’s Mod Manager Download button to send a file here. Downloads require your Nexus API key and your account's download permission.", brush: TerminalTheme.Muted));
-        content.Children.Add(Label("Choosing LUZ changes the system's Nexus-link handler. LUZ handles Nivalis Nights only; other games and collections are rejected. Keep Vortex as your default if you need its other games, and paste Nivalis links here instead.", 13, TerminalTheme.Muted));
+        content.Children.Add(Label(NxmWarning, 14, TerminalTheme.Gold, bold: true));
+        var removalResult = Label("", 13, TerminalTheme.Muted); removalResult.IsVisible = false;
         var row = Row(); row.Children.Add(Button("Change system-wide NXM handler", async () =>
         {
-            if (!await Confirm("Register LUZ for Nexus download links?\n\n" + (OperatingSystem.IsWindows() ? "Windows Settings will open so you can choose LUZ for NXM. Your current default remains until you choose it." : "This selects LUZ as the default NXM handler.") + "\n\nThis affects Nexus links for every game. LUZ only imports Nivalis Nights mods. You can choose Vortex again through its settings.")) return;
+            if (!await Confirm("Register LUZ for Nexus download links?\n\n" + NxmWarning + "\n\n" + (OperatingSystem.IsWindows() ? "Windows Settings will open so you can choose LUZ for NXM. Your current default remains until you choose it." : "Continuing selects LUZ as the default NXM handler."))) return;
+            removalResult.IsVisible = false;
             await NxmRegistration.Enable(Environment.ProcessPath ?? throw new IOException("The installed executable could not be located."));
             status.Text = OperatingSystem.IsWindows() ? "Registered. Choose LUZ for NXM in Windows Default apps, then allow your browser to open it." : "LUZ selected for Nexus links. Allow your browser to open it.";
         }));
+        if (OperatingSystem.IsWindows()) row.Children.Add(QuietButton("Remove LUZ as NXM manager", () =>
+        {
+            removalResult.IsVisible = false;
+            removeNxmRegistration();
+            status.Text = "LUZ's NXM registration removed. Mods and profiles were kept.";
+            removalResult.Text = NxmRegistration.RemovalGuidance; removalResult.IsVisible = true;
+        }));
+        content.Children.Add(row);
+        content.Children.Add(removalResult);
+        row = Row();
         row.Children.Add(QuietButton("Paste download link", async () => { var address = await Prompt("Paste a Nivalis NXM download link"); if (address != null) ReceiveLink(address); }));
         row.Children.Add(QuietButton("Retry queued links", ProcessLinks));
         row.Children.Add(QuietButton("Clear queued links", () => { while (incomingLinks.Count > 0) incomingLinks.Remove(); status.Text = "Queued Nexus links cleared."; }));
         content.Children.Add(row); content.Children.Add(Label(incomingLinks.Count + " pending · links are kept in memory and expire on Nexus", 13, TerminalTheme.Muted));
-        if (OperatingSystem.IsWindows()) content.Children.Add(QuietButton("Remove LUZ Nexus registration", async () =>
-        {
-            if (!await Confirm("Remove LUZ from Windows Nexus download handlers?\n\nYour mods and profiles stay in place. Windows Default apps will open so you can select another manager.")) return;
-            NxmRegistration.RemoveWindowsRegistration();
-            await Notice("Nexus handler removed", NxmRegistration.RemovalGuidance);
-            await HostPlatform.Open("ms-settings:defaultapps");
-        }));
+        if (OperatingSystem.IsWindows()) content.Children.Add(QuietButton("Open Windows Default apps", () => HostPlatform.Open("ms-settings:defaultapps")));
         var section = TerminalTheme.Section("BROWSER DOWNLOADS", content); section.Margin = new Thickness(0, 16, 0, 0); return section;
     }
 }
