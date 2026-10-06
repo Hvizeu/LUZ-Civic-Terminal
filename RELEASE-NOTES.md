@@ -1,9 +1,9 @@
-# LUZ Civic Terminal 0.4.0
+# LUZ Civic Terminal 0.4.2
 
-LUZ can now check this repository for launcher updates, verify and install the matching download, and restart itself. Find the controls under **Maintenance > LUZ updates**. Startup checks run at most once every 24 hours and can be disabled.
+Fixes the recovery flow that could report a successful profile restore while an interrupted BepInEx installation still kept Apply and Play disabled. Maintenance now shows each pending operation at the top, with a direct action for its matching backup. Complete both actions if both are listed.
 
-If a game patch causes a launch problem, use **Maintenance > After a game update** to inspect the build and saved log, or back up and refresh BepInEx's generated bindings. Mods that reject the new game build still need compatible releases; their checks are not bypassed.
+Missing or incomplete backups stay blocked with an explanation and an Export recovery diagnostics action. Loader restoration checks all original backup files before changing the installation. Existing profiles and recovery records are preserved when upgrading.
 
-Download the ZIP for your operating system, extract the complete folder and run its Install LUZ installer. Existing users on 0.3.x need this manual upgrade once; future compatible stable releases can be installed from inside LUZ.
+In LUZ 0.4.0 or newer, open **Maintenance > LUZ updates > Check LUZ updates**, then install the offered version. Users on 0.3.x need to download the ZIP for their operating system and run its installer once. Profiles and game files stay in place.
 
-All packages include .NET. Linux x64 and macOS Intel/Apple Silicon remain experimental. This release passed 133 automated tests, 27 Windows UI checks and package checks for all four downloads. Native Linux/macOS operation and gameplay have not been tested.
+Includes the 0.4.1 dependency-range fix. Windows fixture and headless UI checks cover recovery; the reporter's own installation has not been tested. Linux/macOS builds remain experimental and have not been tested on native systems.

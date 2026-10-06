@@ -18,6 +18,25 @@ public sealed partial class MainWindow
             var content = new StackPanel(); var frame = (Control)TerminalTheme.Section(title, content);
             frame.Margin = new Thickness(0, 16, 0, 0); panel.Children.Add(frame); return content;
         }
+        var pending = OperationRecovery.Inspect(library.Root);
+        if (pending.Count > 0)
+        {
+            var required = Group("RECOVERY REQUIRED");
+            required.Children.Add(Label("Apply and Play stay unavailable until each interrupted operation is recovered.", brush: TerminalTheme.Muted));
+            foreach (var item in pending)
+            {
+                required.Children.Add(Label(item.Title, 17, bold: true));
+                required.Children.Add(Label(item.Problem != null
+                    ? "LUZ cannot read a complete backup for this operation. Export recovery diagnostics for support. Your recovery record has been kept."
+                    : (item.Kind == "loader"
+                    ? "Restore the BepInEx files from this installation's backup. Profile backups cannot complete this recovery."
+                    : "Restore the plugins, patchers and settings from this deployment's backup."), brush: TerminalTheme.Muted));
+                var action = Button(item.Action, () => RecoverOperation(item.Kind), primary: true);
+                action.IsEnabled = item.Problem == null;
+                required.Children.Add(action);
+            }
+            required.Children.Add(QuietButton("Export recovery diagnostics", Diagnostics));
+        }
         var section = Group("LUZ UPDATES"); section.Children.Add(LauncherUpdatesPanel());
         section = Group("GAME LOCATION");
         section.Children.Add(Label(library.State.GameFolder.Length > 0 ? library.State.GameFolder : "No game folder selected", 15));
@@ -77,6 +96,7 @@ public sealed partial class MainWindow
     }
     private async Task RestoreBackup()
     {
+        if (OperationRecovery.Inspect(library.Root).Any(x => x.Kind == "profile")) { await RecoverOperation("profile"); return; }
         var deployment = new Deployment(library); var backups = deployment.Backups();
         if (backups.Count == 0) throw new InvalidOperationException("No profile restore points exist yet.");
         var picked = await Pick("Choose a profile restore point", backups.Select(b => new Choice(b.Id, b.CreatedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") + " · " + (library.State.Profiles.FirstOrDefault(p => p.Id == b.ProfileId)?.Name ?? "Original installation") + (b.Id == deployment.Pending ? " · INTERRUPTED APPLY" : ""))).ToList());
@@ -84,16 +104,29 @@ public sealed partial class MainWindow
     }
     private async Task RestoreLoader()
     {
+        if (OperationRecovery.Inspect(library.Root).Any(x => x.Kind == "loader")) { await RecoverOperation("loader"); return; }
         string folder = Path.Combine(library.Root, "loader-backups"); if (!Directory.Exists(folder)) throw new InvalidOperationException("No loader backups exist yet.");
         var paths = Directory.GetFiles(folder, "loader-backup.json", SearchOption.AllDirectories).OrderByDescending(File.GetLastWriteTimeUtc).ToArray();
         var selected = await Pick("Choose a loader backup", paths.Select(p => new Choice(Path.GetDirectoryName(p)!, File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm:ss"))).ToList());
         if (selected != null && await Confirm("Restore the loader files from this backup? Plugins and settings are preserved.")) _ = Busy("Restoring loader files…", ct => Task.Run(() => { LoaderInstaller.Restore(library.Root, selected); library.State.LoaderVersion = ""; library.Save(); }, ct));
+    }
+    private async Task RecoverOperation(string kind)
+    {
+        var item = OperationRecovery.Inspect(library.Root).SingleOrDefault(x => x.Kind == kind);
+        if (item == null) { RefreshPage(); return; }
+        if (item.Problem != null) throw new InvalidOperationException(item.Problem);
+        string scope = kind == "loader" ? "BepInEx loader files. Mods and settings are preserved."
+            : "Plugins, patchers and configuration. The current files are saved as another restore point first.";
+        if (!await Confirm(item.Action + "?\n\n" + scope + "\n\nGame folder: " + item.GameFolder + "\n\nClose the game first. Save games are not changed.")) return;
+        await Busy("Recovering " + (kind == "loader" ? "BepInEx installation…" : "profile deployment…"),
+            ct => Task.Run(() => OperationRecovery.Restore(library, kind), ct));
     }
     private async Task Diagnostics()
     {
         var destination = await SaveFile("Export diagnostics", "LUZ-diagnostics.zip", "*.zip"); if (destination == null) return;
         using var stream = File.Create(destination); using var archive = new ZipArchive(stream, ZipArchiveMode.Create);
         void Add(string name, string text) { using var writer = new StreamWriter(archive.CreateEntry(name).Open()); writer.Write(Redact(text)); }
+        Add("recovery.txt", string.Join("\n\n", OperationRecovery.Inspect(library.Root).Select(x => x.Title + "\n" + x.Action + "\n" + (x.Problem ?? "Matching backup available.") + "\nBackup: " + x.BackupPath + "\nGame: " + x.GameFolder)));
         Add("terminal.txt", "LUZ Civic Terminal " + LauncherUpdates.CurrentVersion + "\n" + GameFiles.LoaderStatus(library.State.GameFolder) + "\n" + string.Join('\n', library.Active.Mods.Select(e => { var p = library.State.Packages.First(p => p.Id == e.PackageId); return p.Name + " " + p.Version + " enabled=" + e.Enabled; })) + "\n\nLast error:\n" + lastError);
         if (library.State.GameFolder.Length > 0) Add("game-update.txt", GameUpdateRecovery.Inspect(library.State.GameFolder));
         string log = library.State.GameFolder.Length == 0 ? "" : FileSafety.PortableDestination(library.State.GameFolder, "BepInEx/LogOutput.log"); if (File.Exists(log)) { var lines = File.ReadLines(log).TakeLast(2000); Add("BepInEx-log.txt", string.Join('\n', lines)); }

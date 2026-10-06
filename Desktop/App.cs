@@ -90,7 +90,7 @@ public sealed class App : Application
                 var package = new ModPackage { Name = name, Description = description, Version = "1.0.0", Source = "Thunderstore", SourceId = name }; library.State.Packages.Add(package); library.Active.Mods.Add(new() { PackageId = package.Id });
             }
             var window = new MainWindow(library, true); window.Show();
-            foreach (var page in new[] { "Registry", "Catalogue", "Maintenance", "Registry-search", "Registry-empty", "Registry-disabled", "Registry-issues", "Registry-applied" })
+            foreach (var page in new[] { "Registry", "Catalogue", "Maintenance", "Registry-search", "Registry-empty", "Registry-disabled", "Registry-issues", "Registry-applied", "Maintenance-recovery-loader", "Maintenance-recovery-profile", "Maintenance-recovery-both", "Maintenance-recovery-missing" })
             foreach (int width in new[] { 1440, 1100 })
             {
                 window.Width = width; window.Height = width == 1100 ? 720 : 900; window.PreviewPage(page); Dispatcher.UIThread.RunJobs();

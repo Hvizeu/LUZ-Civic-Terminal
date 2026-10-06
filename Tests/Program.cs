@@ -20,6 +20,8 @@ try
     PlatformChecks.Run(root, Check, Reject);
     InstallationChecks.Run(root, Check, Reject);
     await UpdateChecks.Run(root, Check, Reject);
+    PluginDependencyChecks.Run(root, Check, Reject);
+    RecoveryChecks.Run(root, Check, Reject);
     await NxmChecks.Run(root, Check, Reject);
     foreach (var bad in new[] { "../outside", "foo/../../outside", "C:/outside", "foo:bar", "con.dll", "x/../y", "x. /y", "foo./x" }) Reject(() => FileSafety.Under(root, bad), "reject path " + bad);
     var traversal = Zip("traversal", ("../escape.txt", "bad")); Reject(() => FileSafety.Extract(traversal, Path.Combine(root, "extract")), "reject ZIP traversal");
@@ -108,4 +110,4 @@ public sealed class FakeHandler : HttpMessageHandler
 }
 [AttributeUsage(AttributeTargets.Class)] public sealed class BepInPlugin(string guid, string name, string version) : Attribute { public string Value => guid + name + version; }
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)] public sealed class BepInDependency : Attribute { public BepInDependency(string id, string version) { throw new Exception("Metadata must not execute code"); } public BepInDependency(string id, int flags) { throw new Exception("Metadata must not execute code"); } }
-[BepInPlugin("fixture.plugin", "Fixture", "1.0.0"), BepInDependency("hard", "2.0.0"), BepInDependency("soft", 2)] public sealed class TestPlugin;
+[BepInPlugin("fixture.plugin", "Fixture", "1.0.0"), BepInDependency("hard", "2.0.0"), BepInDependency("soft", 2), BepInDependency("fixture.ranged", ">=1.03")] public sealed class TestPlugin;

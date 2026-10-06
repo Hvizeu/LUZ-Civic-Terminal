@@ -2,6 +2,17 @@ namespace Luz;
 
 public static class ModPlanner
 {
+    public static bool MatchesPluginDependency(string version, string requirement)
+    {
+        // Match BepInEx 6: dependency attributes contain ranges, and legacy plugin versions fall back to System.Version.
+        if (!SemanticVersioning.Version.TryParse(version, out var parsed))
+        {
+            if (!Version.TryParse(version, out var legacy)) throw new InvalidDataException("Unrecognized plugin version: " + version);
+            parsed = new SemanticVersioning.Version(legacy.Major, legacy.Minor, Math.Max(0, legacy.Build));
+        }
+        try { return new SemanticVersioning.Range(requirement).IsSatisfied(parsed); }
+        catch (ArgumentException) { throw new InvalidDataException("Invalid plugin dependency range: " + requirement); }
+    }
     public static int CompareVersions(string left, string right)
     {
         var a = left.Split('+')[0].Split('-', 2); var b = right.Split('+')[0].Split('-', 2);
@@ -44,7 +55,7 @@ public static class ModPlanner
                 if (target == null && !dependency.Optional) issues.Add(new("Error", pair.Plugin.Name + " needs " + dependency.Guid));
                 else if (target != null && dependency.MinimumVersion.Length > 0)
                 {
-                    try { if (CompareVersions(target.Version, dependency.MinimumVersion) < 0) issues.Add(new("Error", pair.Plugin.Name + " needs " + dependency.Guid + " ≥ " + dependency.MinimumVersion)); }
+                    try { if (!MatchesPluginDependency(target.Version, dependency.MinimumVersion)) issues.Add(new("Error", pair.Plugin.Name + " needs " + dependency.Guid + " " + dependency.MinimumVersion + " (installed: " + target.Version + ")")); }
                     catch (InvalidDataException ex) { issues.Add(new("Error", ex.Message)); }
                 }
             }

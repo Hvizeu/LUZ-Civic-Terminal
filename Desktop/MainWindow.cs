@@ -38,7 +38,8 @@ public sealed partial class MainWindow : Window
         library.State.AppliedProfileId = value == "Registry-applied" ? library.Active.Id : "";
         library.State.AppliedFingerprint = value == "Registry-applied" ? library.Fingerprint(library.Active) : "";
         search.Text = value == "Registry-search" ? "table" : value == "Registry-empty" ? "no matching permit" : "";
-        page = value.StartsWith("Registry", StringComparison.Ordinal) ? "Registry" : value; RefreshPage();
+        PreviewRecoveryState(value);
+        page = value.StartsWith("Registry", StringComparison.Ordinal) ? "Registry" : value.StartsWith("Maintenance", StringComparison.Ordinal) ? "Maintenance" : value; RefreshPage();
 
     }
 #endif
@@ -81,7 +82,8 @@ public sealed partial class MainWindow : Window
         Closing += (_, e) => { if (operation != null) { e.Cancel = true; status.Text = "Finish or cancel the current operation before closing."; } }; Closed += (_, _) => { sources.Dispose(); foreach (var cached in iconCache.Values) cached.Image.Dispose(); iconCache.Clear(); };
         RefreshProfiles(); RefreshPage();
         if (!preview && library.State.GameFolder.Length == 0) DetectGame();
-        if (File.Exists(Path.Combine(library.Root, "pending.json")) || File.Exists(Path.Combine(library.Root, "loader-pending.json"))) status.Text = "An interrupted installation needs recovery. Open Maintenance before continuing.";
+        var recovery = OperationRecovery.Inspect(library.Root);
+        if (recovery.Count > 0) status.Text = OperationRecovery.Summary(recovery) + " Open Maintenance before continuing.";
     }
     private static TextBlock Label(string text, double size = 14, IBrush? brush = null, bool bold = false, Thickness? margin = null) => new() { Text = text, FontSize = size, Foreground = brush ?? TerminalTheme.Text, FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal, FontFamily = FontFamily.Default, TextWrapping = TextWrapping.Wrap, Margin = margin ?? new Thickness(0, 0, 0, 8) };
     private static WrapPanel Row() => new() { Orientation = Orientation.Horizontal };
@@ -97,7 +99,7 @@ public sealed partial class MainWindow : Window
     {
         if (operation != null) return;
         operation = new(); body.IsEnabled = false; ((Control)shell.Children[0]).IsEnabled = false; cancel.IsVisible = true; status.Text = message;
-        try { await action(operation.Token); status.Text = "Completed. Changes in the registry take effect after Apply profile."; }
+        try { await action(operation.Token); status.Text = OperationRecovery.CompletionMessage(library); }
         catch (OperationCanceledException) { status.Text = "Cancelled. Any completed library imports remain available; game files were not partially deployed."; }
         catch (Exception ex) { Error(ex); }
         finally { operation.Dispose(); operation = null; body.IsEnabled = true; ((Control)shell.Children[0]).IsEnabled = true; cancel.IsVisible = false; RefreshProfiles(); RefreshPage(); if (!processingLinks && incomingLinks.Count > 0) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = ProcessLinks()); }

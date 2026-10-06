@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.4.0
+LUZ CIVIC TERMINAL 0.4.2
 Mod manager and launcher for Nivalis Nights
 
 UPDATING LUZ
@@ -6,6 +6,11 @@ Maintenance > LUZ updates checks GitHub and installs newer releases.
 Automatic checks run at startup, at most once per day. Installing an update
 verifies the download, preserves your profiles and restarts only LUZ.
 Users on 0.3.x must install this version manually once to receive the updater.
+
+HUD OVERHAUL VERSION ERROR
+Version 0.4.1 fixes the launcher error Unrecognized version: 1.03 / >=1.03.
+Upgrade LUZ, reopen your profile and check its issues again. A matching
+dependency now passes; missing or incompatible dependencies still need fixing.
 
 AFTER A GAME PATCH
 Maintenance > After a game update can diagnose saved errors and back up/refresh
@@ -130,7 +135,10 @@ Read the blocking issue in the sidebar and Mod details. A missing or older
 dependency must be updated in the LUZ PROFILE, even if you manually updated the
 game folder. Import the required runtime/mod ZIP and enable it there. Also
 check the game location, close the game and wait for current work to finish.
-If deployment was interrupted, use the recovery option before applying again.
+If Apply and Play are blocked by recovery, open Maintenance. Recovery required
+appears at the top. Use Recover profile deployment or Recover BepInEx installation
+as shown; complete both if both appear. Each action selects its matching backup.
+If a backup cannot be used, choose Export recovery diagnostics for support.
 
 UPDATING OR REMOVING LUZ
 

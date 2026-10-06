@@ -53,6 +53,7 @@ public static class LoaderInstaller
     {
         string checkedPath = FileSafety.Under(root, Path.GetRelativePath(root, backup)); FileSafety.NoLinks(checkedPath);
         var info = JsonFiles.Read<LoaderBackup>(Path.Combine(checkedPath, "loader-backup.json")); GameFiles.Validate(info.Game); GameFiles.RequireClosed(); FileSafety.NoLinks(info.Game);
+        ValidateBackup(checkedPath, info);
         foreach (var f in info.Files)
         {
             string dest = FileSafety.PortableDestination(info.Game, f);
@@ -60,5 +61,19 @@ public static class LoaderInstaller
             else File.Delete(dest);
         }
         File.Delete(Path.Combine(root, "loader-pending.json"));
+    }
+
+    internal static void ValidateBackup(string backup, LoaderBackup info)
+    {
+        if (info.Files == null || info.Existing == null || string.IsNullOrWhiteSpace(info.Game)) throw new InvalidDataException("Loader backup metadata is incomplete.");
+        foreach (string f in info.Files) _ = FileSafety.Under(info.Game, f);
+        // Check every restore source before replacing or deleting any game file.
+        foreach (string f in info.Existing)
+        {
+            if (!info.Files.Contains(f)) throw new InvalidDataException("Loader backup contains an unexpected original file: " + f);
+            string source = FileSafety.Under(backup, "files/" + f);
+            FileSafety.NoLinks(source);
+            if (!File.Exists(source)) throw new FileNotFoundException("Required loader backup file is missing: " + f);
+        }
     }
 }

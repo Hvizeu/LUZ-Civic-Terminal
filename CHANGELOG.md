@@ -1,3 +1,17 @@
+0.4.2
+
+- Identify interrupted profile deployments and BepInEx installations separately, with matching recovery actions at the top of Maintenance.
+- Recover the exact backup recorded by the interrupted operation; historical restore buttons also route to the required recovery when applicable.
+- Report remaining recovery blockers after a restore instead of telling users to Apply while Apply and Play are disabled.
+- Show missing or unreadable recovery backups without clearing their safety records, and include recovery details in diagnostics.
+- Validate all original loader backup files before changing game files during restoration.
+
+0.4.1
+
+- Fix valid BepInEx dependency ranges being rejected as version numbers, including the HUD Overhaul report `1.03 / >=1.03`.
+- Match BepInEx 6 range rules for exact versions, bounds, wildcards, alternatives and prereleases.
+- Existing profiles work with the fix without reimporting mods. Missing or incompatible dependencies still block deployment.
+
 0.4.0
 
 - Check the public GitHub repository for launcher updates automatically or on demand.

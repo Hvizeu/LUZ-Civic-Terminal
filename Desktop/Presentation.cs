@@ -19,9 +19,10 @@ public sealed partial class MainWindow
     {
         bool applied = library.State.AppliedProfileId == library.Active.Id && library.State.AppliedFingerprint == library.Fingerprint(library.Active);
         bool located = library.State.GameFolder.Length > 0;
-        bool interrupted = File.Exists(Path.Combine(library.Root, "pending.json")) || File.Exists(Path.Combine(library.Root, "loader-pending.json"));
+        var recovery = Luz.OperationRecovery.Inspect(library.Root);
+        bool interrupted = recovery.Count > 0;
         int errors = Luz.ModPlanner.Check(library.Active, library.State.Packages).Count(i => i.Severity == "Error");
-        profileLabel.Text = $"{library.Active.Mods.Count(m => m.Enabled)} of {library.Active.Mods.Count} mods enabled\n\n" + (interrupted ? "Recovery needed.\nOpen Maintenance." : !located ? "Choose your game folder\nin Maintenance." : errors > 0 ? errors + (errors == 1 ? " blocking issue." : " blocking issues.") + "\nReview mod details." : applied ? "Applied to the game." : "Unapplied changes.\nApply before playing.");
+        profileLabel.Text = $"{library.Active.Mods.Count(m => m.Enabled)} of {library.Active.Mods.Count} mods enabled\n\n" + (interrupted ? Luz.OperationRecovery.Summary(recovery) + "\nOpen Maintenance." : !located ? "Choose your game folder\nin Maintenance." : errors > 0 ? errors + (errors == 1 ? " blocking issue." : " blocking issues.") + "\nReview mod details." : applied ? "Applied to the game." : "Unapplied changes.\nApply before playing.");
         profileLabel.Foreground = interrupted || errors > 0 ? TerminalTheme.Brush("#FFA788") : applied ? TerminalTheme.Teal : TerminalTheme.Muted;
         applyButton.Background = applied ? TerminalTheme.Panel : TerminalTheme.Gold; applyButton.Foreground = applied ? TerminalTheme.Muted : TerminalTheme.Ink;
         applyButton.IsEnabled = located && !applied && !interrupted && errors == 0;
@@ -29,6 +30,6 @@ public sealed partial class MainWindow
         playButton.Background = applied ? TerminalTheme.Gold : TerminalTheme.Panel; playButton.Foreground = applied ? TerminalTheme.Ink : TerminalTheme.Muted;
         bool launchReady = Luz.HostPlatform.Current != Luz.DesktopPlatform.MacOS || library.State.LaunchProgram.Length > 0;
         playButton.IsEnabled = located && applied && !interrupted && errors == 0 && launchReady;
-        ToolTip.SetTip(playButton, !launchReady ? "Configure your working Wine/CrossOver launcher in Maintenance." : !located ? "Choose your game folder in Maintenance first." : errors > 0 ? "Resolve the blocking issues shown in mod details." : !applied ? "Apply this profile before playing." : interrupted ? "Recover the interrupted installation first." : "Launch Nivalis through Steam.");
+        ToolTip.SetTip(playButton, interrupted ? Luz.OperationRecovery.Summary(recovery) + " Open Maintenance." : !launchReady ? "Configure your working Wine/CrossOver launcher in Maintenance." : !located ? "Choose your game folder in Maintenance first." : errors > 0 ? "Resolve the blocking issues shown in mod details." : !applied ? "Apply this profile before playing." : "Launch Nivalis through Steam.");
     }
 }

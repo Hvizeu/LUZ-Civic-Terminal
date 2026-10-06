@@ -1,6 +1,6 @@
 # LUZ Civic Terminal
 
-A mod registry and launcher for Nivalis Nights. Version 0.4.0: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+A mod registry and launcher for Nivalis Nights. Version 0.4.2: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
 
 [Download releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases)
 
@@ -11,6 +11,10 @@ LUZ checks its public GitHub release feed on startup, at most once every 24 hour
 When an update is available, choose **Install LUZ**. The terminal downloads the package for your platform, verifies GitHub's SHA-256 digest, checks the application version and platform, installs it for your account, updates the desktop shortcut and restarts LUZ. Profiles and game files remain in place. The current application remains available if the download or installation fails. Portable copies also install updates into the per-user application location; they do not overwrite the portable folder.
 
 Only numbered stable GitHub releases with a matching package and SHA-256 digest are offered. Drafts and prereleases are skipped. A failed check does not block using the launcher. macOS updates apply and verify a local ad-hoc signature; they are not notarized. Native Linux/macOS updating has not been tested.
+
+## HUD Overhaul dependency error
+
+Version 0.4.1 fixes LUZ rejecting valid BepInEx dependency ranges such as `1.03 / >=1.03`. Upgrade LUZ and reopen your existing profile. Matching installed dependencies now pass validation; missing or incompatible dependencies still block Apply. This fixes the launcher check and does not establish HUD Overhaul gameplay compatibility.
 
 ## Problems after a game patch
 
@@ -111,7 +115,11 @@ Mods execute code when the game starts. Only install packages you trust. The ter
 
 ## Backups and recovery
 
-Every Apply creates a restore point for plugins, patchers and configuration. **Maintenance > Restore profile backup** restores one and preserves the current files as another restore point. Loader backups have a separate restore action. Interrupted deployments are detected on the next start and block further Apply actions until recovered.
+Every Apply creates a restore point for plugins, patchers and configuration. **Maintenance > Restore profile backup** restores one and preserves the current files as another restore point. Loader backups have a separate restore action.
+
+If Apply and Play show **Recovery needed**, open **Maintenance > Recovery required** at the top of the page. Use the recovery action shown there: **Recover profile deployment** restores mod files and settings; **Recover BepInEx installation** restores loader files. If both appear, complete both. LUZ selects the matching backup automatically and reports any remaining blocker after each operation.
+
+If the recorded backup is missing or unreadable, use **Export recovery diagnostics** for support. Reinstalling LUZ does not remove recovery records from your separate profile library.
 
 Save games are not switched or backed up. Removing furniture or other content mods can affect saves that use their objects. Keep your own save backups.
 

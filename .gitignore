@@ -3,6 +3,7 @@
 build/
 dist/
 qa/
+analysis/
 /Assets/
 /DEVELOPMENT.md
 NEXUS-POST.txt

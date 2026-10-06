@@ -4,6 +4,28 @@ using Avalonia.LogicalTree;
 namespace LuzDesktop;
 public sealed partial class MainWindow
 {
+    private void PreviewRecoveryState(string value)
+    {
+        if (!preview) throw new InvalidOperationException();
+        string profile = Path.Combine(library.Root, "pending.json"), loader = Path.Combine(library.Root, "loader-pending.json");
+        File.Delete(profile); File.Delete(loader);
+        if (!value.StartsWith("Maintenance-recovery")) return;
+        string id = Guid.NewGuid().ToString("N");
+        if (value is "Maintenance-recovery-both" or "Maintenance-recovery-profile")
+        {
+            var info = new Luz.BackupInfo(id, library.State.GameFolder, "", "", DateTime.UtcNow);
+            Luz.JsonFiles.Write(Path.Combine(library.Root, "backups", id, "backup.json"), info);
+            Luz.JsonFiles.Write(profile, info);
+        }
+        if (value != "Maintenance-recovery-profile")
+        {
+            string backup = Path.Combine(library.Root, "loader-backups", id);
+            if (value != "Maintenance-recovery-missing")
+                Luz.JsonFiles.Write(Path.Combine(backup, "loader-backup.json"), new Luz.LoaderBackup(library.State.GameFolder, ["winhttp.dll"], []));
+            Luz.JsonFiles.Write(loader, backup);
+        }
+        status.Text = Luz.OperationRecovery.CompletionMessage(library);
+    }
     public void PreviewMaintenanceBottom() { if (body.Children[1] is ScrollViewer view) view.ScrollToEnd(); }
     public void PreviewCheckInteractions(string output)
     {
@@ -29,6 +51,14 @@ public sealed partial class MainWindow
         Check(maintenanceActions.Length > 0 && maintenanceActions.All(b => b.Content != null), "Authored Maintenance actions have visible content");
         foreach(string action in new[]{"Check LUZ updates","Diagnose game update","Refresh game bindings"})
             Check(body.GetVisualDescendants().OfType<Button>().Any(b=>AutomationProperties.GetName(b)==action),action+" is available in Maintenance");
+        PreviewPage("Maintenance-recovery-both"); Dispatcher.UIThread.RunJobs();
+        Check(!applyButton.IsEnabled && !playButton.IsEnabled && profileLabel.Text!.Contains("Profile and BepInEx"), "Both journals show specific recovery status and block unsafe actions");
+        foreach (string action in new[] { "Recover profile deployment", "Recover BepInEx installation" })
+            Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == action && b.IsEnabled), "Matching direct recovery action: " + action);
+        PreviewPage("Maintenance-recovery-missing"); Dispatcher.UIThread.RunJobs();
+        Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Recover BepInEx installation" && !b.IsEnabled), "Missing backup disables impossible recovery instead of a success loop");
+        Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Export recovery diagnostics" && b.IsEnabled), "Missing backup keeps diagnostics reachable");
+        PreviewPage("Maintenance"); Dispatcher.UIThread.RunJobs();
         launcherRelease=new("9.8.7","win-x64","",1,new string('a',64));RefreshPage();Dispatcher.UIThread.RunJobs();
         Check(body.GetVisualDescendants().OfType<Button>().Any(b=>AutomationProperties.GetName(b)=="Install LUZ 9.8.7"),"Detected update exposes the install action without starting it");
         launcherRelease=null;
