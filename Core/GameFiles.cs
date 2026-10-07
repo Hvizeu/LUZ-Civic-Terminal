@@ -6,10 +6,28 @@ namespace Luz;
 public static class GameFiles
 {
     public const string AppId = "1488490";
+    public static void ValidateIdentity(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder)) throw new InvalidDataException("Choose the Nivalis Nights folder containing Nivalis Nights.exe and GameAssembly.dll.");
+        string root = Path.GetFullPath(folder);
+        foreach (string name in new[] { "Nivalis Nights.exe", "GameAssembly.dll" })
+        {
+            string path = Path.Combine(root, name);
+            try
+            {
+                var attributes = File.GetAttributes(path);
+                if (attributes.HasFlag(FileAttributes.Directory)) throw new InvalidDataException("Expected a game file but found a folder at: " + path);
+                using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            }
+            catch (FileNotFoundException ex) { throw new FileNotFoundException("Required Nivalis game file is missing: " + path, path, ex); }
+            catch (DirectoryNotFoundException ex) { throw new DirectoryNotFoundException("The selected game folder or required file is missing: " + path, ex); }
+            catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot read the required game file at " + path + ". Check access to this folder. Original error: " + ex.Message, ex); }
+            catch (IOException ex) { throw new IOException("LUZ could not inspect the required game file at " + path + ". Original error: " + ex.Message, ex); }
+        }
+    }
     public static void Validate(string folder)
     {
-        if (string.IsNullOrWhiteSpace(folder) || !File.Exists(Path.Combine(folder, "Nivalis Nights.exe")) || !File.Exists(Path.Combine(folder, "GameAssembly.dll")))
-            throw new InvalidDataException("Choose the Nivalis Nights folder containing Nivalis Nights.exe and GameAssembly.dll.");
+        ValidateIdentity(folder);
         FileSafety.NoLinks(FileSafety.PortableDestination(folder, "BepInEx"));
     }
     public static void RequireClosed()
@@ -65,6 +83,6 @@ public static class GameFiles
     {
         if (string.IsNullOrWhiteSpace(game)) return "Loader setup required";
         string core = FileSafety.PortableDestination(game, "BepInEx/core");
-        return File.Exists(Path.Combine(game, "winhttp.dll")) && File.Exists(Path.Combine(core, "BepInEx.Unity.IL2CPP.dll")) ? "IL2CPP loader files found" : "Loader setup required";
+        return FileSafety.FileExistsReadable(Path.Combine(game, "winhttp.dll")) && FileSafety.FileExistsReadable(Path.Combine(core, "BepInEx.Unity.IL2CPP.dll")) ? "IL2CPP loader files found" : "Loader setup required";
     }
 }

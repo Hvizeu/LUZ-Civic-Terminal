@@ -1,11 +1,13 @@
-# LUZ Civic Terminal 0.4.4
+# LUZ Civic Terminal 0.4.5
 
-On Windows, **Remove LUZ as NXM manager** now sits immediately beside **Change system-wide NXM handler** in Maintenance > Browser downloads. Removal takes one click and reports the result inline. **Open Windows Default apps** is a separate action for choosing a replacement.
+Fixes LUZ refusing to select a game's new location after moving Nivalis with Steam.
 
-The registration warning explains that selecting LUZ as the default sends Nexus links for every game to LUZ instead of your current manager. LUZ supports Nivalis Nights only. To keep your current manager, use manual ZIP import or paste Nivalis links into LUZ.
+Open **Maintenance > Detect Steam install** or **Choose game folder**, select the new location, and confirm that it is the same moved installation. LUZ keeps your profiles and reconnects their profile and BepInEx restore points. Complete any pending recovery, then review and apply your profile again.
 
-Cleanup preserves other managers, mods and profiles. It cannot register a missing replacement manager or rewrite Windows' protected default choice. Users who already deleted LUZ can still run the cleanup from the extracted Windows installer without reinstalling.
+Configuration capture now stages files before replacing cached settings, and a missing configuration folder after a move no longer erases the saved copy. File access errors include more context, and an unreadable loader or game log no longer prevents exporting the other diagnostics.
 
-Includes the earlier linked-root, interrupted-operation recovery and dependency-range fixes. Windows validation passed 197 fixture checks and 37 presentation checks. Native Linux/macOS operation remains unverified.
+**Registry compatibility:** this release upgrades the library registry format to record installation history. The previous registry is backed up during migration. Older LUZ versions cannot open the upgraded registry; keep using 0.4.5 or newer after updating.
+
+Windows filesystem fixtures and headless UI checks passed. Linux x64 and macOS Intel/Apple Silicon packages are cross-built and package-checked; native operation on those systems remains unverified. The original reporter's specific permission failure has not been reproduced.
 
 In LUZ 0.4.0 or newer, use **Maintenance > LUZ updates > Check LUZ updates** to get this release. Users on 0.3.x need to download their platform ZIP and run its installer once. SHA-256 checksum files accompany each download.

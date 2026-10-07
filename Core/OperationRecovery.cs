@@ -6,8 +6,9 @@ public sealed record RecoveryOperation(string Kind, string Title, string Action,
 // recovery actions and completion feedback. Invalid journals remain blocking.
 public static class OperationRecovery
 {
-    public static List<RecoveryOperation> Inspect(string root)
+    public static List<RecoveryOperation> Inspect(Library library)
     {
+        string root = library.Root;
         var result = new List<RecoveryOperation>();
         foreach (string kind in new[] { "profile", "loader" })
         {
@@ -27,7 +28,7 @@ public static class OperationRecovery
                     FileSafety.NoLinks(backup);
                     var saved = JsonFiles.Read<BackupInfo>(Path.Combine(backup, "backup.json"));
                     if (saved != info) throw new InvalidDataException("The profile backup metadata does not match the interrupted operation.");
-                    game = info.GameFolder;
+                    game = GameInstallation.ResolveBackupDestination(library, info.GameFolder);
                 }
                 else
                 {
@@ -36,11 +37,11 @@ public static class OperationRecovery
                     FileSafety.NoLinks(backup);
                     var info = JsonFiles.Read<LoaderBackup>(Path.Combine(backup, "loader-backup.json"));
                     LoaderInstaller.ValidateBackup(backup, info);
-                    game = info.Game;
+                    game = GameInstallation.ResolveBackupDestination(library, info.Game);
                 }
                 if (string.IsNullOrWhiteSpace(game)) throw new InvalidDataException("The recovery destination is missing.");
             }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or System.Text.Json.JsonException)
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or System.Text.Json.JsonException)
             {
                 problem = "The required recovery backup cannot be used: " + ex.Message + " Export diagnostics for support. The recovery record has been kept; game files have not been changed.";
             }
@@ -55,7 +56,7 @@ public static class OperationRecovery
 
     public static string CompletionMessage(Library library)
     {
-        var pending = Inspect(library.Root);
+        var pending = Inspect(library);
         if (pending.Count > 0) return "Operation finished. " + Summary(pending) + " Open Maintenance to finish recovery. Apply and Play remain unavailable.";
         if (string.IsNullOrWhiteSpace(library.State.GameFolder)) return "Completed. Choose your game folder in Maintenance.";
         if (!File.Exists(FileSafety.PortableDestination(library.State.GameFolder, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")))
@@ -70,16 +71,17 @@ public static class OperationRecovery
     public static void Restore(Library library, string kind)
     {
         // Re-read after confirmation; do not restore a stale UI snapshot.
-        var item = Inspect(library.Root).SingleOrDefault(x => x.Kind == kind)
+        var item = Inspect(library).SingleOrDefault(x => x.Kind == kind)
             ?? throw new InvalidOperationException("This operation no longer needs recovery. Refresh Maintenance.");
         if (item.Problem != null) throw new InvalidOperationException(item.Problem);
         if (kind == "profile") new Deployment(library).Restore(JsonFiles.Read<BackupInfo>(Path.Combine(item.BackupPath!, "backup.json")));
         else
         {
-            LoaderInstaller.Restore(library.Root, item.BackupPath!);
+            LoaderInstaller.Restore(library, item.BackupPath!, clearMatchingJournal: false);
             library.State.LoaderVersion = "";
             library.Save();
+            LoaderInstaller.ClearMatchingJournal(library.Root, item.BackupPath!);
         }
-        if (Inspect(library.Root).Any(x => x.Kind == kind)) throw new IOException("Recovery is still pending. Export diagnostics from Maintenance.");
+        if (Inspect(library).Any(x => x.Kind == kind)) throw new IOException("Recovery is still pending. Export diagnostics from Maintenance.");
     }
 }

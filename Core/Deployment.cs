@@ -24,8 +24,7 @@ public sealed class Deployment(Library library)
         if (library.State.AppliedProfileId.Length > 0)
         {
             string oldConfig = library.ConfigRoot(library.State.AppliedProfileId);
-            if (Directory.Exists(oldConfig)) FileSafety.DeleteOwned(library.Root, oldConfig);
-            FileSafety.CopyTree(FileSafety.PortableDestination(bep, "config"), oldConfig);
+            FileSafety.CopyTreeReplacing(FileSafety.PortableDestination(bep, "config"), oldConfig, library.Root);
         }
         string stage = FileSafety.Under(library.Root, "staging/deploy-" + Guid.NewGuid().ToString("N"));
         foreach (var area in Areas) Directory.CreateDirectory(Path.Combine(stage, area));
@@ -48,11 +47,16 @@ public sealed class Deployment(Library library)
             var backup = Snapshot(game);
             JsonFiles.Write(Path.Combine(library.Root, "pending.json"), backup);
             try { ReplaceAreas(game, stage); }
-            catch
+            catch (Exception operation)
             {
                 // The journal is retained until a complete rollback has been confirmed.
-                ReplaceAreas(game, FileSafety.Under(library.Root, "backups/" + backup.Id));
-                File.Delete(Path.Combine(library.Root, "pending.json"));
+                try
+                {
+                    ReplaceAreas(game, FileSafety.Under(library.Root, "backups/" + backup.Id));
+                    File.Delete(Path.Combine(library.Root, "pending.json"));
+                }
+                catch (Exception rollback) { throw new IOException("Deployment failed and rollback also failed. The recovery record has been kept. Original error: " + operation.Message + "; rollback error: " + rollback.Message, new AggregateException(operation, rollback)); }
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(operation).Throw();
                 throw;
             }
             library.State.AppliedProfileId = library.Active.Id; library.State.AppliedFingerprint = library.Fingerprint(library.Active); library.Save();
@@ -105,12 +109,15 @@ public sealed class Deployment(Library library)
     }
     public void Restore(BackupInfo info)
     {
-        GameFiles.RequireClosed(); GameFiles.Validate(info.GameFolder); Library.ValidateId(info.Id);
+        GameFiles.RequireClosed(); Library.ValidateId(info.Id);
+        string destination = GameInstallation.ResolveBackupDestination(library, info.GameFolder);
+        GameFiles.Validate(destination);
         string source = FileSafety.Under(library.Root, "backups/" + info.Id);
         if (!File.Exists(Path.Combine(source, "backup.json"))) throw new FileNotFoundException("Backup metadata is missing.");
-        var rescue = Snapshot(info.GameFolder); // Preserve the state that is being replaced as another restore point.
+        if (JsonFiles.Read<BackupInfo>(Path.Combine(source, "backup.json")) != info) throw new InvalidDataException("The selected profile backup metadata does not match its restore record.");
+        var rescue = Snapshot(destination); // Preserve the state that is being replaced as another restore point.
         JsonFiles.Write(Path.Combine(library.Root, "pending.json"), rescue);
-        ReplaceAreas(info.GameFolder, source);
+        ReplaceAreas(destination, source);
         library.State.AppliedProfileId = info.ProfileId; library.State.AppliedFingerprint = info.Fingerprint; library.Save();
         File.Delete(Path.Combine(library.Root, "pending.json"));
     }

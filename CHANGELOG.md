@@ -1,3 +1,11 @@
+0.4.5
+
+- Reconnect a moved Nivalis installation through Steam detection or manual folder selection, with confirmation of the old and new locations.
+- Keep profiles and route profile/BepInEx restore points to the confirmed new location. Reject backups from unrelated installations and preserve pending recovery records.
+- Stage configuration capture before replacing cached settings. Missing configuration folders after a move no longer erase cached settings.
+- Report file access failures with their paths and keep Maintenance and diagnostics available when individual installation checks fail.
+- Upgrade the registry format to retain installation history. Older LUZ versions cannot open the upgraded registry; the previous registry is backed up during migration.
+
 0.4.4
 
 - Place Remove LUZ as NXM manager directly beside the registration button on Windows. Removal takes one click, with the result shown inline. Windows Default apps is a separate action.

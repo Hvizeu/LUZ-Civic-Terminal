@@ -1,6 +1,12 @@
 # LUZ Civic Terminal
 
-A mod registry and launcher for Nivalis Nights. Version 0.4.4: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+A mod registry and launcher for Nivalis Nights. Version 0.4.5: Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+
+## Moving your game installation
+
+After moving Nivalis with Steam, open **Maintenance > Detect Steam install** or **Choose game folder** and select its new location. Confirm that it is the same moved installation. LUZ keeps your profiles and routes their restore points to the confirmed location. Complete any pending profile or BepInEx recovery, then review and apply your profile again.
+
+This version upgrades the library registry format and saves the previous registry before migration. Older LUZ versions cannot open the upgraded registry. Keep using 0.4.5 or newer after updating.
 
 [Download releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases)
 

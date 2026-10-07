@@ -52,14 +52,22 @@ public sealed partial class MainWindow
     }
     private async Task ChooseGame()
     {
-        var selection = await StorageProvider.OpenFolderPickerAsync(new() { Title = "Select Nivalis Nights" });
-        var folder = selection.FirstOrDefault()?.TryGetLocalPath(); if (folder == null) return;
-        SelectGame(folder);
+        try
+        {
+            var selection = await StorageProvider.OpenFolderPickerAsync(new() { Title = "Select Nivalis Nights" });
+            var folder = selection.FirstOrDefault()?.TryGetLocalPath(); if (folder == null) return;
+            await SelectGame(folder);
+        }
+        catch (Exception ex) { Error(ex); }
     }
-    private void SelectGame(string folder)
+    private async Task SelectGame(string folder)
     {
-        folder = FileSafety.ResolveFolder(folder); GameFiles.Validate(folder);
-        if (library.State.AppliedProfileId.Length > 0 && !folder.Equals(FileSafety.ResolveFolder(library.State.GameFolder), HostPlatform.PathComparison)) throw new InvalidOperationException("This terminal already manages another installation. Keep its folder selected to preserve profile ownership.");
-        library.State.GameFolder = folder; library.Save(); RefreshPage();
+        folder = GameInstallation.Resolve(folder);
+        GameFiles.ValidateIdentity(folder);
+        bool reconnect = GameInstallation.RequiresReconnect(library, folder);
+        if (reconnect && !await Confirm(GameInstallation.ReconnectPrompt(library, folder))) return;
+        GameInstallation.Select(library, folder, reconnect);
+        status.Text = reconnect ? "Installation reconnected. Review the profile, then apply it to the moved game." : "Game location selected.";
+        RefreshPage();
     }
 }

@@ -19,6 +19,7 @@ try
 {
     PlatformChecks.Run(root, Check, Reject);
     InstallationChecks.Run(root, Check, Reject);
+    RelocationChecks.Run(root, Check, Reject);
     LinkedRootChecks.Run(root, Check, Reject);
     RegistrationRemovalChecks.Run(Check);
     await UpdateChecks.Run(root, Check, Reject);
@@ -75,7 +76,7 @@ try
     Reject(() => library.Import(Zip("pinned2", ("plugins/Pinned/a.txt", "v2")), source with { Version = "2.0.0" }), "pinned mod replacement refused"); Check(library.State.Packages.Any(p => p.Id == v1.Id) && library.Active.Mods.Any(m => m.PackageId == v1.Id) && !library.State.Packages.Any(p => p.SourceId == source.Id && p.Version == "2.0.0"), "failed import leaves profile and library consistent");
     string loaderZip = Zip("loader", ("BepInEx/core/BepInEx.Unity.IL2CPP.dll", "new loader"), ("winhttp.dll", "new doorstop"), ("doorstop_config.ini", "enabled=true"));
     var loaderBackup = LoaderInstaller.Install(library, loaderZip, LoaderInstaller.Recommended); Check(File.ReadAllText(Path.Combine(game, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")) == "new loader" && File.Exists(Path.Combine(game, "BepInEx/plugins/Old/existing.txt")), "loader install preserves plugins");
-    LoaderInstaller.Restore(library.Root, loaderBackup); Check(File.ReadAllText(Path.Combine(game, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")) == "fixture" && !File.Exists(Path.Combine(game, "winhttp.dll")), "loader rollback restores and removes introduced files");
+    LoaderInstaller.Restore(library, loaderBackup); Check(File.ReadAllText(Path.Combine(game, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")) == "fixture" && !File.Exists(Path.Combine(game, "winhttp.dll")), "loader rollback restores and removes introduced files");
     var parent = source with { Dependencies = ["Other-Library-1.0.0", "BepInEx-BepInExPack_IL2CPP-6.0.755"] }; var dependency = source with { Id = "Other-Library" }; Check(Sources.Resolve(parent, [parent, dependency]).Select(p => p.Id).SequenceEqual(new[] { dependency.Id, parent.Id }), "Thunderstore dependency plan routes loader separately");
     Check(Sources.NexusAddress("nxm://nivalisnights/mods/12/files/34?key=abc&expires=123").File == 34, "NXM address parsing"); Reject(() => Sources.NexusAddress("https://example.com/nivalisnights/mods/12"), "reject wrong Nexus host");
     var fake = new FakeHandler(); using var sources = new Sources(fake);
@@ -87,7 +88,7 @@ try
         var latest = await LoaderInstaller.Latest(live, library.Root, CancellationToken.None); Check(latest.Url.Contains("Unity.IL2CPP-win-x64"), "live official BepInEx release discovery");
         Console.WriteLine("Official build: " + latest.Version);
         string officialZip = Path.Combine(root, "official-loader.zip"); await live.Download(latest.Url, officialZip);
-        string officialBackup = LoaderInstaller.Install(library, officialZip, latest); Check(new FileInfo(Path.Combine(game, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")).Length > 1000, "official loader archive installed into disposable fixture"); LoaderInstaller.Restore(library.Root, officialBackup);
+        string officialBackup = LoaderInstaller.Install(library, officialZip, latest); Check(new FileInfo(Path.Combine(game, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")).Length > 1000, "official loader archive installed into disposable fixture"); LoaderInstaller.Restore(library, officialBackup);
         var published = catalog.First(p => p.Id.Contains("HVizeu") && p.Name.Contains("Time"));
         string publishedZip = Path.Combine(root, "published-mod.zip"); await live.Download(published.DownloadUrl, publishedZip);
         var package = library.Import(publishedZip, published); Check(package.SourceId == published.Id && package.Plugins.Count > 0, "live Thunderstore package download and metadata import");

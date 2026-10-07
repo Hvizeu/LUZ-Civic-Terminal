@@ -1,5 +1,12 @@
-LUZ CIVIC TERMINAL 0.4.4
+LUZ CIVIC TERMINAL 0.4.5
 Mod manager and launcher for Nivalis Nights
+
+MOVED YOUR GAME?
+In Maintenance, use Detect Steam install or Choose game folder to select its
+new location. Confirm that it is the same moved installation. Complete any
+pending recovery, then review and apply your profile again.
+This release upgrades the library registry format. Keep using LUZ 0.4.5 or newer
+after updating; older versions cannot read the upgraded registry.
 
 UPDATING LUZ
 Maintenance > LUZ updates checks GitHub and installs newer releases.

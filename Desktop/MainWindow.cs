@@ -81,8 +81,8 @@ public sealed partial class MainWindow : Window
         catalogList.Background = Brushes.Transparent; catalogList.BorderThickness = new Thickness(0); ScrollViewer.SetHorizontalScrollBarVisibility(catalogList, ScrollBarVisibility.Disabled);
         Closing += (_, e) => { if (operation != null) { e.Cancel = true; status.Text = "Finish or cancel the current operation before closing."; } }; Closed += (_, _) => { sources.Dispose(); foreach (var cached in iconCache.Values) cached.Image.Dispose(); iconCache.Clear(); };
         RefreshProfiles(); RefreshPage();
-        if (!preview && library.State.GameFolder.Length == 0) DetectGame();
-        var recovery = OperationRecovery.Inspect(library.Root);
+        if (!preview && library.State.GameFolder.Length == 0) _ = DetectGame();
+        var recovery = OperationRecovery.Inspect(library);
         if (recovery.Count > 0) status.Text = OperationRecovery.Summary(recovery) + " Open Maintenance before continuing.";
     }
     private static TextBlock Label(string text, double size = 14, IBrush? brush = null, bool bold = false, Thickness? margin = null) => new() { Text = text, FontSize = size, Foreground = brush ?? TerminalTheme.Text, FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal, FontFamily = FontFamily.Default, TextWrapping = TextWrapping.Wrap, Margin = margin ?? new Thickness(0, 0, 0, 8) };

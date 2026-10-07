@@ -18,10 +18,14 @@ public sealed class Library : IDisposable
         try
         {
             State = File.Exists(Path.Combine(Root, "registry.json")) ? JsonFiles.Read<TerminalState>(Path.Combine(Root, "registry.json")) : new();
-            if (State.Schema != 1 || State.Profiles.Count == 0) throw new InvalidDataException("Unsupported or empty registry. Restore registry.json from a backup.");
+            State.PreviousGameFolders ??= [];
+            bool migrate = State.Schema == 1;
+            if (migrate) State.Schema = 2;
+            if (State.Schema != 2 || State.Profiles.Count == 0) throw new InvalidDataException("Unsupported or empty registry. Restore registry.json from a backup.");
             foreach (var p in State.Profiles) ValidateId(p.Id);
             foreach (var p in State.Packages) ValidateId(p.Id);
             if (!State.Profiles.Any(p => p.Id == State.ActiveProfileId)) State.ActiveProfileId = State.Profiles[0].Id;
+            if (migrate) Save();
         }
         catch { sessionLock.Dispose(); throw; }
     }

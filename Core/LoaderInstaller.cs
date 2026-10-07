@@ -44,23 +44,41 @@ public static class LoaderInstaller
                 foreach (var f in files) { string dest = FileSafety.PortableDestination(game, f); Directory.CreateDirectory(Path.GetDirectoryName(dest)!); File.Copy(FileSafety.Under(stage, f), dest, true); }
                 library.State.LoaderVersion = release.Version; library.Save(); File.Delete(Path.Combine(library.Root, "loader-pending.json"));
             }
-            catch { Restore(library.Root, backup); throw; }
+            catch (Exception operation)
+            {
+                try { Restore(library, backup); }
+                catch (Exception rollback) { throw new IOException("BepInEx installation failed and rollback also failed. The recovery record has been kept. Original error: " + operation.Message + "; rollback error: " + rollback.Message, new AggregateException(operation, rollback)); }
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(operation).Throw();
+                throw;
+            }
             return backup;
         }
         finally { FileSafety.DeleteOwned(library.Root, stage); }
     }
-    public static void Restore(string root, string backup)
+    public static void Restore(Library library, string backup, bool clearMatchingJournal = true)
     {
-        string checkedPath = FileSafety.Under(root, Path.GetRelativePath(root, backup)); FileSafety.NoLinks(checkedPath);
-        var info = JsonFiles.Read<LoaderBackup>(Path.Combine(checkedPath, "loader-backup.json")); GameFiles.Validate(info.Game); GameFiles.RequireClosed(); FileSafety.NoLinks(info.Game);
+        string root = library.Root;
+        string backupsRoot = Path.Combine(root, "loader-backups");
+        string checkedPath = FileSafety.Under(backupsRoot, Path.GetRelativePath(backupsRoot, backup)); FileSafety.NoLinks(checkedPath);
+        var info = JsonFiles.Read<LoaderBackup>(Path.Combine(checkedPath, "loader-backup.json"));
+        string destination = GameInstallation.ResolveBackupDestination(library, info.Game);
+        GameFiles.Validate(destination); GameFiles.RequireClosed(); FileSafety.NoLinks(destination);
         ValidateBackup(checkedPath, info);
         foreach (var f in info.Files)
         {
-            string dest = FileSafety.PortableDestination(info.Game, f);
+            string dest = FileSafety.PortableDestination(destination, f);
             if (info.Existing.Contains(f)) { Directory.CreateDirectory(Path.GetDirectoryName(dest)!); File.Copy(FileSafety.Under(checkedPath, "files/" + f), dest, true); }
             else File.Delete(dest);
         }
-        File.Delete(Path.Combine(root, "loader-pending.json"));
+        if (clearMatchingJournal) ClearMatchingJournal(root, checkedPath);
+    }
+
+    internal static void ClearMatchingJournal(string root, string backup)
+    {
+        string journal = Path.Combine(root, "loader-pending.json");
+        if (!File.Exists(journal)) return;
+        string pending = JsonFiles.Read<string>(journal);
+        if (Path.GetFullPath(pending).Equals(Path.GetFullPath(backup), HostPlatform.PathComparison)) File.Delete(journal);
     }
 
     internal static void ValidateBackup(string backup, LoaderBackup info)

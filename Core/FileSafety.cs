@@ -22,7 +22,10 @@ public static class FileSafety
         _ = Under(root, relative); string current = root;
         foreach (string part in relative.Replace('\\', '/').Split('/'))
         {
-            var matches = Directory.Exists(current) ? Directory.EnumerateFileSystemEntries(current).Where(p => Path.GetFileName(p).Equals(part, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray() : [];
+            string[] matches;
+            try { matches = Directory.Exists(current) ? Directory.EnumerateFileSystemEntries(current).Where(p => Path.GetFileName(p).Equals(part, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray() : []; }
+            catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot inspect folder " + current + " while resolving " + relative + ". Original error: " + ex.Message, ex); }
+            catch (IOException ex) { throw new IOException("LUZ could not inspect folder " + current + " while resolving " + relative + ". Original error: " + ex.Message, ex); }
             if (matches.Length > 1) throw new InvalidDataException("Case-conflicting paths cannot be deployed to the Windows game.");
             current = matches.Length == 1 ? matches[0] : Path.Combine(current, part);
         }
@@ -44,14 +47,106 @@ public static class FileSafety
     {
         var info = new DirectoryInfo(root);
         for (var parent = info; parent != null; parent = parent.Parent)
-            if (parent.Exists && parent.Attributes.HasFlag(FileAttributes.ReparsePoint)) throw new IOException("Linked folders are not supported for deployment: " + parent.Name);
-        if (!Directory.Exists(root)) return;
-        foreach (var entry in Directory.EnumerateFileSystemEntries(root))
         {
-            var attr = File.GetAttributes(entry);
-            if (attr.HasFlag(FileAttributes.ReparsePoint)) throw new IOException("Linked files or folders cannot be managed: " + Path.GetFileName(entry));
-            if (attr.HasFlag(FileAttributes.Directory)) NoLinks(entry);
+            try { if (parent.Exists && parent.Attributes.HasFlag(FileAttributes.ReparsePoint)) throw new IOException("Linked folders are not supported for deployment: " + parent.FullName); }
+            catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot inspect folder permissions at " + parent.FullName + ". Original error: " + ex.Message, ex); }
         }
+        FileAttributes rootAttributes;
+        try { rootAttributes = File.GetAttributes(root); }
+        catch (FileNotFoundException) { return; }
+        catch (DirectoryNotFoundException) { return; }
+        catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot inspect " + root + ". Original error: " + ex.Message, ex); }
+        if (rootAttributes.HasFlag(FileAttributes.ReparsePoint)) throw new IOException("Linked files or folders cannot be managed: " + root);
+        if (!rootAttributes.HasFlag(FileAttributes.Directory)) return;
+        try
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(root))
+            {
+                FileAttributes attr;
+                try { attr = File.GetAttributes(entry); }
+                catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot inspect " + entry + ". Original error: " + ex.Message, ex); }
+                if (attr.HasFlag(FileAttributes.ReparsePoint)) throw new IOException("Linked files or folders cannot be managed: " + entry);
+                if (attr.HasFlag(FileAttributes.Directory)) NoLinks(entry);
+            }
+        }
+        catch (UnauthorizedAccessException) { throw; }
+        catch (IOException ex) when (!ex.Message.Contains("Linked ", StringComparison.Ordinal)) { throw new IOException("LUZ could not inspect folder " + root + ". Original error: " + ex.Message, ex); }
+    }
+
+    public static bool DirectoryExistsReadable(string path)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(path);
+            if ((attributes & FileAttributes.Directory) == 0) throw new InvalidDataException("Expected a directory at: " + path);
+            return true;
+        }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+        catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot inspect directory " + path + ". Original error: " + ex.Message, ex); }
+        catch (IOException ex) { throw new IOException("LUZ could not inspect directory " + path + ". Original error: " + ex.Message, ex); }
+    }
+
+    public static bool FileExistsReadable(string path)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(path);
+            if ((attributes & FileAttributes.Directory) != 0) throw new InvalidDataException("Expected a file at: " + path);
+            return true;
+        }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+        catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot inspect file " + path + ". Original error: " + ex.Message, ex); }
+        catch (IOException ex) { throw new IOException("LUZ could not inspect file " + path + ". Original error: " + ex.Message, ex); }
+    }
+
+    /// <summary>Copies a configuration tree before swapping it into place; the old destination survives failed copies.</summary>
+    public static bool CopyTreeReplacing(string source, string destination, string ownedRoot)
+    {
+        destination = Under(ownedRoot, Path.GetRelativePath(ownedRoot, destination));
+        NoLinks(destination);
+        if (!DirectoryExistsReadable(source)) return false;
+        NoLinks(source);
+        string id = Guid.NewGuid().ToString("N");
+        string staged = Under(ownedRoot, "staging/config-" + id);
+        string displaced = Under(ownedRoot, "staging/config-old-" + id);
+        Directory.CreateDirectory(Path.GetDirectoryName(staged)!);
+        bool displacedOriginal = false, installedNew = false;
+        try
+        {
+            CopyTree(source, staged, true);
+            Directory.CreateDirectory(staged);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            bool hadDestination = DirectoryExistsReadable(destination);
+            if (hadDestination)
+            {
+                Directory.Move(destination, displaced);
+                displacedOriginal = true;
+            }
+            Directory.Move(staged, destination);
+            installedNew = true;
+        }
+        catch (Exception operation)
+        {
+            try
+            {
+                if (installedNew && Directory.Exists(destination)) DeleteOwned(ownedRoot, destination);
+                if (displacedOriginal && Directory.Exists(displaced)) Directory.Move(displaced, destination);
+                if (Directory.Exists(staged)) DeleteOwned(ownedRoot, staged);
+            }
+            catch (Exception rollback) { throw new IOException("Configuration capture failed and rollback also failed. Original error: " + operation.Message + "; rollback error: " + rollback.Message, new AggregateException(operation, rollback)); }
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(operation).Throw();
+            throw;
+        }
+        // Replacement is committed. Cleanup must never roll back to an old
+        // directory that a failed recursive delete may already have truncated.
+        if (displacedOriginal)
+        {
+            try { DeleteOwned(ownedRoot, displaced); }
+            catch (Exception cleanup) { throw new IOException("Configuration was captured successfully, but the old cache could not be removed at " + displaced + ". The new configuration has been kept. Original error: " + cleanup.Message, cleanup); }
+        }
+        return true;
     }
     public static void CopyTree(string source, string target, bool overwrite = false)
     {

@@ -35,8 +35,9 @@ public sealed class Profile
 }
 public sealed class TerminalState
 {
-    public int Schema { get; set; } = 1;
+    public int Schema { get; set; } = 2;
     public string GameFolder { get; set; } = "";
+    public List<string> PreviousGameFolders { get; set; } = [];
     public string ActiveProfileId { get; set; } = "";
     public string AppliedProfileId { get; set; } = "";
     public string AppliedFingerprint { get; set; } = "";

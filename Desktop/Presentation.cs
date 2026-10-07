@@ -17,9 +17,9 @@ public sealed partial class MainWindow
     }
     private void RefreshProfileStatus()
     {
-        bool applied = library.State.AppliedProfileId == library.Active.Id && library.State.AppliedFingerprint == library.Fingerprint(library.Active);
+        bool applied = library.State.AppliedProfileId == library.Active.Id && library.State.AppliedFingerprint.Length > 0 && library.State.AppliedFingerprint == library.Fingerprint(library.Active);
         bool located = library.State.GameFolder.Length > 0;
-        var recovery = Luz.OperationRecovery.Inspect(library.Root);
+        var recovery = Luz.OperationRecovery.Inspect(library);
         bool interrupted = recovery.Count > 0;
         int errors = Luz.ModPlanner.Check(library.Active, library.State.Packages).Count(i => i.Severity == "Error");
         profileLabel.Text = $"{library.Active.Mods.Count(m => m.Enabled)} of {library.Active.Mods.Count} mods enabled\n\n" + (interrupted ? Luz.OperationRecovery.Summary(recovery) + "\nOpen Maintenance." : !located ? "Choose your game folder\nin Maintenance." : errors > 0 ? errors + (errors == 1 ? " blocking issue." : " blocking issues.") + "\nReview mod details." : applied ? "Applied to the game." : "Unapplied changes.\nApply before playing.");
