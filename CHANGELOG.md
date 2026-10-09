@@ -1,51 +1,46 @@
-0.4.5
+# Changelog
 
-- Reconnect a moved Nivalis installation through Steam detection or manual folder selection, with confirmation of the old and new locations.
-- Keep profiles and route profile/BepInEx restore points to the confirmed new location. Reject backups from unrelated installations and preserve pending recovery records.
-- Stage configuration capture before replacing cached settings. Missing configuration folders after a move no longer erase cached settings.
-- Report file access failures with their paths and keep Maintenance and diagnostics available when individual installation checks fail.
-- Upgrade the registry format to retain installation history. Older LUZ versions cannot open the upgraded registry; the previous registry is backed up during migration.
+## 0.4.6
 
-0.4.4
+- Refresh the bundled installation and update guides for Nivalis Update #4 and Object Framework Runtime 0.3.8.
+- Explain live versus stored profile settings, reuse of library mods, and current recovery and platform instructions.
 
-- Place Remove LUZ as NXM manager directly beside the registration button on Windows. Removal takes one click, with the result shown inline. Windows Default apps is a separate action.
-- Warn beside the controls and in the registration confirmation that the default NXM handler receives Nexus links for every game, replacing the current manager for those links. Explain manual ZIP import and pasted Nivalis links as alternatives.
-- Preserve other managers, mods and profiles during removal. Choosing a replacement manager remains a Windows action.
+## 0.4.5
 
-0.4.3
+- Reconnect a moved Nivalis installation while keeping profiles and restore points.
+- Preserve cached settings when the new installation has no configuration folder yet.
+- Show file-access errors with the affected path and keep Maintenance and diagnostics available.
+- Back up and upgrade the profile registry. After updating, keep using LUZ 0.4.5 or newer; older versions cannot open the upgraded registry.
 
-- Resolve linked home and application roots before installation and library startup, fixing the linked-folder rejection on layouts such as Bazzite's /home alias. Links inside application payloads and managed mod data remain blocked.
-- Add Remove LUZ Nexus registration to Windows Maintenance and the extracted installer. It removes LUZ's registration even after its application files were deleted, while preserving other managers and Windows' protected default choice.
-- Label browser registration as a system-wide NXM change. Choosing a replacement manager remains a Windows Default apps action; pasting a Nivalis link does not change defaults.
-- Linked-root and registry cleanup fixtures pass on Windows. Native Bazzite installation remains unverified.
+## 0.4.4
 
-0.4.2
+- Put Remove LUZ as NXM manager beside registration in Windows Maintenance, with the result shown immediately.
+- Explain that registering LUZ changes the Nexus-link handler for every game. Manual ZIP import and pasted Nivalis links remain available without changing the handler.
+- Preserve other managers' registrations, mods and profiles when removing LUZ's registration. Choose a replacement in Windows Default apps.
 
-- Identify interrupted profile deployments and BepInEx installations separately, with matching recovery actions at the top of Maintenance.
-- Recover the exact backup recorded by the interrupted operation; historical restore buttons also route to the required recovery when applicable.
-- Report remaining recovery blockers after a restore instead of telling users to Apply while Apply and Play are disabled.
-- Show missing or unreadable recovery backups without clearing their safety records, and include recovery details in diagnostics.
-- Validate all original loader backup files before changing game files during restoration.
+## 0.4.3
 
-0.4.1
+- Fix installation through linked home/application folders, including Bazzite-style home paths. Native Bazzite use remains unverified.
+- Add Nexus-handler removal to Windows Maintenance and the extracted installer, including after the old LUZ folder was deleted.
 
-- Fix valid BepInEx dependency ranges being rejected as version numbers, including the HUD Overhaul report `1.03 / >=1.03`.
-- Match BepInEx 6 range rules for exact versions, bounds, wildcards, alternatives and prereleases.
-- Existing profiles work with the fix without reimporting mods. Missing or incompatible dependencies still block deployment.
+## 0.4.2
 
-0.4.0
+- Give interrupted profile changes and BepInEx installations their own recovery actions at the top of Maintenance.
+- Select the matching restore point and explain any remaining blocker.
+- Offer recovery diagnostics when the required backup is missing or unreadable.
 
-- Check the public GitHub repository for launcher updates automatically or on demand.
-- Download and verify the platform package, install it for the current user, and restart LUZ while preserving profiles and game files.
-- Add game-update diagnostics and a binding refresh that backs up the old BepInEx files first.
-- Refresh existing Windows LUZ protocol registration when installing a new version, preserving the selected default handler.
-- Linux/macOS updates remain untested on native systems.
+## 0.4.1
 
-0.3.2 — initial public preview
+- Fix valid dependency ranges being rejected as version numbers, including the HUD Overhaul error. Existing profiles work without reimporting mods; missing dependencies still block Apply.
 
-- Mod profiles, ZIP/DLL imports, existing-installation imports and deployment backups.
-- Drag-to-reorder controls, dependency sorting and declared conflict checks.
-- Recommended BepInEx installation from the official server, with loader backup and restore.
-- Thunderstore catalogue and updates; optional Nexus API and NXM support, subject to account permissions.
-- Import complete Object Studio collections into a profile.
-- Windows x64, plus experimental Linux x64 and macOS Intel/Apple Silicon packages. Linux/macOS native operation and gameplay remain unverified.
+## 0.4.0
+
+- Check GitHub for LUZ updates automatically or on demand, then verify and install the matching platform download while keeping profiles.
+- Add game-update diagnostics and a backed-up binding refresh for the next normal game launch.
+- Refresh an existing Windows Nexus-handler registration during installation.
+
+## 0.3.2
+
+- Initial public preview with profiles, ZIP/DLL and existing-installation imports, mod ordering, dependency checks and deployment backups.
+- Recommended BepInEx setup, Thunderstore browsing, Nexus lookup/downloads and mod update checks.
+- Object Studio collection imports, diagnostics and experimental Linux/macOS downloads alongside Windows x64.

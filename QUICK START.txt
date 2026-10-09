@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.4.5
+LUZ CIVIC TERMINAL 0.4.6
 Mod manager and launcher for Nivalis Nights
 
 MOVED YOUR GAME?
@@ -143,7 +143,7 @@ Modders' packs and mods may need additional dependencies that LUZ cannot infer.
 
 OBJECT STUDIO COLLECTIONS
 
-For game build 25726588, use Object Framework Runtime 0.3.2 in the same profile.
+For game build 25828494 (Update #4), use Object Framework Runtime 0.3.8 in the same profile.
 Future game patches may require a newer runtime.
 Send to LUZ in Studio builds the open project and opens an import confirmation.
 Confirm it, then Apply profile. Importing a new build updates the same project.
