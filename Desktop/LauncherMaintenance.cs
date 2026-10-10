@@ -60,6 +60,8 @@ public sealed partial class MainWindow
         if (!await Confirm($"Download and install LUZ {release.Version} from {LauncherUpdates.Repository}?\n\nLUZ will restart after the download and SHA-256 verification. Profiles, mods, settings and game saves are preserved. The game will not be launched.")) return;
         string? installed = null;
         await Busy("Downloading and verifying LUZ " + release.Version + "…", async ct => {
+            _ = RegistryRecovery.Read(library.Root, allowFirstRun: true);
+            if (!File.Exists(Path.Combine(library.Root, "registry.json"))) library.Save();
             var updater = new LauncherUpdates(updateHttp);
             string archive = await updater.Download(release, library.Root, ct);
             try {

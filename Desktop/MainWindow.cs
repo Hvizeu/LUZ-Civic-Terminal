@@ -12,6 +12,9 @@ public sealed partial class MainWindow : Window
     private readonly StackPanel sidebar = new(), details = new();
     private readonly TextBlock status = new(), profileLabel = new(), summary = new();
     private readonly ListBox mods = new(), catalogList = new();
+    private readonly ComboBox modFilter = new() { ItemsSource = new[] { "All", "Enabled", "Disabled" }, SelectedIndex = 0, MinWidth = 120 };
+    private Button? autoSortButton;
+    private bool ModsFiltered => modFilter.SelectedIndex != 0 || !string.IsNullOrEmpty(search.Text);
     private readonly TextBox search = new() { [ToolTip.TipProperty] = "Find installed mods by name or description" }, catalogSearch = new() { [ToolTip.TipProperty] = "Search the loaded catalogue" };
     private readonly ComboBox profiles = new() { ItemTemplate = new FuncDataTemplate<Profile>((p, _) => new TextBlock { Text = p?.Name }) };
     private readonly Button cancel = new() { Content = "Cancel", IsVisible = false };
@@ -33,7 +36,8 @@ public sealed partial class MainWindow : Window
         status.Text = library.State.GameFolder.Length == 0 ? "Select your game folder in Maintenance to begin." : "Ready.";
         foreach (var entry in library.Active.Mods) entry.Enabled = true;
         foreach (var package in library.State.Packages) package.Plugins.RemoveAll(p => p.Guid.StartsWith("preview.", StringComparison.Ordinal));
-        if (value == "Registry-disabled") library.Active.Mods[1].Enabled = false;
+        modFilter.SelectedIndex = value == "Registry-only-disabled" ? 2 : value == "Registry-only-enabled" ? 1 : 0;
+        if (value is "Registry-disabled" or "Registry-only-disabled" or "Registry-only-enabled") library.Active.Mods[1].Enabled = false;
         if (value == "Registry-issues") library.State.Packages[0].Plugins.Add(new("preview.plugin", "Better Time", "1.0.0", [new("required.clock.library", "1.0.0", false)], []));
         library.State.AppliedProfileId = value == "Registry-applied" ? library.Active.Id : "";
         library.State.AppliedFingerprint = value == "Registry-applied" ? library.Fingerprint(library.Active) : "";
@@ -72,11 +76,13 @@ public sealed partial class MainWindow : Window
         var footer = new DockPanel { Background = TerminalTheme.Panel, Margin = new Thickness(0, 1, 0, 0), LastChildFill = true }; Grid.SetRow(footer, 2);
         cancel.Click += (_, _) => operation?.Cancel(); DockPanel.SetDock(cancel, Dock.Right); cancel.Margin = new Thickness(8); footer.Children.Add(cancel);
         status.Text = library.State.GameFolder.Length == 0 ? "Select your game folder in Maintenance to begin." : "Ready."; status.TextWrapping = TextWrapping.Wrap; status.Foreground = TerminalTheme.Muted; status.Margin = new Thickness(22, 12, 22, 12); footer.Children.Add(status); shell.Children.Add(footer); Content = shell;
-        search.TextChanged += (_, _) => RefreshMods(); catalogSearch.TextChanged += (_, _) => RefreshCatalog();
+        search.TextChanged += (_, _) => RefreshMods();
+        AutomationProperties.SetName(modFilter, "Filter mods by enabled state");
+        modFilter.SelectionChanged += (_, _) => RefreshMods(); catalogSearch.TextChanged += (_, _) => RefreshCatalog();
         mods.Background = Brushes.Transparent; mods.BorderThickness = new Thickness(0); ScrollViewer.SetHorizontalScrollBarVisibility(mods, ScrollBarVisibility.Disabled); mods.SelectionChanged += (_, _) => { if (mods.SelectedItem is ListBoxItem { Tag: string id }) { selectedId = id; ShowDetails(); } };
         DragDrop.SetAllowDrop(mods, true); mods.AddHandler(DragDrop.DropEvent, DropMod);
         mods.AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.TryGetText() is { } text && text.StartsWith("LuzMod:", StringComparison.Ordinal) && library.Active.Mods.Any(m => m.PackageId == text[7..]) ? DragDropEffects.Move : DragDropEffects.None; e.Handled = true; });
-        mods.AddHandler(PointerPressedEvent, (_, e) => { dragStart = e.GetPosition(mods); dragArmed = e.Source is TextBlock { Tag: "drag" } && e.GetCurrentPoint(mods).Properties.IsLeftButtonPressed; dragPress = e; }, RoutingStrategies.Tunnel);
+        mods.AddHandler(PointerPressedEvent, (_, e) => { dragStart = e.GetPosition(mods); dragArmed = !ModsFiltered && e.Source is TextBlock { Tag: "drag" } && e.GetCurrentPoint(mods).Properties.IsLeftButtonPressed; dragPress = e; }, RoutingStrategies.Tunnel);
         mods.PointerMoved += async (_, e) => { if (dragArmed && dragPress != null && e.GetCurrentPoint(mods).Properties.IsLeftButtonPressed && Math.Sqrt(Math.Pow(e.GetPosition(mods).X - dragStart.X, 2) + Math.Pow(e.GetPosition(mods).Y - dragStart.Y, 2)) > 7 && mods.SelectedItem is ListBoxItem { Tag: string id }) { dragArmed = false; var data = new DataTransfer(); data.Add(DataTransferItem.CreateText("LuzMod:" + id)); try { await DragDrop.DoDragDropAsync(dragPress, data, DragDropEffects.Move); } catch (Exception ex) { Error(ex); } } };
         catalogList.Background = Brushes.Transparent; catalogList.BorderThickness = new Thickness(0); ScrollViewer.SetHorizontalScrollBarVisibility(catalogList, ScrollBarVisibility.Disabled);
         Closing += (_, e) => { if (operation != null) { e.Cancel = true; status.Text = "Finish or cancel the current operation before closing."; } }; Closed += (_, _) => { sources.Dispose(); foreach (var cached in iconCache.Values) cached.Image.Dispose(); iconCache.Clear(); };
@@ -115,11 +121,13 @@ public sealed partial class MainWindow : Window
     }
     private Grid RegistryPage()
     {
-        Detach(search); Detach(mods); Detach(details); Detach(summary);
+        Detach(search); Detach(modFilter); Detach(mods); Detach(details); Detach(summary);
         var grid = new Grid { Margin = new Thickness(26, 18, 24, 18) }; grid.RowDefinitions.Add(new() { Height = GridLength.Auto }); grid.RowDefinitions.Add(new() { Height = GridLength.Auto }); grid.RowDefinitions.Add(new()); grid.RowDefinitions.Add(new() { Height = GridLength.Auto });
         var heading = new StackPanel(); heading.Children.Add(Label(library.Active.Name, 28, TerminalTheme.Text, bold: true)); grid.Children.Add(heading);
-        var toolbar = new StackPanel { Margin = new Thickness(0, 0, 0, 8) }; toolbar.Children.Add(Label("Search mods", 13, TerminalTheme.Muted)); toolbar.Children.Add(search); var actions = Row();
-        actions.Children.Add(Button("Import ZIP / DLL", ImportMods, "Add downloaded mods to the library", true, CivicSymbol.Import)); actions.Children.Add(QuietButton("Auto-sort", () => { library.Active.Mods = ModPlanner.Sort(library.Active, library.State.Packages); library.Save(); RefreshMods(); }, "Put dependencies before dependent mods. BepInEx controls runtime startup order."));
+        var toolbar = new StackPanel { Margin = new Thickness(0, 0, 0, 8) }; toolbar.Children.Add(Label("Search mods", 13, TerminalTheme.Muted)); var searchRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        searchRow.Children.Add(search); modFilter.Margin = new Thickness(8, 0, 0, 0); Grid.SetColumn(modFilter, 1); searchRow.Children.Add(modFilter);
+        toolbar.Children.Add(searchRow); var actions = Row();
+        actions.Children.Add(Button("Import ZIP / DLL", ImportMods, "Add downloaded mods to the library", true, CivicSymbol.Import)); autoSortButton = QuietButton("Auto-sort", () => { if (ModsFiltered) return; library.Active.Mods = ModPlanner.Sort(library.Active, library.State.Packages); library.Save(); RefreshMods(); }, "Clear filters to sort. BepInEx controls runtime startup order."); actions.Children.Add(autoSortButton);
         actions.Children.Add(QuietButton("Check updates", () => _ = CheckUpdates())); actions.Children.Add(ActionsMenu("Profile tools", ("Add from library", AddFromLibrary), ("Validate profile", ValidateProfile))); toolbar.Children.Add(actions); Grid.SetRow(toolbar, 1); grid.Children.Add(toolbar);
         var content = new Grid(); content.ColumnDefinitions.Add(new()); content.ColumnDefinitions.Add(new() { Width = new GridLength(290) });
         content.Children.Add(TerminalTheme.Section("Mods / deployment order", mods)); details.Margin = new Thickness(4, 0, 4, 0); var scroller = new ScrollViewer { Content = details, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }; var detailFrame = (Control)TerminalTheme.Section("Mod details", scroller); detailFrame.Margin = new Thickness(16, 0, 0, 0); Grid.SetColumn(detailFrame, 1); content.Children.Add(detailFrame); Grid.SetRow(content, 2); grid.Children.Add(content);
@@ -127,11 +135,14 @@ public sealed partial class MainWindow : Window
     }
     private void RefreshMods()
     {
+        string? previousSelectedId = selectedId;
         mods.Items.Clear(); int index = 0;
+        if (autoSortButton != null) autoSortButton.IsEnabled = !ModsFiltered;
         foreach (var entry in library.Active.Mods)
         {
             index++; var package = library.State.Packages.FirstOrDefault(p => p.Id == entry.PackageId); if (package == null) continue;
             if (!(package.Name + " " + package.Description).Contains(search.Text ?? "", StringComparison.OrdinalIgnoreCase)) continue;
+            if (modFilter.SelectedIndex == 1 && !entry.Enabled || modFilter.SelectedIndex == 2 && entry.Enabled) continue;
             var row = new Grid { Margin = new Thickness(4, 3, 4, 3), MinHeight = 44 };
             foreach (double w in new[] { 26d, 26d, 54d }) row.ColumnDefinitions.Add(new() { Width = new GridLength(w) }); row.ColumnDefinitions.Add(new()); row.ColumnDefinitions.Add(new() { Width = new GridLength(72) });
             var handle = Label("⠿", 23, TerminalTheme.Muted); handle.Tag = "drag"; ToolTip.SetTip(handle, "Drag to change deployment priority"); row.Children.Add(handle);
@@ -139,12 +150,14 @@ public sealed partial class MainWindow : Window
             var icon = ModIcon(package.Icon.Length > 0 ? FileSafety.Under(library.PackageRoot(package.Id), package.Icon) : null, package.Name); Grid.SetColumn(icon, 2); row.Children.Add(icon);
             var name = new StackPanel { Margin = new Thickness(8, 2, 8, 0) }; name.Children.Add(Label(package.Name, 16, bold: true, margin: new Thickness(0, 0, 0, 4))); name.Children.Add(Label((entry.Enabled ? "" : "Disabled  ·  ") + package.Source + (entry.Pinned ? "  /  PINNED" : "") + "  ·  " + package.Version, 12, TerminalTheme.Muted, margin: new Thickness(0))); Grid.SetColumn(name, 3); row.Children.Add(name);
             var order = Label(index.ToString("00"), 22, TerminalTheme.Gold); order.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumn(order, 4); row.Children.Add(order);
-            var item = new ListBoxItem { Content = row, Tag = package.Id, HorizontalContentAlignment = HorizontalAlignment.Stretch, Background = entry.Enabled ? TerminalTheme.Panel : TerminalTheme.Ink, Foreground = TerminalTheme.Text, BorderBrush = TerminalTheme.Edge, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(7), Margin = new Thickness(0, 0, 0, 4) }; mods.Items.Add(item); if (selectedId == package.Id) mods.SelectedItem = item;
+            var item = new ListBoxItem { Content = row, Tag = package.Id, HorizontalContentAlignment = HorizontalAlignment.Stretch, Background = entry.Enabled ? TerminalTheme.Panel : TerminalTheme.Ink, Foreground = TerminalTheme.Text, BorderBrush = TerminalTheme.Edge, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(7), Margin = new Thickness(0, 0, 0, 4) }; mods.Items.Add(item); if (previousSelectedId == package.Id) mods.SelectedItem = item;
         }
         if (mods.Items.Count == 0) mods.Items.Add(new ListBoxItem { IsEnabled = false, Content = Label(library.Active.Mods.Count == 0 ? "No mods in this profile.\n\nImport a ZIP or choose a mod from the Catalogue. To keep mods already installed in the game, use Maintenance → Import existing installation." : "No mods match this search.", 17, TerminalTheme.Muted, margin: new Thickness(20)), HorizontalContentAlignment = HorizontalAlignment.Stretch });
-        if (mods.SelectedItem == null && mods.Items.OfType<ListBoxItem>().FirstOrDefault(i => i.Tag != null) is { } first) mods.SelectedItem = first;
+        bool hiddenSelection = previousSelectedId != null && !mods.Items.OfType<ListBoxItem>().Any(i => i.Tag as string == previousSelectedId);
+        if (hiddenSelection) selectedId = null;
+        if (!hiddenSelection && mods.SelectedItem == null && mods.Items.OfType<ListBoxItem>().FirstOrDefault(i => i.Tag != null) is { } first) mods.SelectedItem = first;
         if (mods.SelectedItem == null) selectedId = null;
-        summary.Text = "Drag the handle to reorder. Lower rows win shared files."; ToolTip.SetTip(summary, "BepInEx controls plugin startup order using dependencies. This list controls file deployment priority."); RefreshProfileStatus(); ShowDetails();
+        summary.Text = ModsFiltered ? "Clear the filters to change deployment order." : "Drag the handle to reorder. Lower rows win shared files."; ToolTip.SetTip(summary, "BepInEx controls plugin startup order using dependencies. This list controls file deployment priority."); RefreshProfileStatus(); ShowDetails();
     }
     private Control ModIcon(string? path, string name)
     {
@@ -189,7 +202,7 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetName(pin, "Pin this version");
         pin.Click += (_, _) => Run(() => { entry.Pinned = pin.IsChecked == true; library.Save(); RefreshMods(); }); details.Children.Add(pin);
         var order = Row(); var up = QuietButton("Move up", () => Move(-1)); var down = QuietButton("Move down", () => Move(1));
-        int index = library.Active.Mods.IndexOf(entry); up.IsEnabled = index > 0; down.IsEnabled = index < library.Active.Mods.Count - 1; order.Children.Add(up); order.Children.Add(down); details.Children.Add(order);
+        int index = library.Active.Mods.IndexOf(entry); up.IsEnabled = !ModsFiltered && index > 0; down.IsEnabled = !ModsFiltered && index < library.Active.Mods.Count - 1; order.Children.Add(up); order.Children.Add(down); details.Children.Add(order);
         details.Children.Add(ActionsMenu("Edit mod",
             ("Set source link", async () => { var url = await Prompt("Mod page URL", p.PageUrl); if (url != null) { SetSourceLink(p, url); library.Save(); RefreshMods(); } }),
             ("Edit notes", async () => { var note = await Prompt("Private profile note", entry.Note); if (note != null) { entry.Note = note; library.Save(); ShowDetails(); } }),
@@ -200,11 +213,13 @@ public sealed partial class MainWindow : Window
     }
     private void Move(int offset)
     {
+        if (ModsFiltered) return;
         int index = library.Active.Mods.FindIndex(m => m.PackageId == selectedId), target = index + offset; if (index < 0 || target < 0 || target >= library.Active.Mods.Count) return;
         var entry = library.Active.Mods[index]; library.Active.Mods.RemoveAt(index); library.Active.Mods.Insert(target, entry); library.Save(); RefreshMods();
     }
     private void DropMod(object? sender, DragEventArgs e)
     {
+        if (ModsFiltered) return;
         if (e.DataTransfer.TryGetText() is not string raw || !raw.StartsWith("LuzMod:", StringComparison.Ordinal)) return;
         string id = raw[7..];
         var node = (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();

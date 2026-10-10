@@ -17,7 +17,7 @@ public sealed class Library : IDisposable
         sessionLock = new FileStream(Path.Combine(Root, "session.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         try
         {
-            State = File.Exists(Path.Combine(Root, "registry.json")) ? JsonFiles.Read<TerminalState>(Path.Combine(Root, "registry.json")) : new();
+            State = RegistryRecovery.Read(Root, allowFirstRun: true);
             State.PreviousGameFolders ??= [];
             bool migrate = State.Schema == 1;
             if (migrate) State.Schema = 2;
@@ -125,7 +125,12 @@ public sealed class Library : IDisposable
                     else if (Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(f).Equals("winhttp.dll", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("This archive contains an installer or loader. Use a mod ZIP instead.");
                     else if (Path.GetFileName(f) is not ("manifest.json" or "icon.png" or "README.md" or "README.txt" or "CHANGELOG.md" or "LICENSE")) dest = "plugins/" + package.Id[..12] + "/" + rel;
                 }
-                if (dest == null) continue;
+                if (dest == null)
+                {
+                    if (Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f).Equals(".asi", StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("This archive mixes BepInEx folders with an unmapped binary: " + rel + ". Keep each DLL and its ASI companions together inside plugins, or use a complete flat mod ZIP.");
+                    continue;
+                }
                 if (!mapped.Add(dest)) throw new InvalidDataException("Multiple files map to the same destination.");
                 string output = FileSafety.Under(payload, dest); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.Copy(f, output);
                 package.Files.Add(dest);

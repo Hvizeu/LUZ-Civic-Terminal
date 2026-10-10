@@ -1,8 +1,15 @@
 # LUZ Civic Terminal
 
+## Changes in 0.4.7
+
+- Filter the Registry by All, Enabled or Disabled. Filters combine with search; clear them before reordering.
+- DLL/ASI companions stay together in supported archives. Mixed-layout archives cannot silently omit native binaries.
+- Apply identifies unmanaged DLL/ASI files before replacement. Import the complete mod archive or use Import existing installation to adopt them.
+- Registry startup failures show the data location, diagnostics export and restoration from a validated existing backup. Damaged registries are preserved.
+- Self-update checks the persisted registry before installation.
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. Import the mods you already use, add new ones, then apply the setup you want to play with.
 
-Version 0.4.6 is available for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+Version 0.4.7 is available for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
 
 ## What you can do
 

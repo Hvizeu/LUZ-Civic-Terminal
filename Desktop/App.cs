@@ -45,7 +45,16 @@ public sealed class App : Application
                 inbox = new LinkInbox(root, address => Dispatcher.UIThread.Post(() => main.ReceiveLink(address)), message => Dispatcher.UIThread.Post(() => main.ReceiveLinkError(message)));
                 main.Opened += (_, _) => { main.ReceiveLink(initialLink); while (activations.TryDequeue(out string? address)) main.ReceiveLink(address); };
             }
-            catch (Exception ex) { desktop.MainWindow = new Window { Title = "LUZ Civic Terminal could not start", Width = 600, Height = 250, Content = new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(24) } }; }
+            catch (Exception ex)
+            {
+                desktop.MainWindow = new StartupRecoveryWindow(HostPlatform.DataRoot(), ex, () => {
+                    var previous = desktop.MainWindow;
+                    library = new Library(HostPlatform.DataRoot());
+                    main = new MainWindow(library); desktop.MainWindow = main;
+                    inbox = new LinkInbox(library.Root, address => Dispatcher.UIThread.Post(() => main.ReceiveLink(address)), message => Dispatcher.UIThread.Post(() => main.ReceiveLinkError(message)));
+                    main.Show(); previous?.Close();
+                });
+            }
         }
         base.OnFrameworkInitializationCompleted();
     }
@@ -90,7 +99,7 @@ public sealed class App : Application
                 var package = new ModPackage { Name = name, Description = description, Version = "1.0.0", Source = "Thunderstore", SourceId = name }; library.State.Packages.Add(package); library.Active.Mods.Add(new() { PackageId = package.Id });
             }
             var window = new MainWindow(library, true); window.Show();
-            foreach (var page in new[] { "Registry", "Catalogue", "Maintenance", "Registry-search", "Registry-empty", "Registry-disabled", "Registry-issues", "Registry-applied", "Maintenance-recovery-loader", "Maintenance-recovery-profile", "Maintenance-recovery-both", "Maintenance-recovery-missing" })
+            foreach (var page in new[] { "Registry", "Catalogue", "Maintenance", "Registry-search", "Registry-empty", "Registry-disabled", "Registry-only-disabled", "Registry-only-enabled", "Registry-issues", "Registry-applied", "Maintenance-recovery-loader", "Maintenance-recovery-profile", "Maintenance-recovery-both", "Maintenance-recovery-missing" })
             foreach (int width in new[] { 1440, 1100 })
             {
                 window.Width = width; window.Height = width == 1100 ? 720 : 900; window.PreviewPage(page); Dispatcher.UIThread.RunJobs();
@@ -106,6 +115,11 @@ public sealed class App : Application
             using var installerFrame = installer.CaptureRenderedFrame() ?? throw new InvalidOperationException("No installer frame.");
             installerFrame.Save(Path.Combine(output, "installer.png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
             installer.Close();
+            var recoveryError = new RegistryRecoveryException(RegistryFailure.EmptyProfiles, Path.Combine(root, "registry.json"), "The registry has no usable profiles.");
+            var recoveryWindow = new StartupRecoveryWindow(root, recoveryError); recoveryWindow.Show(); Dispatcher.UIThread.RunJobs();
+            using var recoveryFrame = recoveryWindow.CaptureRenderedFrame() ?? throw new InvalidOperationException("No recovery frame.");
+            recoveryFrame.Save(Path.Combine(output, "startup-recovery.png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+            recoveryWindow.Close();
         }
         FileSafety.DeleteOwned(FileSafety.ResolveFolder(Path.GetTempPath()), root);
     }

@@ -47,6 +47,23 @@ public static class UpdateChecks
         string prepared=LauncherUpdates.Prepare(selected,archive);
         string destination=Path.Combine(root,"installed-new");DesktopInstallation.InstallFiles(prepared,destination);
         check(File.ReadAllText(Path.Combine(data,"registry.json"))=="preserve profile"&&FileSafety.Hash(Path.Combine(prepared,"LUZ Civic Terminal.dll"))==FileSafety.Hash(Path.Combine(destination,"LUZ Civic Terminal.dll")),"Full update download, checksum, extraction and installation preserve profile data");
+        string existingRoot = Path.Combine(root, "update-existing-library"); string selectedProfile;
+        using (var existing = new Library(existingRoot))
+        {
+            selectedProfile = existing.CreateProfile("Disabled mods", false).Id;
+            string companionZip = Path.Combine(root, "update-retained-companions.zip");
+            using (var archiveZip = ZipFile.Open(companionZip, ZipArchiveMode.Create))
+                foreach (var name in new[] { "Orders.dll", "Orders.asi" }) { using var writer = new StreamWriter(archiveZip.CreateEntry(name).Open()); writer.Write("native fixture, never execute"); }
+            existing.Import(companionZip); existing.Active.Mods[0].Enabled = false; existing.Save();
+            Directory.CreateDirectory(existing.ConfigRoot(selectedProfile)); File.WriteAllText(Path.Combine(existing.ConfigRoot(selectedProfile), "keep.cfg"), "retained configuration");
+            File.WriteAllText(Path.Combine(existingRoot, "pending.json"), "retained recovery record");
+        }
+        _ = RegistryRecovery.Read(existingRoot);
+        string existingArchive = await updater.Download(selected, existingRoot, CancellationToken.None);
+        string existingPrepared = LauncherUpdates.Prepare(selected, existingArchive);
+        DesktopInstallation.InstallFiles(existingPrepared, Path.Combine(root, "installed-existing-library"));
+        using (var reopened = new Library(existingRoot))
+            check(reopened.Active.Id == selectedProfile && reopened.State.Profiles.Count == 2 && reopened.Active.Mods.Count == 1 && !reopened.Active.Mods[0].Enabled && reopened.State.Packages.Single(p => p.Id == reopened.Active.Mods[0].PackageId).Files.Count == 2 && File.ReadAllText(Path.Combine(reopened.ConfigRoot(selectedProfile), "keep.cfg")) == "retained configuration" && File.ReadAllText(Path.Combine(existingRoot, "pending.json")) == "retained recovery record", "Self-update reopens realistic profiles with selected identity, configuration and recovery records intact");
         DesktopInstallation.InstallFiles(prepared,destination);
         check(Directory.Exists(destination),"Interrupted shortcut step can retry an identical installed version");
         File.AppendAllText(Path.Combine(destination,"Core.dll"),"changed");

@@ -17,6 +17,7 @@ string Zip(string name, params (string Name, string Text)[] files)
 }
 try
 {
+    RepairChecks.Run(root, Check, Reject);
     PlatformChecks.Run(root, Check, Reject);
     InstallationChecks.Run(root, Check, Reject);
     RelocationChecks.Run(root, Check, Reject);

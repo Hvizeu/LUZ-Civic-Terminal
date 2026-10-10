@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.4.6
+LUZ CIVIC TERMINAL 0.4.7
 Mod manager and launcher for Nivalis Nights
 
 MOVED YOUR GAME?
