@@ -7,7 +7,7 @@ public sealed class Deployment(Library library)
     private static readonly string[] Areas = ["plugins", "patchers", "config"];
     public string? Pending => File.Exists(Path.Combine(library.Root, "pending.json")) ? JsonFiles.Read<BackupInfo>(Path.Combine(library.Root, "pending.json")).Id : null;
     public List<BackupInfo> Backups() => Directory.Exists(Path.Combine(library.Root, "backups")) ? Directory.GetFiles(Path.Combine(library.Root, "backups"), "backup.json", SearchOption.AllDirectories).Select(JsonFiles.Read<BackupInfo>).OrderByDescending(b => b.CreatedUtc).ToList() : [];
-    public List<Issue> Preview()
+    public List<Issue> Preview(bool includeCompatibility = true, CancellationToken cancellation = default)
     {
         GameFiles.Validate(library.State.GameFolder);
         var issues = ModPlanner.Check(library.Active, library.State.Packages);
@@ -16,6 +16,8 @@ public sealed class Deployment(Library library)
         if (!File.Exists(FileSafety.PortableDestination(library.State.GameFolder, "BepInEx/core/BepInEx.Unity.IL2CPP.dll"))) issues.Add(new("Error", "Install the IL2CPP loader before applying mods."));
         var unmanaged = UnmanagedBinaries();
         if (unmanaged.Count > 0) issues.Add(new("Error", "Unmanaged mod binaries would be removed by Apply: " + string.Join(", ", unmanaged) + ". Import the complete mod ZIP or adopt these installed files before applying."));
+        if (includeCompatibility && !issues.Any(i => i.Severity == "Error"))
+            issues.AddRange(Compatibility.Inspect(library, cancellation: cancellation).Findings.Select(f => new Issue(f.Severity, f.Plugin + ": " + f.Code + ": " + f.Expected + "; " + f.Observed, f.Code, f.CanOverride)));
         return issues;
     }
     public List<string> UnmanagedBinaries()
@@ -71,10 +73,12 @@ public sealed class Deployment(Library library)
         }
         return result;
     }
-    public BackupInfo Apply()
+    public BackupInfo Apply(CompatibilityAcknowledgment? acknowledgment = null, CancellationToken cancellation = default)
     {
-        GameFiles.RequireClosed(); var issues = Preview();
+        GameFiles.RequireClosed(); var issues = Preview(includeCompatibility: false);
         if (issues.Any(i => i.Severity == "Error")) throw new InvalidOperationException(string.Join('\n', issues.Where(i => i.Severity == "Error").Select(i => i.Message)));
+        var checkedReport = Compatibility.Inspect(library, cancellation: cancellation);
+        Compatibility.Authorize(checkedReport, acknowledgment);
         string game = library.State.GameFolder; string bep = FileSafety.PortableDestination(game, "BepInEx");
         // Preserve edits made in-game for the profile which actually owns the files.
         if (library.State.AppliedProfileId.Length > 0)
@@ -100,6 +104,9 @@ public sealed class Deployment(Library library)
                     Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.Copy(source, target, true);
                 }
             }
+            var rechecked = Compatibility.Inspect(library, cancellation: cancellation);
+            if (rechecked.Fingerprint != checkedReport.Fingerprint) throw new InvalidOperationException("Deployment inputs changed after compatibility review. No game files were replaced.");
+            cancellation.ThrowIfCancellationRequested();
             var backup = Snapshot(game);
             JsonFiles.Write(Path.Combine(library.Root, "pending.json"), backup);
             try { ReplaceAreas(game, stage); }

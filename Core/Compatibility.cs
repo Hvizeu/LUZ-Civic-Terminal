@@ -1,0 +1,199 @@
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
+using Mono.Cecil;
+
+namespace Luz;
+
+public enum CompatibilityStatus { CheckedContractsPassed, Incompatible, Unverified }
+public sealed record CompatibilityFinding(string Code, string Severity, string Plugin, string Expected, string Observed, bool CanOverride);
+public sealed record CompatibilityIdentity(string File, string Identity, string Sha256);
+public sealed record CompatibilityReport(int Schema, string Action, string Fingerprint, CompatibilityStatus Status, IReadOnlyList<CompatibilityFinding> Findings, IReadOnlyList<CompatibilityIdentity>? Identities = null)
+{
+    public string Describe() => Status + "\n" + string.Join("\n\n", Findings.Select(f => $"{f.Severity}: {f.Plugin}: {f.Code}\nExpected: {f.Expected}\nObserved: {f.Observed}")) + "\n\nChecks inspect compiled contracts. Gameplay still requires testing.";
+}
+public sealed class CompatibilityAcknowledgment
+{
+    internal readonly string Fingerprint, Action;
+    private int consumed;
+    internal CompatibilityAcknowledgment(CompatibilityReport report) { Fingerprint = report.Fingerprint; Action = report.Action; }
+    internal void Consume(CompatibilityReport report)
+    {
+        if (report.Fingerprint != Fingerprint || report.Action != Action || Interlocked.Exchange(ref consumed, 1) != 0)
+            throw new InvalidOperationException("Compatibility acknowledgment expired or was already used. Review the current report.");
+    }
+}
+
+public static class Compatibility
+{
+    private const long MaxAssemblyBytes = 128 * 1024 * 1024;
+    public static CompatibilityAcknowledgment Acknowledge(CompatibilityReport report)
+    {
+        ValidateReport(report);
+        if (report.Findings.Any(f => !f.CanOverride && f.Severity == "Error")) throw new InvalidOperationException("This report contains non-overrideable failures.");
+        return new(report);
+    }
+    public static void Authorize(CompatibilityReport report, CompatibilityAcknowledgment? acknowledgment)
+    {
+        ValidateReport(report);
+        if (report.Findings.Any(f => !f.CanOverride && f.Severity == "Error")) throw new InvalidOperationException(report.Describe());
+        if (acknowledgment != null) acknowledgment.Consume(report);
+        else if (report.Status != CompatibilityStatus.CheckedContractsPassed) throw new InvalidOperationException(report.Describe());
+    }
+    private static void ValidateReport(CompatibilityReport report)
+    {
+        if(report.Schema!=1||report.Findings==null||report.Action is not ("Apply" or "Play")||string.IsNullOrWhiteSpace(report.Fingerprint))throw new InvalidDataException("Unrecognized compatibility report; inspect current inputs again.");
+    }
+    // The same precedence as Deployment.Apply: live config for its owning profile,
+    // profile config otherwise, then defaults only where no setting file exists.
+    public static SortedDictionary<string, string> EffectiveFiles(Library library, bool installed)
+    {
+        var files = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        string game = library.State.GameFolder;
+        void Tree(string folder, string prefix)
+        {
+            if (!Directory.Exists(folder)) return;
+            FileSafety.NoLinks(folder);
+            foreach (string file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+            { FileSafety.NoLinks(file);string key=prefix + Path.GetRelativePath(folder,file).Replace('\\','/');if(!files.TryAdd(key,file))throw new InvalidDataException("Ambiguous effective file ownership: "+key); }
+        }
+        if (installed)
+            foreach (string area in new[] { "plugins", "patchers", "config" }) Tree(FileSafety.PortableDestination(game, "BepInEx/" + area), area + "/");
+        else
+        {
+            Tree(library.State.AppliedProfileId == library.Active.Id ? FileSafety.PortableDestination(game, "BepInEx/config") : library.ConfigRoot(library.Active.Id), "config/");
+            foreach (var entry in library.Active.Mods.Where(e => e.Enabled))
+            foreach (string rel in library.State.Packages.Single(p => p.Id == entry.PackageId).Files)
+            {
+                if (!new[] { "plugins/", "patchers/", "config/" }.Any(p => rel.StartsWith(p, StringComparison.OrdinalIgnoreCase))) throw new InvalidDataException("Unsupported deployment destination: " + rel);
+                if (!rel.StartsWith("config/", StringComparison.OrdinalIgnoreCase) || !files.ContainsKey(rel))
+                    files[rel] = FileSafety.Under(library.PackageRoot(entry.PackageId), "payload/" + rel);
+            }
+        }
+        if (files.Count > 20000) throw new InvalidDataException("Compatibility input exceeds 20,000 files.");
+        return files;
+    }
+    public static CompatibilityReport Inspect(Library library, bool installed = false, CancellationToken cancellation = default)
+        => CompatibilityWorker.Run(new(library.State.GameFolder, library.Fingerprint(library.Active), installed, EffectiveFiles(library, installed)), cancellation);
+    public static CompatibilityReport InspectSnapshot(CompatibilitySnapshot snapshot, CancellationToken cancellation = default)
+    {
+        GameFiles.Validate(snapshot.Game);
+        var watch = Stopwatch.StartNew();
+        void Check() { cancellation.ThrowIfCancellationRequested(); if (watch.Elapsed > TimeSpan.FromSeconds(60)) throw new TimeoutException("Compatibility inspection exceeded 60 seconds."); }
+        var selected = snapshot.Selected;
+        if (selected.Count > 20000) throw new InvalidDataException("Too many compatibility inputs.");
+        var findings = new List<CompatibilityFinding>();
+        string game = snapshot.Game, core = FileSafety.PortableDestination(game, "BepInEx/core"), interop = FileSafety.PortableDestination(game, "BepInEx/interop");
+        var inputs = new SortedDictionary<string, string>(selected, StringComparer.OrdinalIgnoreCase) { ["game/GameAssembly.dll"] = Path.Combine(game, "GameAssembly.dll") };
+        string nativeMetadata=Path.Combine(game,"Nivalis Nights_Data/il2cpp_data/Metadata/global-metadata.dat");
+        if(File.Exists(nativeMetadata))inputs["game/global-metadata.dat"]=nativeMetadata;
+        foreach (var (name, folder) in new[] { ("loader", core), ("bindings", interop), ("unity", FileSafety.PortableDestination(game, "BepInEx/unity-libs")) })
+        {
+            if (!Directory.Exists(folder)) continue;
+            FileSafety.NoLinks(folder);
+            foreach (string file in Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly).Where(f => f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(f) == "assembly-hash.txt"))
+            { FileSafety.NoLinks(file); inputs[name + "/" + Path.GetFileName(file)] = file; }
+        }
+        if (File.Exists(Path.Combine(game, "BepInEx/DeobfuscationMap.csv.gz"))) inputs["loader/DeobfuscationMap.csv.gz"] = Path.Combine(game, "BepInEx/DeobfuscationMap.csv.gz");
+        if (inputs.Count > 22000 || inputs.Where(p => p.Value.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)).Sum(p => new FileInfo(p.Value).Length) > 512L * 1024 * 1024)
+            throw new InvalidDataException("Metadata input exceeds its aggregate limit.");
+        using var fingerprint = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var hashes=new Dictionary<string,string>();
+        foreach (var input in inputs) { Check();hashes[input.Key]=FileSafety.Hash(input.Value);fingerprint.AppendData(Encoding.UTF8.GetBytes(input.Key + "\0" + hashes[input.Key] + "\n")); }
+        string nativeHash = hashes["game/GameAssembly.dll"];
+        string provenance = BindingProvenance.Verify(game, Check, selected.GetValueOrDefault("config/BepInEx.cfg"));
+        if (provenance.Length != 0 && selected.Keys.Any(k => k.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || k.EndsWith(".asi", StringComparison.OrdinalIgnoreCase))) findings.Add(new("BindingsUnverified", "Error", "BepInEx bindings", "Current recognized generation fingerprint", provenance, true));
+        var recoveries=inputs.Where(p=>p.Key.StartsWith("config/NivalisUnofficialPatch/Recovery/",StringComparison.OrdinalIgnoreCase)&&p.Key.EndsWith("/journal.json",StringComparison.OrdinalIgnoreCase)).ToArray();
+        if(recoveries.Length>64)throw new InvalidDataException("Too many recovery generations; inspection stopped.");
+        foreach (var recovery in recoveries)
+        {
+            var generation = NivalisRecovery.RecoveryFiles.Read(recovery.Value);
+            if (generation.State is "Loading" or "Publishing" or "Claiming" or "Failed")
+                findings.Add(new("PendingSaveRecovery", "Error", "Save recovery", "Restore the interrupted generation in Maintenance", generation.SourceSlot + ": " + generation.State, false));
+            if(generation.State!="Abandoned" && generation.Companions.Values.Contains("city") && !selected.Values.Any(p=>Path.GetFileName(p).Equals("NivalisCityLife.dll",StringComparison.OrdinalIgnoreCase)))findings.Add(new("MissingRecoveryOwner","Error","City Life","Required companion owner in this deployment",generation.SourceSlot,false));
+            if(generation.State!="Abandoned" && !selected.Values.Any(p=>Path.GetFileName(p).Equals("NivalisUnofficialPatch.dll",StringComparison.OrdinalIgnoreCase)))findings.Add(new("MissingRecoveryOwner","Error","Unofficial Patch","Required recovery owner in this deployment",generation.SourceSlot,false));
+        }
+        using var resolver = new ExactResolver();
+        var modules = new List<(string Name, AssemblyDefinition Assembly)>();
+        var identities=new List<CompatibilityIdentity>();
+        try
+        {
+            foreach (var input in inputs.Where(p => p.Value.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && !p.Key.StartsWith("unity/")))
+            {
+                Check();
+                if (new FileInfo(input.Value).Length > MaxAssemblyBytes) { findings.Add(new("AssemblyTooLarge", "Error", input.Key, "Assembly at most 128 MiB", "Input exceeds parser limit", false)); continue; }
+                AssemblyDefinition assembly;
+                try { assembly = AssemblyDefinition.ReadAssembly(input.Value, new ReaderParameters { AssemblyResolver = resolver, InMemory = false }); }
+                catch (BadImageFormatException)
+                { if (input.Key.StartsWith("plugins/", StringComparison.OrdinalIgnoreCase) || input.Key.StartsWith("patchers/", StringComparison.OrdinalIgnoreCase)) findings.Add(new("NativeContractUnverified", "Error", input.Key, "Inspectable managed contract", "Native or malformed DLL cannot be verified", true)); continue; }
+                modules.Add((input.Key, assembly));
+                identities.Add(new(input.Key,assembly.Name.FullName,hashes[input.Key]));
+                if (!resolver.Add(assembly)) findings.Add(new("AmbiguousAssembly", "Error", input.Key, "One effective assembly identity", assembly.Name.FullName, false));
+            }
+            foreach (var module in modules.Where(m => m.Name.StartsWith("plugins/", StringComparison.OrdinalIgnoreCase) || m.Name.StartsWith("patchers/", StringComparison.OrdinalIgnoreCase)))
+            {
+                Check();
+                var attributes=module.Assembly.CustomAttributes.Where(a=>a.AttributeType.FullName=="System.Reflection.AssemblyMetadataAttribute").ToArray();
+                var metadata=new Dictionary<string,string>();
+                foreach(var attribute in attributes)
+                    if(attribute.ConstructorArguments.Count!=2 || attribute.ConstructorArguments[0].Value is not string key || attribute.ConstructorArguments[1].Value is not string value || !metadata.TryAdd(key,value))findings.Add(new("MalformedRequirements","Error",module.Name,"Unique versioned metadata keys","Malformed or duplicate assembly metadata",false));
+                if (metadata.TryGetValue("Nivalis.NativeBuild", out string? supported) && !supported.Equals(nativeHash,StringComparison.OrdinalIgnoreCase))
+                    findings.Add(new("UnsupportedNativeBuild", "Error", module.Name, supported, nativeHash, true));
+                if(metadata.TryGetValue("Nivalis.MetadataBuild",out var expectedMetadata)&&(!hashes.TryGetValue("game/global-metadata.dat",out var metadataHash)||!metadataHash.Equals(expectedMetadata,StringComparison.OrdinalIgnoreCase)))findings.Add(new("UnsupportedNativeBuild","Error",module.Name,expectedMetadata,hashes.GetValueOrDefault("game/global-metadata.dat")??"IL2CPP metadata missing",true));
+                if (metadata.TryGetValue("Nivalis.Requirements.Schema", out string? schema) && schema != "1")
+                    findings.Add(new("RequirementsUnverified", "Error", module.Name, "Requirements schema 1", schema, true));
+                if(metadata.TryGetValue("Nivalis.BindingRequirements",out var requirements))
+                    foreach(string contract in requirements.Split(';').Where(c=>c!="compiled-member-references"))
+                    {
+                        int colon=contract.IndexOf(':');int open=contract.IndexOf('(');int dot=open<0?-1:contract.LastIndexOf('.',open);
+                        if(colon<0||open<0||dot<colon||!contract.EndsWith(')')){findings.Add(new("MalformedRequirements","Error",module.Name,"assembly:type.method(parameters)",contract,false));continue;}
+                        try
+                        {
+                            var assembly=resolver.Resolve(new AssemblyNameReference(contract[..colon],new Version(0,0)));
+                            var type=assembly.MainModule.GetType(contract[(colon+1)..dot]);string name=contract[(dot+1)..open];string parameters=contract[(open+1)..^1];
+                            if(type==null||!type.Methods.Any(m=>m.Name==name&&string.Join(',',m.Parameters.Select(p=>p.ParameterType.FullName))==parameters))Missing(contract);
+                        }
+                        catch(AssemblyResolutionException){Missing(contract);}
+                    }
+                if(metadata.TryGetValue("Nivalis.Capabilities",out var capabilities))foreach(string capability in capabilities.Split(';'))
+                    if(capability=="shared-settings-v1" && module.Assembly.MainModule.GetType("NivalisUnofficialPatch.SettingsIntegrationV1")?.Methods.Any(m=>m.Name=="CanHost"&&m.IsPublic&&m.IsStatic&&m.ReturnType.FullName=="System.Boolean"&&string.Join(',',m.Parameters.Select(p=>p.ParameterType.FullName))=="System.String,System.String")!=true || capability=="table-recovery-v1" && module.Assembly.MainModule.GetType("NivalisFurnishings.RecoveryTablesV1")?.Methods.Count(m=>m.IsPublic&&m.IsStatic&&m.Name is "Begin" or "End")!=2 || capability=="city-save-v1" && module.Assembly.MainModule.GetType("NivalisCityLife.SaveIntegrationV1")?.Methods.Any(m=>m.Name=="CanMigrate"&&m.IsPublic&&m.IsStatic&&m.ReturnType.FullName=="System.Boolean"&&m.Parameters.Count==0)!=true)Missing("Declared capability "+capability);
+                foreach (var type in module.Assembly.MainModule.GetTypeReferences())
+                {
+                    Check(); if (!resolver.IsGameScope(type)) continue;
+                    try { if (type.Resolve() == null) Missing(type.FullName); } catch (AssemblyResolutionException ex) { Missing(ex.Message); }
+                }
+                foreach (var member in module.Assembly.MainModule.GetMemberReferences())
+                {
+                    Check(); if (!resolver.IsGameScope(member.DeclaringType)) continue;
+                    try { if (!MetadataContracts.Resolves(member,Check)) Missing(member.FullName); }
+                    catch (AssemblyResolutionException ex) { Missing(member.FullName + ": " + ex.Message); }
+                }
+                if (!metadata.ContainsKey("Nivalis.Requirements.Schema"))
+                    findings.Add(new("DynamicContractsUnverified", "Warning", module.Name, "Declared native/reflection capabilities", "No maintained compatibility metadata; only compiled references checked", true));
+                void Missing(string member) => findings.Add(new("MissingMember", "Error", module.Name, member, "Not resolved in effective dependencies/current bindings", true));
+            }
+        }
+        finally { foreach (var module in modules) module.Assembly.Dispose(); }
+        foreach (var file in selected.Where(p => p.Key.EndsWith(".asi", StringComparison.OrdinalIgnoreCase))) findings.Add(new("NativeContractUnverified", "Error", file.Key, "Declared native contract", "ASI compatibility cannot be inferred", true));
+        findings = findings.Distinct().ToList();
+        foreach(var input in inputs){Check();string actual=FileSafety.Hash(input.Value);if(actual!=hashes[input.Key])findings.Add(new("ChangedInspectionInput","Error",input.Key,hashes[input.Key],actual,false));fingerprint.AppendData(Encoding.UTF8.GetBytes("recheck/"+input.Key+"\0"+actual+"\n"));}
+        var status = findings.Any(f => f.Code is "MissingMember" or "UnsupportedNativeBuild" or "AmbiguousAssembly" or "AssemblyTooLarge" or "MalformedRequirements" or "PendingSaveRecovery" or "MissingRecoveryOwner" or "ChangedInspectionInput") ? CompatibilityStatus.Incompatible
+            : findings.Any(f => f.Code.EndsWith("Unverified", StringComparison.Ordinal)) ? CompatibilityStatus.Unverified : CompatibilityStatus.CheckedContractsPassed;
+        fingerprint.AppendData(Encoding.UTF8.GetBytes(snapshot.ProfileFingerprint + "\n" + string.Join("\n", findings)));
+        return new(1, snapshot.Installed ? "Play" : "Apply", Convert.ToHexString(fingerprint.GetHashAndReset()), status, findings.AsReadOnly(),identities.AsReadOnly());
+    }
+    internal static bool GameScope(TypeReference type)
+    {
+        string? name=type.Scope switch{AssemblyNameReference assembly=>assembly.Name,ModuleDefinition module=>module.Assembly?.Name.Name,_=>null};
+        return name!=null&&!(name.StartsWith("System",StringComparison.Ordinal)||name.StartsWith("Microsoft.Win32.",StringComparison.Ordinal)||name is "mscorlib" or "netstandard" or "Microsoft.CSharp");
+    }
+    private sealed class ExactResolver : IAssemblyResolver
+    {
+        private readonly Dictionary<string, AssemblyDefinition> assemblies = new(StringComparer.OrdinalIgnoreCase);
+        public bool Add(AssemblyDefinition value) => assemblies.TryAdd(value.Name.Name, value);
+        public bool IsGameScope(TypeReference type) => GameScope(type);
+        public AssemblyDefinition Resolve(AssemblyNameReference name) => Resolve(name, new());
+        public AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters) => assemblies.TryGetValue(name.Name, out var value) ? value : throw new AssemblyResolutionException(name);
+        public void Dispose() { }
+    }
+}

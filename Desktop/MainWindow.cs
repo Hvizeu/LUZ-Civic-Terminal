@@ -245,7 +245,13 @@ public sealed partial class MainWindow : Window
         var selected = await Pick("Stored versions", library.State.Packages.Select(p => new Choice(p.Id, p.Name + " · " + p.Version + " · " + p.Source)).ToList());
         if (selected != null) { library.AddToProfile(library.State.Packages.First(p => p.Id == selected)); RefreshMods(); }
     }
-    private Task ValidateProfile() { var issues = ModPlanner.Check(library.Active, library.State.Packages); return Notice("Profile checks", issues.Count == 0 ? "No declared dependency, duplicate plugin or shared-file conflicts found. Gameplay compatibility still needs testing." : string.Join("\n\n", issues.Select(i => i.Severity + ": " + i.Message))); }
+    private async Task ValidateProfile()
+    {
+        var issues=ModPlanner.Check(library.Active,library.State.Packages);
+        if(library.State.GameFolder.Length==0){await Notice("Profile checks",string.Join("\n\n",issues.Select(i=>i.Severity+": "+i.Message))+"\nSelect a game folder to check compiled contracts.");return;}
+        var report=await InspectCompatibility(false);if(report==null)return;
+        await Notice("Profile checks",string.Join("\n\n",issues.Select(i=>i.Severity+": "+i.Message))+"\n\n"+report.Describe());
+    }
     private static void ValidateWeb(string url) { if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.UserInfo.Length > 0) throw new InvalidDataException("Use a valid HTTPS page address."); }
     private static Task OpenUrl(string url) { ValidateWeb(url); return HostPlatform.Open(url); }
     private static void SetSourceLink(ModPackage package, string url)

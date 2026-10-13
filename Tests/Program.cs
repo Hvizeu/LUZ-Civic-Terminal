@@ -3,6 +3,8 @@ using System.Net;
 using System.Text;
 using Luz;
 
+if (args.SequenceEqual(new[] { "--compatibility-worker" })) { Environment.Exit(CompatibilityWorker.RunChild()); return; }
+
 if (args.Length == 3 && args[0] == "--forward-nxm") { Environment.Exit(await LinkInbox.Forward(args[1], args[2], 5000) ? 0 : 1); return; }
 if (args.SequenceEqual(new[] { "--sleep-for-updater" })) { await Task.Delay(1200); return; }
 
@@ -26,6 +28,7 @@ try
     await UpdateChecks.Run(root, Check, Reject);
     PluginDependencyChecks.Run(root, Check, Reject);
     RecoveryChecks.Run(root, Check, Reject);
+    CompatibilityRecoveryChecks.Run(root, Check, Reject);
     await NxmChecks.Run(root, Check, Reject);
     foreach (var bad in new[] { "../outside", "foo/../../outside", "C:/outside", "foo:bar", "con.dll", "x/../y", "x. /y", "foo./x" }) Reject(() => FileSafety.Under(root, bad), "reject path " + bad);
     var traversal = Zip("traversal", ("../escape.txt", "bad")); Reject(() => FileSafety.Extract(traversal, Path.Combine(root, "extract")), "reject ZIP traversal");
@@ -50,23 +53,23 @@ try
     Reject(() => library.Import(Zip("loader-reject", ("winhttp.dll", "fake"))), "loader archive cannot be imported as a mod");
     string game = Path.Combine(root, "fake-game"); Directory.CreateDirectory(Path.Combine(game, "BepInEx/core")); File.WriteAllText(Path.Combine(game, "Nivalis Nights.exe"), "fixture only; never execute"); File.WriteAllText(Path.Combine(game, "GameAssembly.dll"), "fixture"); File.WriteAllText(Path.Combine(game, "BepInEx/core/BepInEx.Unity.IL2CPP.dll"), "fixture");
     Directory.CreateDirectory(Path.Combine(game, "BepInEx/plugins/Old")); File.WriteAllText(Path.Combine(game, "BepInEx/plugins/Old/existing.txt"), "preserve in backup"); library.State.GameFolder = game; library.Save();
-    var deployment = new Deployment(library); var backup = deployment.Apply();
+    var deployment = new Deployment(library); var backup = deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library)));
     Check(File.ReadAllText(Path.Combine(game, "BepInEx/plugins/First/a.txt")) == "first" && !Directory.Exists(Path.Combine(game, "BepInEx/plugins/Old")), "apply exact profile into disposable game fixture");
     Check(File.ReadAllText(Path.Combine(library.Root, "backups", backup.Id, "plugins/Old/existing.txt")) == "preserve in backup", "preexisting unmanaged file backed up");
-    one.Files.Add("GameAssembly.dll"); Reject(() => deployment.Apply(), "package cannot overwrite game-root files"); one.Files.Remove("GameAssembly.dll"); Check(File.ReadAllText(Path.Combine(game, "GameAssembly.dll")) == "fixture", "game assembly remains unchanged after rejected apply");
+    one.Files.Add("GameAssembly.dll"); Reject(() => deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library))), "package cannot overwrite game-root files"); one.Files.Remove("GameAssembly.dll"); Check(File.ReadAllText(Path.Combine(game, "GameAssembly.dll")) == "fixture", "game assembly remains unchanged after rejected apply");
     Directory.CreateDirectory(Path.Combine(game, "BepInEx/patchers")); string locked = Path.Combine(game, "BepInEx/patchers/locked.txt"); File.WriteAllText(locked, "locked fixture");
     library.Active.Mods.First(m => m.PackageId == one.Id).Enabled = false;
     if (OperatingSystem.IsWindows())
     {
         using var lockedFile = new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.Read);
-        Reject(() => deployment.Apply(), "locked destination interrupts apply without erasing backups");
+        Reject(() => deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library))), "locked destination interrupts apply without erasing backups");
     }
     else Console.WriteLine("SKIP Windows file-sharing failure: Unix permits renaming an open file. Journal recovery is tested separately.");
     if (deployment.Pending != null) deployment.Restore(deployment.Backups().Single(b => b.Id == deployment.Pending));
     Check(File.ReadAllText(Path.Combine(game, "BepInEx/plugins/First/a.txt")) == "first", "partial deployment can recover its original plugin files"); library.Active.Mods.First(m => m.PackageId == one.Id).Enabled = true;
     File.WriteAllText(Path.Combine(game, "BepInEx/config/demo.cfg"), "user edited"); string originalId = library.Active.Id;
-    library.CreateProfile("Empty", false); deployment.Apply(); Check(!File.Exists(Path.Combine(game, "BepInEx/plugins/First/a.txt")), "empty profile removes deployed mod files");
-    library.State.ActiveProfileId = originalId; deployment.Apply(); Check(File.ReadAllText(Path.Combine(game, "BepInEx/config/demo.cfg")) == "user edited", "configuration isolated and restored per profile");
+    library.CreateProfile("Empty", false); deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library))); Check(!File.Exists(Path.Combine(game, "BepInEx/plugins/First/a.txt")), "empty profile removes deployed mod files");
+    library.State.ActiveProfileId = originalId; deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library))); Check(File.ReadAllText(Path.Combine(game, "BepInEx/config/demo.cfg")) == "user edited", "configuration isolated and restored per profile");
     library.CreateProfile("Copy", true); Check(library.Active.Mods.Count == 2 && File.Exists(Path.Combine(library.ConfigRoot(library.Active.Id), "demo.cfg")), "profile duplication includes config");
     library.ExportProfile(Path.Combine(root, "share.luzprofile")); library.ImportProfile(Path.Combine(root, "share.luzprofile")); Check(library.Active.Mods.Count == 2, "profile manifest round trip");
     deployment.Restore(backup); Check(File.Exists(Path.Combine(game, "BepInEx/plugins/Old/existing.txt")) && !File.Exists(Path.Combine(game, "BepInEx/plugins/First/a.txt")), "restore original installation");

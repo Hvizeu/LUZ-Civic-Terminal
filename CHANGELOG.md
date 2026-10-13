@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.8
+
+- Inspect compiled mod contracts and binding provenance before Apply and Play.
+- Require an explicit, single-attempt acknowledgment for incompatible or unverified contracts; preserve non-overrideable safety failures.
+- Prepare verified save generations for recovery by compatible game-side components, and retain checkpoints for interrupted recovery.
+- Include shared recovery sources in the repository so a clean checkout builds independently.
+
+## 0.4.7
+
+- Add All, Enabled and Disabled registry filters.
+- Preserve DLL/ASI companions and reject ambiguous archive layouts.
+- Detect unmanaged binaries before Apply, and offer registry backup recovery when startup cannot read the library.
+- Verify registry compatibility during self-update while preserving profiles, configuration and recovery records.
+
 ## 0.4.6
 
 - Refresh the bundled installation and update guides for Nivalis Update #4 and Object Framework Runtime 0.3.8.

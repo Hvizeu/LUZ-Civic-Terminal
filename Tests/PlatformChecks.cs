@@ -45,7 +45,7 @@ internal static class PlatformChecks
         {
             library.State.GameFolder = game; library.ImportInstalled(game);
             check(library.Active.Mods.Count == 1, "Adoption finds existing uppercase Windows-game directories");
-            var deployment = new Deployment(library); var backup = deployment.Apply(); deployment.Restore(backup);
+            var deployment = new Deployment(library); var backup = deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library))); deployment.Restore(backup);
             check(File.ReadAllText(Path.Combine(game, "BEPINEX", "PLUGINS", "original.txt")) == "original" && Directory.GetDirectories(game).Length == 1, "Apply and restore preserve existing folder casing without parallel BepInEx trees");
         }
         if (!OperatingSystem.IsWindows())

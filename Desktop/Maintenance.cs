@@ -52,6 +52,8 @@ public sealed partial class MainWindow
         var gameUpdate = Row(); gameUpdate.Children.Add(Button("Diagnose game update", DiagnoseGameUpdate)); gameUpdate.Children.Add(QuietButton("Refresh game bindings", RefreshGameBindings)); section.Children.Add(gameUpdate);
         section = Group("RECOVERY & SUPPORT");
         var recovery = Row(); recovery.Children.Add(Button("Restore profile backup", RestoreBackup)); recovery.Children.Add(QuietButton("Export diagnostics", Diagnostics)); recovery.Children.Add(QuietButton("Open profile configuration", async () => { string folder = library.State.AppliedProfileId == library.Active.Id && library.State.AppliedFingerprint.Length > 0 ? FileSafety.PortableDestination(library.State.GameFolder, "BepInEx/config") : library.ConfigRoot(library.Active.Id); FileSafety.NoLinks(folder); Directory.CreateDirectory(folder); await HostPlatform.Open(Path.GetFullPath(folder)); })); section.Children.Add(recovery);
+        section.Children.Add(Button("Prepare saved-data recovery",PrepareSavedDataRecovery));
+        section.Children.Add(QuietButton("Restore interrupted saved-data recovery",RestoreSavedDataRecovery));
         section.Children.Add(Label("Restore points contain mods and settings. Save games are not included; keep separate backups before removing content mods.", 13, TerminalTheme.Muted));
         return new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
@@ -59,6 +61,30 @@ public sealed partial class MainWindow
     {
         try { return GameFiles.LoaderStatus(library.State.GameFolder); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { return "Cannot inspect loader files: " + ex.Message; }
+    }
+    private async Task PrepareSavedDataRecovery()
+    {
+        GameFiles.Validate(library.State.GameFolder);GameFiles.RequireClosed();
+        var selected=(await OpenFiles("Select the native save to recover",false,"*.sav")).FirstOrDefault();if(selected==null)return;
+        string saves=Path.GetDirectoryName(selected)!,config=FileSafety.PortableDestination(library.State.GameFolder,"BepInEx/config");
+        NivalisRecovery.RecoveryGeneration? generation=null;
+        await Busy("Inspecting native save and companions…",ct=>Task.Run(()=>{ct.ThrowIfCancellationRequested();generation=NivalisRecovery.RecoveryFiles.Inspect(saves,config,Path.GetFileNameWithoutExtension(selected));},ct));
+        if(generation==null||!await Confirm(generation.Describe()+"\n\nPrepare this recovery generation? Nothing will load automatically. Launch the compatible patch yourself, then use Settings > Mods > Recover prepared save."))return;
+        await Busy("Capturing recovery generation…",ct=>Task.Run(()=>{GameFiles.RequireClosed();ct.ThrowIfCancellationRequested();NivalisRecovery.RecoveryFiles.Prepare(saves,config,generation);},ct));
+    }
+    private async Task RestoreSavedDataRecovery()
+    {
+        GameFiles.Validate(library.State.GameFolder);GameFiles.RequireClosed();
+        string config=FileSafety.PortableDestination(library.State.GameFolder,"BepInEx/config");
+        string root=Path.Combine(config,"NivalisUnofficialPatch","Recovery");
+        var pending=Directory.Exists(root)?Directory.EnumerateDirectories(root).Take(64).Select(d=>Path.Combine(d,"journal.json")).Where(File.Exists).Select(NivalisRecovery.RecoveryFiles.Read).Where(g=>g.State is "Loading" or "Publishing" or "Failed" or "Claiming").ToArray():[];
+        if(pending.Length==0){await Notice("Save recovery","No interrupted saved-data recovery was found.");return;}
+        var selected=await Pick("Interrupted recovery",pending.Select(g=>new Choice(g.Id,g.SourceSlot+" · "+g.State)).ToList());if(selected==null)return;
+        var source=(await OpenFiles("Select an existing save from the same save directory",false,"*.sav")).FirstOrDefault();if(source==null)return;
+        var mode=await Pick("Recovery action",new List<Choice>{new("resume","Restore and prepare another explicit attempt"),new("abandon","Restore and abandon an unpublished recovery")});if(mode==null)return;
+        bool abandon=mode=="abandon";
+        if(!await Confirm("Restore the exact verified checkpoint? Externally changed files will be retained and reported. A previously completed recovery returns to its last verified state."))return;
+        await Busy("Restoring verified recovery checkpoint…",ct=>Task.Run(()=>{GameFiles.RequireClosed();ct.ThrowIfCancellationRequested();NivalisRecovery.RecoveryFiles.RestorePending(Path.GetDirectoryName(source)!,config,selected,abandon);},ct));
     }
     private async Task DetectGame()
     {
@@ -93,19 +119,38 @@ public sealed partial class MainWindow
             finally { File.Delete(file); }
         });
     }
+    private async Task<CompatibilityReport?> InspectCompatibility(bool installed)
+    {
+        CompatibilityReport? report=null;
+        await Busy("Checking game and mod contracts…",ct=>Task.Run(()=>report=Compatibility.Inspect(library,installed,ct),ct));
+        return report;
+    }
+    private async Task<CompatibilityAcknowledgment?> ReviewCompatibility(CompatibilityReport report)
+    {
+        if(report.Status==CompatibilityStatus.CheckedContractsPassed)return null;
+        if(report.Findings.Any(f=>f.Severity=="Error"&&!f.CanOverride))throw new InvalidOperationException(report.Describe());
+        string recovery=report.Findings.Any(f=>f.Code=="BindingsUnverified")?"\n\nMaintenance > Refresh game bindings offers the existing regeneration recovery operation.":"";
+        if(!await Confirm(report.Describe()+recovery+"\n\nProceed with this exact "+report.Action+" attempt despite these findings? Runtime guards still apply."))throw new OperationCanceledException("Compatibility override declined.");
+        return Compatibility.Acknowledge(report);
+    }
     private async Task Apply()
     {
-        var deployment = new Deployment(library); var issues = deployment.Preview(); if (issues.Any(i => i.Severity == "Error")) throw new InvalidOperationException(string.Join('\n', issues.Select(i => i.Message)));
-        string first = library.State.AppliedProfileId.Length == 0 ? "FIRST APPLY: this replaces the current plugins and patchers with this profile. Use Import existing installation first if you want to keep existing mods.\n\n" : "";
-        if (!await Confirm(first + "Apply “" + library.Active.Name + "” with " + library.Active.Mods.Count(m => m.Enabled) + " enabled mods?\n\nA restore point is created before changing game files. Save games are not altered.\n\n" + string.Join('\n', issues.Select(i => i.Message)))) return;
-        _ = Busy("Creating a restore point and applying profile…", ct => Task.Run(() => deployment.Apply(), ct));
+        var deployment=new Deployment(library);var issues=deployment.Preview(includeCompatibility:false);
+        if(issues.Any(i=>i.Severity=="Error"))throw new InvalidOperationException(string.Join('\n',issues.Select(i=>i.Message)));
+        var report=await InspectCompatibility(false);if(report==null)return;
+        var acknowledgment=await ReviewCompatibility(report);
+        string first=library.State.AppliedProfileId.Length==0?"FIRST APPLY: this replaces plugins and patchers. Import your existing installation first to retain its mods.\n\n":"";
+        if(!await Confirm(first+"Apply “"+library.Active.Name+"”? A restore point is created. Save games are not altered.\n\n"+report.Describe()))return;
+        await Busy("Backing up and applying profile…",ct=>Task.Run(()=>deployment.Apply(acknowledgment,ct),ct));
     }
     private async Task Play()
     {
         GameFiles.Validate(library.State.GameFolder);
-        if (new Deployment(library).Pending != null || File.Exists(Path.Combine(library.Root, "loader-pending.json"))) throw new InvalidOperationException("Restore the interrupted installation before playing.");
-        if (library.State.AppliedProfileId != library.Active.Id || library.State.AppliedFingerprint != library.Fingerprint(library.Active)) throw new InvalidOperationException("This profile has unapplied changes. Apply it first, then press Play.");
-        await HostPlatform.Launch(library.State); status.Text = "Launch requested. Check the game window for the result.";
+        if(new Deployment(library).Pending!=null||File.Exists(Path.Combine(library.Root,"loader-pending.json")))throw new InvalidOperationException("Restore the interrupted installation before playing.");
+        if(library.State.AppliedProfileId!=library.Active.Id||library.State.AppliedFingerprint!=library.Fingerprint(library.Active))throw new InvalidOperationException("Apply this profile before playing.");
+        var report=await InspectCompatibility(true);if(report==null)return;
+        var acknowledgment=await ReviewCompatibility(report);
+        await Busy("Rechecking installed files before launch…",ct=>Task.Run(()=>GameFiles.Play(library,acknowledgment,ct),ct));status.Text="Launch requested. Check the game window for the result.";
     }
     private async Task RestoreBackup()
     {

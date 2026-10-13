@@ -65,6 +65,12 @@ Check updates finds available mod versions. Review and import them, then Apply w
 
 Maintenance > LUZ updates checks the public GitHub releases. Startup checks run at most once every 24 hours and can be disabled. You choose when to install. Updates verify the download, install it for your account and redirect the shortcut while retaining profiles. A failed update leaves the current application available.
 
+## Compatibility checks
+
+Profile checks inspect compiled mod contracts without executing inspected assemblies. Apply checks the effective profile files; Play checks installed files. Results distinguish checked contracts passed, incompatible and unverified. Binding provenance must match recognized loader inputs; timestamps or version labels alone do not establish compatibility.
+
+An explicit acknowledgment permits one attempt against the exact report, and changes to relevant files invalidate it. File-safety, ambiguous ownership, interrupted operations and save-integrity failures remain blocking. Static inspection cannot guarantee gameplay compatibility or repair a third-party mod.
+
 ## Nexus and Thunderstore
 
 On Windows, Remove LUZ as NXM manager is beside Change system-wide NXM handler. Removal preserves your profiles, mods and other managers. Choose your preferred replacement in Windows Default apps. The extracted installer also offers registration removal without reinstalling LUZ.
@@ -89,7 +95,7 @@ If generated bindings are stale, close the game and choose Refresh game bindings
 
 Each Apply creates a mod/settings restore point. Maintenance > Restore profile backup restores one; BepInEx has a separate Restore loader backup action. If Apply or Play says Recovery needed, use the matching action at the top of Maintenance. Export recovery diagnostics is available when a backup is missing or unreadable.
 
-LUZ does not back up or switch save games. Keep separate save backups before changing content mods. Profiles and the library stay in the platform's LUZCivicTerminal data folder when updating. Windows uses %LOCALAPPDATA%/LUZCivicTerminal; Linux uses $XDG_DATA_HOME/LUZCivicTerminal or ~/.local/share/LUZCivicTerminal; macOS uses ~/Library/Application Support/LUZCivicTerminal. Keep that folder when updating.
+Ordinary profile application does not modify saves. Keep separate save backups before changing content mods. Maintenance > Prepare saved-data recovery captures a verified source save and matching companions while the game is closed. Recovery requires compatible Unofficial Patch and Object Framework components, a separate game launch and the explicit recovery action; it creates a separate recovered timeline. Unsupported companions or uncertain writes block completion. Native recovery remains subject to owner gameplay acceptance. Profiles and the library stay in the platform's LUZCivicTerminal data folder when updating. Windows uses %LOCALAPPDATA%/LUZCivicTerminal; Linux uses $XDG_DATA_HOME/LUZCivicTerminal or ~/.local/share/LUZCivicTerminal; macOS uses ~/Library/Application Support/LUZCivicTerminal. Keep that folder when updating.
 
 ## Linux and macOS game setup
 

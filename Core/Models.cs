@@ -47,7 +47,7 @@ public sealed class TerminalState
     public List<Profile> Profiles { get; set; } = [new()];
     public List<ModPackage> Packages { get; set; } = [];
 }
-public sealed record Issue(string Severity, string Message);
+public sealed record Issue(string Severity, string Message, string Code = "Deployment", bool CanOverride = false);
 public sealed record CatalogMod(string Id, string Name, string Version, string Description, string PageUrl, string IconUrl, string DownloadUrl, string[] Dependencies, string Source, long FileId = 0);
 public static class JsonFiles
 {

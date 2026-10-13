@@ -13,7 +13,7 @@ internal static class RecoveryChecks
         using var library = new Library(data);
         library.State.GameFolder = game; library.Save();
         var deployment = new Deployment(library);
-        var backup = deployment.Apply();
+        var backup = deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library)));
         string loaderBackup = Path.Combine(data, "loader-backups", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(loaderBackup, "files/BepInEx/core"));
         File.WriteAllText(Path.Combine(loaderBackup, "files", dll), "original loader");
@@ -39,7 +39,7 @@ internal static class RecoveryChecks
         OperationRecovery.Restore(library, "loader");
         check(OperationRecovery.Inspect(library).Count == 0 && !deployment.Preview().Any(x => x.Severity == "Error"), "Matching loader recovery unblocks deployment after relocation");
         check(OperationRecovery.CompletionMessage(library).Contains("then Apply"), "Recovered original installation correctly requests Apply");
-        deployment.Apply();
+        deployment.Apply(Compatibility.Acknowledge(Compatibility.Inspect(library)));
         check(OperationRecovery.CompletionMessage(library).Contains("current profile is applied"), "Already applied profile does not request Apply again");
         Pending(); OperationRecovery.Restore(library, "loader");
         check(OperationRecovery.Inspect(library).Single().Kind == "profile", "Loader recovery preserves pending profile operation");

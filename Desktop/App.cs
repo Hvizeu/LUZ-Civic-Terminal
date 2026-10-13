@@ -60,6 +60,7 @@ public sealed class App : Application
     }
     [STAThread] public static int Main(string[] args)
     {
+        if (args.SequenceEqual(new[] { "--compatibility-worker" })) return CompatibilityWorker.RunChild();
         if (args.Length == 2 && args[0] == "--update-restart") {
             try {
                 if (!int.TryParse(args[1], out int previousPid)) throw new InvalidDataException("Invalid LUZ update restart request.");

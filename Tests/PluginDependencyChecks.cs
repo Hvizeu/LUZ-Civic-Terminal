@@ -33,7 +33,7 @@ public static class PluginDependencyChecks
             library.State.GameFolder = game; library.Save();
             check(!ModPlanner.Check(library.Active, library.State.Packages).Any(i => i.Severity == "Error"), "Reported 1.03 / >=1.03 profile passes validation");
             check(ModPlanner.Sort(library.Active, library.State.Packages)[0].PackageId == provider.Id, "Ranged dependencies still sort before their consumers");
-            new Deployment(library).Apply();
+            new Deployment(library).Apply(Compatibility.Acknowledge(Compatibility.Inspect(library)));
             check(library.State.AppliedProfileId == library.Active.Id && library.State.AppliedFingerprint == library.Fingerprint(library.Active), "Ranged profile applies and satisfies the Play fingerprint gate without launching");
             provider.Plugins[0] = provider.Plugins[0] with { Version = "1.02" };
             check(ModPlanner.Check(library.Active, library.State.Packages).Any(i => i.Severity == "Error" && i.Message.Contains(">=1.03") && i.Message.Contains("1.02")), "Too-old dependency retains a useful blocking error");
