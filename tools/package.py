@@ -95,7 +95,7 @@ def package(rid):
         bundle = folder / (APP + '.app')
         publish = bundle / 'Contents/MacOS' if rid.startswith('osx-') else folder
         run('dotnet', 'publish', ROOT / 'Desktop/Desktop.csproj', '-c', 'Release', '-r', rid,
-            '-p:RenderTools=false', '--self-contained', 'true', '-o', publish, '--nologo', '-v', 'minimal')
+            '-p:RenderTools=false', '-p:UseSharedCompilation=false', '-m:1', '--self-contained', 'true', '-o', publish, '--nologo', '-v', 'minimal')
         for symbols in publish.rglob('*.pdb'): symbols.unlink()
         verify_target(publish, rid)
         notices(publish)

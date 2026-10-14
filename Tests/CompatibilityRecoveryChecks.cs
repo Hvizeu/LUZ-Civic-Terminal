@@ -11,6 +11,8 @@ internal static class CompatibilityRecoveryChecks
     internal static void Run(string root, Action<bool, string> check, Action<Action, string> reject)
     {
         ContractEdgeChecks.Run(root,check,reject);
+        PublicationChecks.Run(root,check,reject);
+        GenericScopeChecks.Run(root,check);
         string game = Path.Combine(root, "ContractGame"), config = Path.Combine(game, "BepInEx/config"), bindings = Path.Combine(game, "BepInEx/interop");
         Directory.CreateDirectory(bindings); File.WriteAllText(Path.Combine(game, "Nivalis Nights.exe"), "fixture"); File.WriteAllText(Path.Combine(game, "GameAssembly.dll"), "fixture");
         var native = AssemblyDefinition.CreateAssembly(new("Assembly-CSharp", new(1, 0)), "Assembly-CSharp", ModuleKind.Dll);

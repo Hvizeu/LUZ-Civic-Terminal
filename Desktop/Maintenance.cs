@@ -77,10 +77,10 @@ public sealed partial class MainWindow
         GameFiles.Validate(library.State.GameFolder);GameFiles.RequireClosed();
         string config=FileSafety.PortableDestination(library.State.GameFolder,"BepInEx/config");
         string root=Path.Combine(config,"NivalisUnofficialPatch","Recovery");
-        var pending=Directory.Exists(root)?Directory.EnumerateDirectories(root).Take(64).Select(d=>Path.Combine(d,"journal.json")).Where(File.Exists).Select(NivalisRecovery.RecoveryFiles.Read).Where(g=>g.State is "Loading" or "Publishing" or "Failed" or "Claiming").ToArray():[];
+        var source=(await OpenFiles("Select an existing save from the same save directory",false,"*.sav")).FirstOrDefault();if(source==null)return;
+        var pending=NivalisRecovery.RecoveryPublication.Directories(root).Where(d=>File.Exists(Path.Combine(d,"journal.json"))).Select(d=>NivalisRecovery.RecoveryPublication.Inspect(Path.GetDirectoryName(source)!,config,d)).Where(r=>r.State==NivalisRecovery.RecoveryPublicationState.Interrupted).Select(r=>r.Generation).ToArray();
         if(pending.Length==0){await Notice("Save recovery","No interrupted saved-data recovery was found.");return;}
         var selected=await Pick("Interrupted recovery",pending.Select(g=>new Choice(g.Id,g.SourceSlot+" · "+g.State)).ToList());if(selected==null)return;
-        var source=(await OpenFiles("Select an existing save from the same save directory",false,"*.sav")).FirstOrDefault();if(source==null)return;
         var mode=await Pick("Recovery action",new List<Choice>{new("resume","Restore and prepare another explicit attempt"),new("abandon","Restore and abandon an unpublished recovery")});if(mode==null)return;
         bool abandon=mode=="abandon";
         if(!await Confirm("Restore the exact verified checkpoint? Externally changed files will be retained and reported. A previously completed recovery returns to its last verified state."))return;

@@ -32,7 +32,6 @@ public static class CompatibilityWorker
             if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase)) start.ArgumentList.Add(Assembly.GetEntryAssembly()!.Location);
             start.ArgumentList.Add("--compatibility-worker");
             start.Environment["DOTNET_PROCESSOR_COUNT"] = "2";
-            start.Environment["DOTNET_GCHeapHardLimit"] = "20000000";
             string request = JsonSerializer.Serialize(snapshot);
             if (request.Length > 4 * 1024 * 1024) throw new InvalidDataException("Compatibility request exceeds its size limit.");
             using var child = Process.Start(start) ?? throw new IOException("Could not start metadata worker.");
@@ -47,8 +46,6 @@ public static class CompatibilityWorker
                 {
                     cancellation.ThrowIfCancellationRequested(); child.Refresh();
                     if (watch.Elapsed > limit) throw new TimeoutException("Metadata worker exceeded its "+limit.TotalSeconds+" second limit.");
-                    try { if (child.WorkingSet64 > 1024L * 1024 * 1024) throw new IOException("Metadata worker exceeded 1 GiB; inspection stopped."); }
-                    catch (InvalidOperationException) when (child.HasExited) { break; }
                     if (output.IsFaulted) output.GetAwaiter().GetResult();
                     if (errors.IsFaulted) errors.GetAwaiter().GetResult();
                 }

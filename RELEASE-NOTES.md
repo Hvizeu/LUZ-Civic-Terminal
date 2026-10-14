@@ -1,15 +1,17 @@
-# LUZ Civic Terminal 0.4.8
+# LUZ Civic Terminal 0.4.9
 
-LUZ now checks compiled mod contracts before applying a profile or launching Nivalis, and can prepare a captured save generation for recovery by a compatible Unofficial Patch.
+This release strengthens compatibility inspection and prevents incomplete recovered saves from being treated as successfully published.
 
-- Profile checks identify missing game types, methods, fields and dependencies without running the inspected mods. Checks use the files selected by profile order for Apply and the installed files for Play.
-- Binding checks verify the recognized loader's generation fingerprint. Missing or unverifiable bindings are reported as Unverified; Refresh game bindings remains available in Maintenance.
-- Incompatible or unverified reports require an explicit acknowledgment for one attempt. Changed inputs invalidate it. File ownership, interrupted operations and save-integrity failures cannot be overridden; mod runtime guards still apply.
-- Maintenance can prepare saved-data recovery with the game closed, preserving a verified source save and matching companions. Native recovery requires compatible Unofficial Patch and Object Framework components, a separate owner-launched game session and the explicit recovery action. Ordinary profile application does not modify saves.
-- Interrupted recovery retains its journal and verified checkpoints. Unsupported companions or uncertain writes stop recovery rather than discarding state.
+- Compatibility checks support schema 2 compiled contracts, transitive generic inheritance, forwarded types and assembly-qualified signatures. Existing schema 1 metadata remains supported; unknown requirements remain Unverified.
+- Recovery inspection requires agreement between the native save, required companions, receipt, journal and committed checkpoint. Incomplete publication remains blocked, with restartable restoration and retained diagnostic evidence.
+- Routine compatibility checks avoid hashing archived recovery payloads repeatedly. Deployment still preserves those files, and recovery inspection verifies the referenced generations.
+- Scanner cancellation, timeouts and bounded inputs remain enforced without process RAM ceilings.
+- Shared recovery source hashes are checked during validation, and Git preserves the verified source bytes across platforms.
 
-Static checks do not establish complete gameplay compatibility and do not repair third-party binaries. The tested Performance Fix 1.0.5 package references the removed ItemListUI.set_isUpdating(Boolean) method; newer packages need their own inspection.
+Existing configurations and plugin identities are preserved. Compatibility overrides remain explicit, valid for one attempt against the exact report, and cannot bypass save-integrity or cleanup failures. Ordinary profile application does not modify saves. Static checks do not establish full gameplay compatibility or repair third-party binaries.
 
-Windows fixtures, headless UI checks and package checks passed. Linux x64 and macOS Intel/Apple Silicon packages are cross-built and package-checked; native operation remains unverified. macOS packages are not notarized. Native save recovery and gameplay acceptance remain pending.
+Windows fixtures, headless UI checks and package checks passed. The Linux x64, macOS Intel and macOS Apple Silicon downloads are experimental cross-builds; native operation remains unverified. macOS packages are not notarized. Native platform, Wine/Proton and gameplay/save-recovery acceptance remain pending.
 
-In LUZ 0.4.0 or newer, use Maintenance > LUZ updates > Check LUZ updates. Startup checks run at most once every 24 hours. Users on 0.3.x can download their platform ZIP and run its installer once. Each download has a SHA-256 checksum file.
+## Update
+
+In LUZ 0.4.0 or newer, use **Maintenance > LUZ updates > Check LUZ updates**. Startup checks run at most once every 24 hours. Users on 0.3.x can download their platform ZIP and run its installer once. All four downloads include matching SHA-256 checksum files.

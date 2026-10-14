@@ -18,4 +18,6 @@ Validate on each native platform before claiming native support. A build or head
 
 ## Shared recovery source
 
-Core/Recovery contains the release snapshot of the shared Nivalis recovery source, compiled directly into Core. SOURCE-HASHES.json records its SHA-256 hashes. A clean checkout needs no sibling projects or additional runtime DLL. When updating the shared recovery implementation, copy all four files from the maintained NivalisShared source and refresh the hashes together; run the recovery fixtures before packaging.
+Core/Recovery contains the release snapshot of the shared Nivalis recovery source, compiled directly into Core. SOURCE-HASHES.json records its SHA-256 hashes. A clean checkout needs no sibling projects or additional runtime DLL. When updating the shared recovery implementation, copy all five files from the maintained NivalisShared source and refresh the hashes together; run the recovery fixtures before packaging.
+
+Git preserves the recovery files byte-for-byte so checkout line-ending conversion cannot invalidate the manifest. Packaging verifies the manifest and, when present, the maintained sibling sources.

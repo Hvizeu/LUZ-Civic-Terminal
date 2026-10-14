@@ -1,6 +1,14 @@
 # LUZ Civic Terminal
 
-## Changes in 0.4.7
+## Changes in 0.4.9
+
+- Checks compiled references and declared native contracts before Apply and Play, including generic inheritance and forwarded types. Unknown dynamic contracts remain visibly unverified.
+- Limits compatibility acknowledgments to one attempt against the exact report. Save integrity and ownership failures cannot be overridden.
+- Requires recovered save files, companions, receipts, journals and committed checkpoints to agree before admitting a recovered timeline.
+- Preserves archived recovery files without repeatedly hashing their payloads during ordinary compatibility checks.
+- Retains scanner cancellation, timeouts and bounded inputs without process RAM ceilings.
+
+## Changes retained from 0.4.7
 
 - Filter the Registry by All, Enabled or Disabled. Filters combine with search; clear them before reordering.
 - DLL/ASI companions stay together in supported archives. Mixed-layout archives cannot silently omit native binaries.
@@ -9,7 +17,7 @@
 - Self-update checks the persisted registry before installation.
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. Import the mods you already use, add new ones, then apply the setup you want to play with.
 
-Version 0.4.7 is available for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+Version 0.4.9 provides downloads for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads. Native Linux/macOS and compatibility-layer gameplay acceptance remain pending.
 
 ## What you can do
 
@@ -83,7 +91,7 @@ When a Nexus page offers Mod Manager Download, LUZ can receive its NXM link. Reg
 
 ## Object Studio collections
 
-In Studio, choose Send to LUZ to build and send the open project. Confirm the displayed profile, install the matching Object Framework Runtime and Apply with the game closed. For Nivalis Update #4, use Runtime 0.3.8. Rebuilding updates the same project; disabling it removes the collection on the next Apply. Saves containing custom objects still require their packs.
+In Studio, choose Send to LUZ to build and send the open project. Confirm the displayed profile, install the matching Object Framework Runtime and Apply with the game closed. This set uses Runtime 0.3.11 and Studio SDK 0.3.9 for Nivalis Update #4. Rebuilding updates the same project; disabling it removes the collection on the next Apply. Saves containing custom objects still require their packs.
 
 ## After a game update
 
@@ -112,3 +120,7 @@ For a problem report, include the operating system, LUZ version, exact steps and
 Made by Hvizeu. LUZ is an independent, unofficial project. Required third-party licenses and notices are included in the download.
 
 [Support my work on Ko-fi](https://ko-fi.com/henriquevizeu).
+
+## 0.4.9
+
+Compatibility inspection supports embedded contract schema 2 and existing schema 1 packages, including transitive generic inheritance and assembly-qualified signatures. Unknown requirements remain Unverified. Overrides permit one attempt against the exact inspected deployment and cannot bypass save integrity or cleanup failures. Recovery inspection checks durable publication and referenced native generations without repeatedly hashing archived payloads. Interrupted publication remains blocked until verified recovery. Scanner cancellation, timeout and bounded inputs remain enforced; no process RAM ceiling is imposed. Native Windows, Linux, macOS and Wine acceptance remains pending for this release.

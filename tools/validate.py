@@ -6,6 +6,8 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 
 def validate():
+    from check_shared_recovery import verify
+    verify()
     output = ROOT / 'qa/platform/native' / (platform.system().lower() + '-' + platform.machine().lower())
     output.mkdir(parents=True, exist_ok=True)
     commands = [

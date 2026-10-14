@@ -1,3 +1,11 @@
+# 0.4.9
+
+- Validate schema 2 compiled contracts, generic inheritance and forwarded type identities before deployment. Existing schema 1 metadata remains supported.
+- Treat incomplete or inconsistent recovered save publication as a blocking integrity failure. Retain restartable restoration checkpoints and verify referenced generations.
+- Exclude archived recovery payloads from routine compatibility hashing without excluding them from deployment preservation.
+- Retain worker cancellation, timeout and bounded inputs without process RAM ceilings.
+- Native platform and game acceptance remains pending.
+
 # Changelog
 
 ## 0.4.8

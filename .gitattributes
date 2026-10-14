@@ -1,0 +1,2 @@
+# Recovery sources are verified byte-for-byte against SOURCE-HASHES.json.
+Core/Recovery/Recovery*.cs -text whitespace=cr-at-eol

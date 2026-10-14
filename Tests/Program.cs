@@ -10,7 +10,7 @@ if (args.SequenceEqual(new[] { "--sleep-for-updater" })) { await Task.Delay(1200
 
 int passed = 0;
 void Check(bool condition, string title) { if (!condition) throw new Exception("FAILED: " + title); Console.WriteLine("PASS " + title); passed++; }
-void Reject(Action action, string title) { try { action(); } catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException) { Check(true, title); return; } throw new Exception("FAILED accepted: " + title); }
+void Reject(Action action, string title) { try { action(); } catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException) { Check(true, title); return; } throw new Exception("FAILED accepted: " + title); }
 string root = FileSafety.ResolveFolder(Path.Combine(Path.GetTempPath(), "LuzFixtures-" + Guid.NewGuid().ToString("N"))); Directory.CreateDirectory(root);
 string Zip(string name, params (string Name, string Text)[] files)
 {

@@ -70,11 +70,11 @@ public static class Compatibility
                     files[rel] = FileSafety.Under(library.PackageRoot(entry.PackageId), "payload/" + rel);
             }
         }
-        if (files.Count > 20000) throw new InvalidDataException("Compatibility input exceeds 20,000 files.");
+        if (files.Keys.Count(k=>!ArchivedRecoveryInput(k)) > 20000) throw new InvalidDataException("Compatibility input exceeds 20,000 relevant files.");
         return files;
     }
     public static CompatibilityReport Inspect(Library library, bool installed = false, CancellationToken cancellation = default)
-        => CompatibilityWorker.Run(new(library.State.GameFolder, library.Fingerprint(library.Active), installed, EffectiveFiles(library, installed)), cancellation);
+        => CompatibilityWorker.Run(new(library.State.GameFolder, library.Fingerprint(library.Active), installed, new SortedDictionary<string,string>(EffectiveFiles(library, installed).Where(p=>!ArchivedRecoveryInput(p.Key)).ToDictionary(p=>p.Key,p=>p.Value),StringComparer.OrdinalIgnoreCase)), cancellation);
     public static CompatibilityReport InspectSnapshot(CompatibilitySnapshot snapshot, CancellationToken cancellation = default)
     {
         GameFiles.Validate(snapshot.Game);
@@ -84,7 +84,7 @@ public static class Compatibility
         if (selected.Count > 20000) throw new InvalidDataException("Too many compatibility inputs.");
         var findings = new List<CompatibilityFinding>();
         string game = snapshot.Game, core = FileSafety.PortableDestination(game, "BepInEx/core"), interop = FileSafety.PortableDestination(game, "BepInEx/interop");
-        var inputs = new SortedDictionary<string, string>(selected, StringComparer.OrdinalIgnoreCase) { ["game/GameAssembly.dll"] = Path.Combine(game, "GameAssembly.dll") };
+        var inputs = new SortedDictionary<string, string>(selected.Where(p=>!ArchivedRecoveryInput(p.Key)).ToDictionary(p=>p.Key,p=>p.Value), StringComparer.OrdinalIgnoreCase) { ["game/GameAssembly.dll"] = Path.Combine(game, "GameAssembly.dll") };
         string nativeMetadata=Path.Combine(game,"Nivalis Nights_Data/il2cpp_data/Metadata/global-metadata.dat");
         if(File.Exists(nativeMetadata))inputs["game/global-metadata.dat"]=nativeMetadata;
         foreach (var (name, folder) in new[] { ("loader", core), ("bindings", interop), ("unity", FileSafety.PortableDestination(game, "BepInEx/unity-libs")) })
@@ -99,6 +99,15 @@ public static class Compatibility
             throw new InvalidDataException("Metadata input exceeds its aggregate limit.");
         using var fingerprint = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var hashes=new Dictionary<string,string>();
+        foreach(var recovery in inputs.Where(p=>p.Key.StartsWith("config/NivalisUnofficialPatch/Recovery/",StringComparison.OrdinalIgnoreCase)&&p.Key.EndsWith("/journal.json",StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            var generation=NivalisRecovery.RecoveryFiles.Read(recovery.Value);
+            if(generation.State=="Complete"&&!string.IsNullOrEmpty(generation.SaveDirectory))
+            {
+                string native=NivalisRecovery.RecoveryFiles.Under(generation.SaveDirectory,generation.PublishedSlot+".sav");
+                if(File.Exists(native))inputs["recovery-native/"+generation.Id+"/"+generation.PublishedSlot]=native;
+            }
+        }
         foreach (var input in inputs) { Check();hashes[input.Key]=FileSafety.Hash(input.Value);fingerprint.AppendData(Encoding.UTF8.GetBytes(input.Key + "\0" + hashes[input.Key] + "\n")); }
         string nativeHash = hashes["game/GameAssembly.dll"];
         string provenance = BindingProvenance.Verify(game, Check, selected.GetValueOrDefault("config/BepInEx.cfg"));
@@ -108,8 +117,12 @@ public static class Compatibility
         foreach (var recovery in recoveries)
         {
             var generation = NivalisRecovery.RecoveryFiles.Read(recovery.Value);
-            if (generation.State is "Loading" or "Publishing" or "Claiming" or "Failed")
-                findings.Add(new("PendingSaveRecovery", "Error", "Save recovery", "Restore the interrupted generation in Maintenance", generation.SourceSlot + ": " + generation.State, false));
+            string folder=Path.GetDirectoryName(recovery.Value)!,config=Path.GetFullPath(Path.Combine(folder,"../../.."));
+            string saves=generation.SaveDirectory;
+            if(string.IsNullOrEmpty(saves)&&OperatingSystem.IsWindows())saves=Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"../LocalLow/Ion Lands/Nivalis Nights"));
+            var publication=NivalisRecovery.RecoveryPublication.Inspect(saves,config,folder);
+            if (publication.State==NivalisRecovery.RecoveryPublicationState.Interrupted)
+                findings.Add(new("PendingSaveRecovery", "Error", "Save recovery", "Restore or verify the interrupted generation in Maintenance", generation.SourceSlot + ": " + publication.Detail, false));
             if(generation.State!="Abandoned" && generation.Companions.Values.Contains("city") && !selected.Values.Any(p=>Path.GetFileName(p).Equals("NivalisCityLife.dll",StringComparison.OrdinalIgnoreCase)))findings.Add(new("MissingRecoveryOwner","Error","City Life","Required companion owner in this deployment",generation.SourceSlot,false));
             if(generation.State!="Abandoned" && !selected.Values.Any(p=>Path.GetFileName(p).Equals("NivalisUnofficialPatch.dll",StringComparison.OrdinalIgnoreCase)))findings.Add(new("MissingRecoveryOwner","Error","Unofficial Patch","Required recovery owner in this deployment",generation.SourceSlot,false));
         }
@@ -140,8 +153,37 @@ public static class Compatibility
                 if (metadata.TryGetValue("Nivalis.NativeBuild", out string? supported) && !supported.Equals(nativeHash,StringComparison.OrdinalIgnoreCase))
                     findings.Add(new("UnsupportedNativeBuild", "Error", module.Name, supported, nativeHash, true));
                 if(metadata.TryGetValue("Nivalis.MetadataBuild",out var expectedMetadata)&&(!hashes.TryGetValue("game/global-metadata.dat",out var metadataHash)||!metadataHash.Equals(expectedMetadata,StringComparison.OrdinalIgnoreCase)))findings.Add(new("UnsupportedNativeBuild","Error",module.Name,expectedMetadata,hashes.GetValueOrDefault("game/global-metadata.dat")??"IL2CPP metadata missing",true));
-                if (metadata.TryGetValue("Nivalis.Requirements.Schema", out string? schema) && schema != "1")
-                    findings.Add(new("RequirementsUnverified", "Error", module.Name, "Requirements schema 1", schema, true));
+                if (metadata.TryGetValue("Nivalis.Requirements.Schema", out string? schema) && schema is not ("1" or "2"))
+                    findings.Add(new("RequirementsUnverified", "Error", module.Name, "Requirements schema 1 or 2", schema, true));
+                if(schema=="2")
+                {
+                    var resource=module.Assembly.MainModule.Resources.OfType<EmbeddedResource>().SingleOrDefault(r=>r.Name=="Nivalis.Contracts.v2.json");
+                    if(resource==null)findings.Add(new("MalformedRequirements","Error",module.Name,"Embedded versioned compiled contracts","Missing contracts resource",false));
+                    else
+                    {
+                        using var stream=resource.GetResourceStream();if(stream.Length>4*1024*1024)throw new InvalidDataException("Requirements resource exceeds its size limit.");
+                        using var document=System.Text.Json.JsonDocument.Parse(stream);
+                        if(document.RootElement.GetProperty("Schema").GetInt32()!=2)throw new InvalidDataException("Unsupported compiled contracts schema.");
+                        var features=document.RootElement.GetProperty("Features").EnumerateArray().ToArray();
+                        if(features.Length>128||features.Select(f=>f.GetProperty("Name").GetString()).Distinct().Count()!=features.Length)throw new InvalidDataException("Ambiguous feature contracts.");
+                        foreach(var feature in features)
+                        foreach(var member in feature.GetProperty("Members").EnumerateArray())
+                        {
+                            Check();string assemblyName=member.GetProperty("Assembly").GetString()!,typeName=member.GetProperty("Type").GetString()!,name=member.GetProperty("Name").GetString()!,kind=member.GetProperty("Kind").GetString()!;
+                            try
+                            {
+                                var dependency=resolver.Resolve(new(assemblyName,new Version(0,0)));
+                                var type=dependency.MainModule.GetType(typeName);
+                                bool resolved=type!=null;
+                                if(resolved&&kind=="field")resolved=type!.Fields.Any(f=>f.Name==name&&f.IsStatic==member.GetProperty("Static").GetBoolean()&&MetadataContracts.DeclarationName(f.FieldType)==member.GetProperty("Result").GetString());
+                                else if(resolved&&kind=="method")resolved=type!.Methods.Any(m=>m.Name==name&&m.IsStatic==member.GetProperty("Static").GetBoolean()&&m.GenericParameters.Count==member.GetProperty("Arity").GetInt32()&&MetadataContracts.DeclarationName(m.ReturnType)==member.GetProperty("Result").GetString()&&m.Parameters.Select(p=>MetadataContracts.DeclarationName(p.ParameterType)).SequenceEqual(member.GetProperty("Parameters").EnumerateArray().Select(p=>p.GetString())));
+                                else if(kind!="type"&&kind!="field"&&kind!="method")throw new InvalidDataException("Unknown member contract kind.");
+                                if(!resolved)Missing(feature.GetProperty("Name").GetString()+": "+assemblyName+":"+typeName+"."+name);
+                            }
+                            catch(AssemblyResolutionException){Missing(assemblyName+":"+typeName+"."+name);}
+                        }
+                    }
+                }
                 if(metadata.TryGetValue("Nivalis.BindingRequirements",out var requirements))
                     foreach(string contract in requirements.Split(';').Where(c=>c!="compiled-member-references"))
                     {
@@ -186,6 +228,13 @@ public static class Compatibility
     {
         string? name=type.Scope switch{AssemblyNameReference assembly=>assembly.Name,ModuleDefinition module=>module.Assembly?.Name.Name,_=>null};
         return name!=null&&!(name.StartsWith("System",StringComparison.Ordinal)||name.StartsWith("Microsoft.Win32.",StringComparison.Ordinal)||name is "mscorlib" or "netstandard" or "Microsoft.CSharp");
+    }
+    private static bool ArchivedRecoveryInput(string key)
+    {
+        const string prefix="config/NivalisUnofficialPatch/Recovery/";
+        if(!key.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))return false;
+        string relative=key[prefix.Length..];
+        return relative.Contains("/source/",StringComparison.OrdinalIgnoreCase)||relative.EndsWith("/source.sav",StringComparison.OrdinalIgnoreCase)||relative.Contains("/checkpoint-",StringComparison.OrdinalIgnoreCase)||relative.Contains("/pending/before/",StringComparison.OrdinalIgnoreCase);
     }
     private sealed class ExactResolver : IAssemblyResolver
     {

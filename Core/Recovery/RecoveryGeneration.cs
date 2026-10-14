@@ -15,6 +15,7 @@ public sealed class RecoveryGeneration
     public string State { get; set; } = "Prepared";
     public string OutputHash { get; set; } = "";
     public string PublishedSlot { get; set; } = "";
+    public string SaveDirectory { get; set; } = "";
     public bool DestinationOwned { get; set; }
     public List<string> OwnedCopies { get; set; } = new();
     public string FirstFailure { get; set; } = "";
@@ -180,6 +181,7 @@ public static class RecoveryFiles
         value.Validate(); var fresh = Inspect(saves, config, value.SourceSlot);
         if (value.State != "Prepared" || fresh.NativeHash != value.NativeHash || !fresh.CompanionHashes.OrderBy(p => p.Key).SequenceEqual(value.CompanionHashes.OrderBy(p => p.Key)) || !fresh.Workers.OrderBy(p=>p.Key).SequenceEqual(value.Workers.OrderBy(p=>p.Key)) || JsonSerializer.Serialize(fresh.Goods)!=JsonSerializer.Serialize(value.Goods)) throw new IOException("Recovery inputs changed after preview.");
         string folder = Under(config, "NivalisUnofficialPatch/Recovery/" + value.Id);
+        value.SaveDirectory=Path.GetFullPath(saves);
         if (Directory.Exists(folder)) throw new IOException("Recovery generation already exists.");
         Directory.CreateDirectory(folder);
         var incomplete=JsonSerializer.Deserialize<RecoveryGeneration>(JsonSerializer.Serialize(value))!;incomplete.State="Failed";
@@ -206,14 +208,14 @@ public static class RecoveryFiles
         if (id.Length != 32 || !id.All(Uri.IsHexDigit)) throw new InvalidDataException("Invalid recovery generation identity.");
         string folder = Under(config, "NivalisUnofficialPatch/Recovery/" + id);
         var current = Read(Path.Combine(folder, "journal.json"));
-        if (current.State is "Complete" or "Prepared" or "Abandoned") throw new InvalidOperationException("This generation has no interrupted recovery.");
+        if (current.State is "Prepared" or "Abandoned" && !RecoveryWriteSet.HasPending(folder)) throw new InvalidOperationException("This generation has no interrupted recovery.");
         string writeSet = Path.Combine(folder, "pending", "write-set.json");
         if (File.Exists(writeSet))
         {
             using var json = JsonDocument.Parse(File.ReadAllText(writeSet));
-            if (json.RootElement.GetProperty("State").GetString() == "Pending") current = RecoveryWriteSet.Restore(saves, config, folder);
+            if (json.RootElement.GetProperty("State").GetString() is "Pending" or "Restored") current = RecoveryWriteSet.Restore(saves, config, folder);
         }
-        if (current.State == "Complete") return current;
+        if (current.State == "Complete") return RecoveryPublication.RequireSlot(saves,config,folder,current.PublishedSlot);
         string requestPath=Path.Combine(folder,"request.json");
         if(!File.Exists(requestPath))
         {
