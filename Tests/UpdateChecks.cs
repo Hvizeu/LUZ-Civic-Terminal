@@ -13,7 +13,7 @@ public static class UpdateChecks
         const string version="9.8.7", rid="win-x64";
         string asset=$"LUZ-Civic-Terminal-{version}-{rid}.zip";
         string url=$"https://github.com/{LauncherUpdates.Repository}/releases/download/v{version}/{asset}";
-        byte[] Package(string runtime=rid,string dllVersion="real",string? extra=null) {
+        byte[] Package(string runtime=rid,string dllVersion="real",string? extra=null,bool continuity=true) {
             using var buffer=new MemoryStream();
             using(var z=new ZipArchive(buffer,ZipArchiveMode.Create,true)) {
                 string prefix=$"LUZ Civic Terminal {version} {rid}/";
@@ -22,6 +22,14 @@ public static class UpdateChecks
                 Add("Core.dll",File.ReadAllBytes(typeof(LauncherUpdates).Assembly.Location));
                 Add("LUZ Civic Terminal.dll",File.ReadAllBytes(dllVersion=="real"?Path.Combine(AppContext.BaseDirectory,"UpdateFixture.dll"):typeof(LauncherUpdates).Assembly.Location));
                 Add("LUZ Civic Terminal.deps.json",JsonSerializer.SerializeToUtf8Bytes(new{runtimeTarget=new{name=".NETCoreApp,Version=v10.0/"+runtime}}));
+                if (continuity) {
+                    var contents = new Dictionary<string, byte[]> {
+                        ["Luz.Continuity.dll"] = File.ReadAllBytes(typeof(Luz.Continuity.ContinuitySession).Assembly.Location),
+                        ["Luz.Continuity.Runtime.dll"] = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,"UpdateFixture.dll")),
+                        ["catalog.json"] = Encoding.UTF8.GetBytes("{\"Schema\":1,\"Version\":\"fixture\",\"Builds\":[]}") };
+                    foreach (var item in contents) Add("Continuity/"+item.Key,item.Value);
+                    Add("Continuity/payload.json",JsonSerializer.SerializeToUtf8Bytes(contents.ToDictionary(p=>p.Key,p=>Convert.ToHexString(SHA256.HashData(p.Value)))));
+                }
                 if(extra!=null)Add(extra,[1]);
             }
             return buffer.ToArray();
@@ -74,7 +82,7 @@ public static class UpdateChecks
         await Rejected(()=>updater.Download(selected,data,CancellationToken.None),"Tampered update fails SHA-256 verification",check);
         using(var cancelled=new CancellationTokenSource()){cancelled.Cancel();await Rejected(()=>updater.Download(selected,data,cancelled.Token),"Cancelled download is discarded",check);}
         check(Directory.GetDirectories(Path.Combine(data,"launcher-updates")).Length==1,"Failed downloads leave no partial update directories");
-        foreach(var (payload,label) in new[]{(Package("linux-x64"),"Wrong dependency platform"),(Package(dllVersion:"wrong"),"Wrong application identity"),(Package(extra:"../escape.txt"),"Traversal archive")}) {
+        foreach(var (payload,label) in new[]{(Package("linux-x64"),"Wrong dependency platform"),(Package(dllVersion:"wrong"),"Wrong application identity"),(Package(extra:"../escape.txt"),"Traversal archive"),(Package(continuity:false),"Missing continuity update payload")}) {
             string folder=Path.Combine(root,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(folder);string file=Path.Combine(folder,"update.zip");File.WriteAllBytes(file,payload);
             var candidate=selected with {Size=payload.Length,Sha256=FileSafety.Hash(file)};
             reject(()=>LauncherUpdates.Prepare(candidate,file),label+" cannot be installed");

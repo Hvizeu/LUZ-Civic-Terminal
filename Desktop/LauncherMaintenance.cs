@@ -29,6 +29,8 @@ public sealed partial class MainWindow
         var automatic = new CheckBox { Content = "Check for LUZ updates on startup", IsChecked = UpdatePreferences().CheckOnStartup };
         automatic.IsCheckedChanged += (_, _) => Run(() => JsonFiles.Write(UpdatePreferencesPath, UpdatePreferences() with { CheckOnStartup = automatic.IsChecked == true }));
         panel.Children.Add(automatic);
+        var install = new CheckBox { Content = "Automatically install verified LUZ updates on startup", IsChecked = UpdatePreferences().AutoInstallOnStartup };
+        install.IsCheckedChanged += (_, _) => Run(() => JsonFiles.Write(UpdatePreferencesPath, UpdatePreferences() with { AutoInstallOnStartup = install.IsChecked == true })); panel.Children.Add(install);
         var actions = Row(); actions.Children.Add(Button("Check LUZ updates", () => _ = CheckLauncherUpdate(true)));
         if (launcherRelease != null) actions.Children.Add(Button("Install LUZ " + launcherRelease.Version, InstallLauncherUpdate, primary: true));
         panel.Children.Add(actions); return panel;
@@ -45,6 +47,7 @@ public sealed partial class MainWindow
             JsonFiles.Write(UpdatePreferencesPath, UpdatePreferences() with { LastCheckedUtc = now });
             launcherUpdateStatus = launcherRelease == null ? "No newer stable LUZ release is available for this platform." : "LUZ " + launcherRelease.Version + " is available. Installation preserves your profiles and game files.";
             if (operation == null && (manual || launcherRelease != null)) status.Text = launcherUpdateStatus + (page != "Maintenance" && launcherRelease != null ? " Open Maintenance to install it." : "");
+            if (!manual && launcherRelease != null && preferences.AutoInstallOnStartup && operation == null) await InstallLauncherUpdate(true);
         } catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException or OperationCanceledException or PlatformNotSupportedException) {
             launcherUpdateStatus = "LUZ update check could not finish: " + (ex is OperationCanceledException ? "request timed out or was cancelled." : ex.Message);
             if (manual && !updateLifetime.IsCancellationRequested) Error(ex);
@@ -53,11 +56,12 @@ public sealed partial class MainWindow
             if (!updateLifetime.IsCancellationRequested && page == "Maintenance" && operation == null) RefreshPage();
         }
     }
-    private async Task InstallLauncherUpdate()
+    private Task InstallLauncherUpdate() => InstallLauncherUpdate(false);
+    private async Task InstallLauncherUpdate(bool automatic)
     {
         var release = launcherRelease;
         if (release == null || operation != null) return;
-        if (!await Confirm($"Download and install LUZ {release.Version} from {LauncherUpdates.Repository}?\n\nLUZ will restart after the download and SHA-256 verification. Profiles, mods, settings and game saves are preserved. The game will not be launched.")) return;
+        if (!automatic && !await Confirm($"Download and install LUZ {release.Version} from {LauncherUpdates.Repository}?\n\nLUZ will restart after the download and SHA-256 verification. Profiles, mods, settings and game saves are preserved. The game will not be launched.")) return;
         string? installed = null;
         await Busy("Downloading and verifying LUZ " + release.Version + "…", async ct => {
             _ = RegistryRecovery.Read(library.Root, allowFirstRun: true);

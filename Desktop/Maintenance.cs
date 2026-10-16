@@ -50,6 +50,7 @@ public sealed partial class MainWindow
         section = Group("AFTER A GAME UPDATE");
         section.Children.Add(Label("Check which component reported the problem. LUZ updates, generated game bindings and mod compatibility are separate.", brush: TerminalTheme.Muted));
         var gameUpdate = Row(); gameUpdate.Children.Add(Button("Diagnose game update", DiagnoseGameUpdate)); gameUpdate.Children.Add(QuietButton("Refresh game bindings", RefreshGameBindings)); section.Children.Add(gameUpdate);
+        section = Group("MOD CONTINUITY"); section.Children.Add(ContinuityPanel());
         section = Group("RECOVERY & SUPPORT");
         var recovery = Row(); recovery.Children.Add(Button("Restore profile backup", RestoreBackup)); recovery.Children.Add(QuietButton("Export diagnostics", Diagnostics)); recovery.Children.Add(QuietButton("Open profile configuration", async () => { string folder = library.State.AppliedProfileId == library.Active.Id && library.State.AppliedFingerprint.Length > 0 ? FileSafety.PortableDestination(library.State.GameFolder, "BepInEx/config") : library.ConfigRoot(library.Active.Id); FileSafety.NoLinks(folder); Directory.CreateDirectory(folder); await HostPlatform.Open(Path.GetFullPath(folder)); })); section.Children.Add(recovery);
         section.Children.Add(Button("Prepare saved-data recovery",PrepareSavedDataRecovery));

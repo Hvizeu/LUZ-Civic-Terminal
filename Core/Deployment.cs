@@ -77,8 +77,10 @@ public sealed class Deployment(Library library)
     {
         GameFiles.RequireClosed(); var issues = Preview(includeCompatibility: false);
         if (issues.Any(i => i.Severity == "Error")) throw new InvalidOperationException(string.Join('\n', issues.Where(i => i.Severity == "Error").Select(i => i.Message)));
+        ModContinuity.CheckpointBeforeAdmission(library, cancellation);
         var checkedReport = Compatibility.Inspect(library, cancellation: cancellation);
         Compatibility.Authorize(checkedReport, acknowledgment);
+        ModContinuity.CheckBeforeApply(library, cancellation);
         string game = library.State.GameFolder; string bep = FileSafety.PortableDestination(game, "BepInEx");
         // Preserve edits made in-game for the profile which actually owns the files.
         if (library.State.AppliedProfileId.Length > 0)

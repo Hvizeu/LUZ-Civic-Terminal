@@ -20,7 +20,7 @@ APP = 'LUZ Civic Terminal'
 RIDS = ('win-x64', 'linux-x64', 'osx-x64', 'osx-arm64')
 
 def run(*args):
-    subprocess.run([str(a) for a in args], cwd=ROOT, check=True)
+    subprocess.run([str(a) for a in args], cwd=ROOT, check=True, env={**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'})
 
 def notices(publish):
     destination = publish / 'Notices'
@@ -88,6 +88,11 @@ def archive_folder(staging, folder, archive):
                 assert entry.create_system == 3 and (entry.external_attr >> 16) & 0o111
 
 def package(rid):
+    from build_continuity import digest
+    payload = ROOT / 'Continuity/Payload'
+    manifest = json.loads((payload / 'payload.json').read_text())
+    if set(manifest) != {'Luz.Continuity.Runtime.dll', 'Luz.Continuity.dll', 'catalog.json'} or any(digest(payload / name) != value for name, value in manifest.items()):
+        raise RuntimeError('Continuity bundle is incomplete or changed; build it before packaging')
     dist = ROOT / 'dist'; dist.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='luz-package-') as temp:
         staging = Path(temp)
@@ -100,6 +105,8 @@ def package(rid):
         verify_target(publish, rid)
         notices(publish)
         shutil.copy2(ROOT / 'README.md', folder / 'README.md')
+        (folder / 'Continuity').mkdir(exist_ok=True)
+        shutil.copy2(ROOT / 'Continuity/README.md', folder / 'Continuity/README.md')
         shutil.copy2(ROOT / 'QUICK START.txt', folder / 'QUICK START.txt')
         if not rid.startswith('osx-'):
             suffix = '.exe' if rid.startswith('win-') else ''
@@ -121,8 +128,8 @@ def package(rid):
         (folder / 'BUILD-STATUS.txt').write_text(
             'LUZ Civic Terminal ' + VERSION + '\nTarget: ' + rid + '\n'
             + ('Locally ad-hoc signed on macOS; not notarized.\n' if signed else
-               'Cross-built macOS app. Run Prepare macOS.command on the target Mac before testing. Not notarized.\n' if rid.startswith('osx-') else 'Unsigned preview build.\n')
-            + 'A successful build does not establish native runtime or game compatibility. See README for acceptance steps.\n', encoding='utf8')
+               'Cross-built macOS app. Run Prepare macOS.command on the target Mac. Not notarized.\n' if rid.startswith('osx-') else 'Unsigned application build.\n')
+            + 'Protected saves require native Windows, a supported game/loader build and continuity-compatible mods. See Continuity/README.md.\n', encoding='utf8')
         run(sys.executable, ROOT / 'tools/release_check.py', folder)
         archive = dist / ('LUZ-Civic-Terminal-' + VERSION + '-' + rid + '.zip')
         archive_folder(staging, folder, archive)
@@ -133,7 +140,10 @@ def package(rid):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--rid', choices=(*RIDS, 'all'), default='all')
+    parser.add_argument('--loader', type=Path, help='Pinned official loader compiler references; nothing is installed')
     arguments = parser.parse_args()
+    from build_continuity import build
+    build(arguments.loader)
     from validate import validate
     validate()
     for target in RIDS if arguments.rid == 'all' else (arguments.rid,): package(target)

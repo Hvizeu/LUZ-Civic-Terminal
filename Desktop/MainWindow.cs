@@ -50,7 +50,7 @@ public sealed partial class MainWindow : Window
     public MainWindow(Library library, bool preview = false)
     {
         this.library = library; this.preview = preview; credentials = new Credentials(library.Root);
-        Opened += async (_, _) => await CheckLauncherUpdate(false);
+        Opened += async (_, _) => { await CheckLauncherUpdate(false); if (!preview && operation == null && !updateLifetime.IsCancellationRequested && ModContinuity.Options(library).Enabled) await Busy("Updating bundled mod continuity…", ct => Task.Run(() => { ct.ThrowIfCancellationRequested(); ModContinuity.SynchronizeBundle(library); }, ct)); };
         Closed += (_, _) => { updateLifetime.Cancel(); updateHttp.Dispose(); };
         Title = "LUZ Civic Terminal · Nivalis Nights"; Width = 1440; Height = 900; MinWidth = 1100; MinHeight = 720;
         Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://LUZ Civic Terminal/Assets/luz-icon.png")));

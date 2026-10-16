@@ -150,9 +150,25 @@ public static class Compatibility
                 var metadata=new Dictionary<string,string>();
                 foreach(var attribute in attributes)
                     if(attribute.ConstructorArguments.Count!=2 || attribute.ConstructorArguments[0].Value is not string key || attribute.ConstructorArguments[1].Value is not string value || !metadata.TryAdd(key,value))findings.Add(new("MalformedRequirements","Error",module.Name,"Unique versioned metadata keys","Malformed or duplicate assembly metadata",false));
-                if (metadata.TryGetValue("Nivalis.NativeBuild", out string? supported) && !supported.Equals(nativeHash,StringComparison.OrdinalIgnoreCase))
+                bool continuityQualified = false;
+                if (metadata.GetValueOrDefault("Nivalis.Continuity.Api") == "1")
+                {
+                    if (!selected.TryGetValue("plugins/LUZContinuity/catalog.json", out var adapterPath)) findings.Add(new("ContinuityBootstrapMissing", "Error", module.Name, "Bundled LUZ continuity runtime and catalog", "Install and configure the LUZ feature", false));
+                    else
+                    {
+                        try
+                        {
+                            var adapter = Luz.Continuity.SafeFiles.Read<Luz.Continuity.AdapterCatalog>(adapterPath);
+                            var target = new Luz.Continuity.BuildIdentity(nativeHash, hashes.GetValueOrDefault("game/global-metadata.dat") ?? "", hashes.GetValueOrDefault("loader/BepInEx.Unity.IL2CPP.dll") ?? "");
+                            continuityQualified = adapter.Authorizes(target, module.Assembly.Name.Name, hashes[module.Name], metadata.GetValueOrDefault("Nivalis.NativeBuild") ?? "", metadata.GetValueOrDefault("Nivalis.MetadataBuild") ?? "");
+                            if (!continuityQualified) findings.Add(new("ContinuityUnqualifiedConsumer", "Error", module.Name, "Exact current contract or reviewed grant for this frozen payload", "Consumer has not been qualified for this adapter", false));
+                        }
+                        catch (Exception error) when (error is IOException or InvalidDataException or System.Text.Json.JsonException) { findings.Add(new("ContinuityCatalogInvalid", "Error", module.Name, "Verified current continuity catalog", error.Message, false)); }
+                    }
+                }
+                if (metadata.TryGetValue("Nivalis.NativeBuild", out string? supported) && !supported.Equals(nativeHash,StringComparison.OrdinalIgnoreCase) && !continuityQualified)
                     findings.Add(new("UnsupportedNativeBuild", "Error", module.Name, supported, nativeHash, true));
-                if(metadata.TryGetValue("Nivalis.MetadataBuild",out var expectedMetadata)&&(!hashes.TryGetValue("game/global-metadata.dat",out var metadataHash)||!metadataHash.Equals(expectedMetadata,StringComparison.OrdinalIgnoreCase)))findings.Add(new("UnsupportedNativeBuild","Error",module.Name,expectedMetadata,hashes.GetValueOrDefault("game/global-metadata.dat")??"IL2CPP metadata missing",true));
+                if(metadata.TryGetValue("Nivalis.MetadataBuild",out var expectedMetadata)&&(!hashes.TryGetValue("game/global-metadata.dat",out var metadataHash)||!metadataHash.Equals(expectedMetadata,StringComparison.OrdinalIgnoreCase))&&!continuityQualified)findings.Add(new("UnsupportedNativeBuild","Error",module.Name,expectedMetadata,hashes.GetValueOrDefault("game/global-metadata.dat")??"IL2CPP metadata missing",true));
                 if (metadata.TryGetValue("Nivalis.Requirements.Schema", out string? schema) && schema is not ("1" or "2"))
                     findings.Add(new("RequirementsUnverified", "Error", module.Name, "Requirements schema 1 or 2", schema, true));
                 if(schema=="2")
@@ -231,6 +247,7 @@ public static class Compatibility
     }
     private static bool ArchivedRecoveryInput(string key)
     {
+        if (key.StartsWith("config/LUZContinuity/", StringComparison.OrdinalIgnoreCase)) return true;
         const string prefix="config/NivalisUnofficialPatch/Recovery/";
         if(!key.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))return false;
         string relative=key[prefix.Length..];

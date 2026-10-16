@@ -14,3 +14,5 @@ NEXUS-POST.txt
 *.log
 __pycache__/
 AGENTS.md
+
+Continuity/Payload/

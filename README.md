@@ -1,6 +1,16 @@
 # LUZ Civic Terminal
 
-## Changes in 0.4.9
+## Changes in 0.5.0
+
+- Bundles Mod Continuity adapters with LUZ's GitHub updates.
+- Adds verified save checkpoints and separate protected timelines for manual saves, quicksaves and autosaves.
+- Preserves declared data when a supported feature is suspended and validates restoration when its compatible mod returns.
+- Adds interrupted-save recovery, original-checkpoint restoration and selection of retained timelines.
+- Can automatically install verified LUZ updates at startup, with preferences in Maintenance.
+
+Protected saves are opt-in and require continuity-compatible mod builds. Initial support is native Windows, Nivalis Nights build 25984046 and BepInEx 6.0.0-be.788. Existing standalone mod profiles can continue without enabling protection. See [Mod Continuity](Continuity/README.md) for setup and coverage.
+
+## Changes retained from 0.4.9
 
 - Checks compiled references and declared native contracts before Apply and Play, including generic inheritance and forwarded types. Unknown dynamic contracts remain visibly unverified.
 - Limits compatibility acknowledgments to one attempt against the exact report. Save integrity and ownership failures cannot be overridden.
@@ -17,7 +27,7 @@
 - Self-update checks the persisted registry before installation.
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. Import the mods you already use, add new ones, then apply the setup you want to play with.
 
-Version 0.4.9 provides downloads for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
+Version 0.5.0 provides downloads for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
 
 ## What you can do
 
@@ -48,7 +58,7 @@ Updating to 0.4.5 upgrades the profile registry and backs up the previous file. 
 
 Windows x64 is the main desktop download. Linux x64 requires a graphical glibc desktop with X11/XWayland and xdg-open. macOS downloads require macOS 15 or newer; choose Intel or Apple Silicon to match your Mac.
 
-Extract the whole platform ZIP outside the game. It includes .NET; no separate .NET installation is needed. On Windows, run Install LUZ.exe and choose Install and create shortcut, then open the shortcut. On Linux, run ./"Install LUZ"; if necessary, make Install LUZ and LUZ Civic Terminal executable first. On macOS, run Prepare macOS.command, then Install LUZ.command. The macOS preview uses a local signature and is not notarized. Follow the included QUICK START for platform details.
+Extract the whole platform ZIP outside the game. It includes .NET; no separate .NET installation is needed. On Windows, run Install LUZ.exe and choose Install and create shortcut, then open the shortcut. On Linux, run ./"Install LUZ"; if necessary, make Install LUZ and LUZ Civic Terminal executable first. On macOS, run Prepare macOS.command, then Install LUZ.command. The macOS application uses a local signature and is not notarized. Follow the included QUICK START for platform details.
 
 For portable use, open LUZ Civic Terminal directly from the extracted folder. Keep its accompanying files together.
 
@@ -71,7 +81,7 @@ Open profile configuration opens live settings for the applied profile and store
 
 Check updates finds available mod versions. Review and import them, then Apply with the game closed. Pin this version excludes a mod from update checks. Profile exports contain the ordered mod list and version references; they do not contain mod files, settings, API keys or saves.
 
-Maintenance > LUZ updates checks the public GitHub releases. Startup checks run at most once every 24 hours and can be disabled. You choose when to install. Updates verify the download, install it for your account and redirect the shortcut while retaining profiles. A failed update leaves the current application available.
+Maintenance > LUZ updates checks the public GitHub releases. Startup checks run at most once every 24 hours and can be disabled. LUZ 0.5.0 can automatically install verified updates on startup; disable that preference to choose installation manually. Updates install for your account and redirect the shortcut while retaining profiles. A failed update leaves the current application available. Users on an older release can use Check LUZ updates and install 0.5.0 once to enable the new startup installation option.
 
 ## Compatibility checks
 
@@ -91,7 +101,7 @@ When a Nexus page offers Mod Manager Download, LUZ can receive its NXM link. Reg
 
 ## Object Studio collections
 
-In Studio, choose Send to LUZ to build and send the open project. Confirm the displayed profile, install the matching Object Framework Runtime and Apply with the game closed. This set uses Runtime 0.3.11 and Studio SDK 0.3.9 for Nivalis Update #4. Rebuilding updates the same project; disabling it removes the collection on the next Apply. Saves containing custom objects still require their packs.
+In Studio, choose Send to LUZ to build and send the open project. Confirm the displayed profile, install the matching Object Framework Runtime and Apply with the game closed. Use Runtime and Studio SDK versions compatible with your installed game build. Rebuilding updates the same project; disabling it removes the collection on the next Apply. Saves containing custom objects still require their packs.
 
 ## After a game update
 
@@ -103,7 +113,7 @@ If generated bindings are stale, close the game and choose Refresh game bindings
 
 Each Apply creates a mod/settings restore point. Maintenance > Restore profile backup restores one; BepInEx has a separate Restore loader backup action. If Apply or Play says Recovery needed, use the matching action at the top of Maintenance. Export recovery diagnostics is available when a backup is missing or unreadable.
 
-Ordinary profile application does not modify saves. Keep separate save backups before changing content mods. Maintenance > Prepare saved-data recovery captures a verified source save and matching companions while the game is closed. Recovery requires compatible Unofficial Patch and Object Framework components, a separate game launch and the explicit recovery action; it creates a separate recovered timeline. Unsupported companions or uncertain writes block completion. Native recovery remains subject to owner gameplay acceptance. Profiles and the library stay in the platform's LUZCivicTerminal data folder when updating. Windows uses %LOCALAPPDATA%/LUZCivicTerminal; Linux uses $XDG_DATA_HOME/LUZCivicTerminal or ~/.local/share/LUZCivicTerminal; macOS uses ~/Library/Application Support/LUZCivicTerminal. Keep that folder when updating.
+Profile restore points contain mods and settings. Mod Continuity separately protects saves after it is enabled. Maintenance > Prepare saved-data recovery provides the existing recovery route for supported retired worker records: it captures a verified source save and matching companions while the game is closed. That recovery requires compatible Unofficial Patch and Object Framework components, a separate game launch and the explicit recovery action; it creates a separate recovered timeline. Unsupported companions or uncertain writes block completion. Profiles and the library stay in the platform's LUZCivicTerminal data folder when updating. Windows uses %LOCALAPPDATA%/LUZCivicTerminal; Linux uses $XDG_DATA_HOME/LUZCivicTerminal or ~/.local/share/LUZCivicTerminal; macOS uses ~/Library/Application Support/LUZCivicTerminal. Keep that folder when updating.
 
 ## Linux and macOS game setup
 
@@ -123,4 +133,4 @@ Made by Hvizeu. LUZ is an independent, unofficial project. Required third-party 
 
 ## 0.4.9
 
-Compatibility inspection supports embedded contract schema 2 and existing schema 1 packages, including transitive generic inheritance and assembly-qualified signatures. Unknown requirements remain Unverified. Overrides permit one attempt against the exact inspected deployment and cannot bypass save integrity or cleanup failures. Recovery inspection checks durable publication and referenced native generations without repeatedly hashing archived payloads. Interrupted publication remains blocked until verified recovery. Scanner cancellation, timeout and bounded inputs remain enforced; no process RAM ceiling is imposed. Native Windows, Linux, macOS and Wine acceptance remains pending for this release.
+Compatibility inspection supports embedded contract schema 2 and existing schema 1 packages, including transitive generic inheritance and assembly-qualified signatures. Unknown requirements remain Unverified. Overrides permit one attempt against the exact inspected deployment and cannot bypass save integrity or cleanup failures. Recovery inspection checks durable publication and referenced native generations without repeatedly hashing archived payloads. Interrupted publication remains blocked until verified recovery. Scanner cancellation, timeout and bounded inputs remain enforced; no process RAM ceiling is imposed.

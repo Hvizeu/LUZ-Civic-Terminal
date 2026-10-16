@@ -3,6 +3,7 @@
 Requires .NET SDK 10 and Python 3.11 or newer. Game binaries and game sources are not needed to build or test the launcher.
 
 ```sh
+python tools/build_continuity.py
 dotnet build Desktop/Desktop.csproj -c Release
 dotnet run --project Tests/Tests.csproj -c Release
 python tools/package.py --rid win-x64

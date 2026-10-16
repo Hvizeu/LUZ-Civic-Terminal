@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net6.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>latest</LangVersion><AssemblyName>Luz.Continuity.Runtime</AssemblyName><Version>0.1.0</Version><DebugType>none</DebugType><DebugSymbols>false</DebugSymbols><Authors>Hvizeu</Authors><LoaderDirectory Condition="'$(LoaderDirectory)' == ''">$(MSBuildThisFileDirectory)../../build/continuity-references</LoaderDirectory></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Api/Api.csproj" />
+    <Reference Include="BepInEx.Core" HintPath="$(LoaderDirectory)/BepInEx.Core.dll" Private="false" />
+    <Reference Include="BepInEx.Unity.IL2CPP" HintPath="$(LoaderDirectory)/BepInEx.Unity.IL2CPP.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(LoaderDirectory)/0Harmony.dll" Private="false" />
+  </ItemGroup>
+</Project>

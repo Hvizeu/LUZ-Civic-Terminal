@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.4.9
+LUZ CIVIC TERMINAL 0.5.0
 Mod manager and launcher for Nivalis Nights
 
 MOVED YOUR GAME?
@@ -12,7 +12,22 @@ UPDATING LUZ
 Maintenance > LUZ updates checks GitHub and installs newer releases.
 Automatic checks run at startup, at most once per day. Installing an update
 verifies the download, preserves your profiles and restarts only LUZ.
+Version 0.5.0 can also install verified updates automatically on startup.
+Both startup preferences are under Maintenance > LUZ updates. Older LUZ users
+can install 0.5.0 through the existing manual update button once.
 Users on 0.3.x must install this version manually once to receive the updater.
+
+MOD CONTINUITY
+This optional feature requires native Windows, Nivalis Nights build 25984046,
+BepInEx 6.0.0-be.788 and continuity-compatible versions of supported mods.
+In Maintenance > Mod Continuity, choose Enable protected saves and select the
+original native save. Apply the matching mod profile, then use Play in LUZ.
+LUZ creates a verified checkpoint and a separate protected working timeline.
+Compatibility adapters run first; supported unavailable features can retain
+dormant data for restoration when their compatible mods return. Restore
+original checkpoint and Resume protected timeline preserve separate histories.
+Existing standalone profiles can keep working without enabling protection.
+See Continuity/README.md for supported capabilities and restoration controls.
 
 HUD OVERHAUL VERSION ERROR
 Version 0.4.1 fixes the launcher error Unrecognized version: 1.03 / >=1.03.
@@ -31,8 +46,8 @@ Linux x64 desktop: linux-x64.zip. Experimental native build.
 Mac with an Intel processor: osx-x64.zip. Experimental native build.
 Mac with Apple Silicon (M-series): osx-arm64.zip. Experimental native build.
 
-The Linux and Mac builds have been cross-built and package-checked. Native
-desktop operation and gameplay on those systems still need testing.
+The Linux and Mac launcher builds are experimental. Protected game sessions
+currently require native Windows; Wine/Proton protected sessions are unsupported.
 Object Studio is a separate Windows application; it is not included here.
 
 INSTALL THE TERMINAL
@@ -58,7 +73,7 @@ macOS 15 or newer
    If Finder blocks the helper, open Terminal in the extracted folder and
    run: sh "Prepare macOS.command"
 3. Run Install LUZ.command and click Install and create shortcut.
-4. Open the desktop shortcut. This preview is not notarized. For a trusted
+4. Open the desktop shortcut. This application is not notarized. For a trusted
    copy, use macOS Privacy & Security > Open Anyway if required.
 
 Keep the whole extracted folder together until installation finishes. Do not

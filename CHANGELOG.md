@@ -7,6 +7,12 @@
 
 # Changelog
 
+## 0.5.0
+
+- Add bundled Mod Continuity adapters and opt-in protected save timelines for supported game and mod builds.
+- Preserve checkpoints, unavailable feature data and interrupted-save recovery records; restore features or resume retained timelines through Maintenance.
+- Add automatic installation of verified GitHub launcher updates at startup, with separate check and installation preferences.
+
 ## 0.4.8
 
 - Inspect compiled mod contracts and binding provenance before Apply and Play.

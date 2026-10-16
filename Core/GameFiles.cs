@@ -11,9 +11,11 @@ public static class GameFiles
         if(new Deployment(library).Pending!=null||File.Exists(Path.Combine(library.Root,"loader-pending.json")))throw new InvalidOperationException("Restore the interrupted installation before playing.");
         string profile=library.Active.Id,selected=library.Fingerprint(library.Active);
         if(library.State.AppliedProfileId!=profile||library.State.AppliedFingerprint!=selected)throw new InvalidOperationException("Apply this profile before playing.");
+        ModContinuity.CheckpointBeforeAdmission(library, cancellation);
         var report=Compatibility.Inspect(library,true,cancellation);Compatibility.Authorize(report,acknowledgment);
         var current=Compatibility.Inspect(library,true,cancellation);
         if(current.Fingerprint!=report.Fingerprint||library.Active.Id!=profile||library.Fingerprint(library.Active)!=selected)throw new InvalidOperationException("Installed inputs changed before launch. Review compatibility again.");
+        ModContinuity.Prepare(library, current, cancellation);
         cancellation.ThrowIfCancellationRequested();await HostPlatform.Launch(library.State);
     }
     public const string AppId = "1488490";

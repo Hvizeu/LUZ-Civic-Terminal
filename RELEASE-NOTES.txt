@@ -1,0 +1,7 @@
+LUZ Civic Terminal 0.5.0
+
+Adds bundled mod continuity for the supported Nivalis Nights build and loader: compatibility adapters, verified save checkpoints, separate protected timelines, dormant feature data and interrupted-save recovery.
+
+Includes the runtime and supported-build catalog in LUZ's GitHub updates. Startup can automatically install verified launcher updates; this setting is available in Maintenance. Applying and launching remain separate actions.
+
+Initial protected-save support requires native Windows, game build 25984046, BepInEx 6.0.0-be.788 and the continuity migration builds of supported mods. Direct native dependencies retain their build guards. Existing standalone mod builds remain supported by their own compatibility rules.
