@@ -8,9 +8,7 @@ This release strengthens compatibility inspection and prevents incomplete recove
 - Scanner cancellation, timeouts and bounded inputs remain enforced without process RAM ceilings.
 - Shared recovery source hashes are checked during validation, and Git preserves the verified source bytes across platforms.
 
-Existing configurations and plugin identities are preserved. Compatibility overrides remain explicit, valid for one attempt against the exact report, and cannot bypass save-integrity or cleanup failures. Ordinary profile application does not modify saves. Static checks do not establish full gameplay compatibility or repair third-party binaries.
-
-Windows fixtures, headless UI checks and package checks passed. The Linux x64, macOS Intel and macOS Apple Silicon downloads are experimental cross-builds; native operation remains unverified. macOS packages are not notarized. Native platform, Wine/Proton and gameplay/save-recovery acceptance remain pending.
+Existing configurations and plugin identities are preserved. Compatibility overrides remain explicit, valid for one attempt against the exact report, and cannot bypass save-integrity or cleanup failures. Ordinary profile application does not modify saves.
 
 ## Update
 

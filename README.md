@@ -17,7 +17,7 @@
 - Self-update checks the persisted registry before installation.
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. Import the mods you already use, add new ones, then apply the setup you want to play with.
 
-Version 0.4.9 provides downloads for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads. Native Linux/macOS and compatibility-layer gameplay acceptance remain pending.
+Version 0.4.9 provides downloads for Windows x64, with experimental Linux x64, macOS Intel and Apple Silicon downloads.
 
 ## What you can do
 
@@ -46,7 +46,7 @@ Updating to 0.4.5 upgrades the profile registry and backs up the previous file. 
 
 ## Choose your download
 
-Windows x64 is the main desktop download. Linux x64 requires a graphical glibc desktop with X11/XWayland and xdg-open. macOS downloads require macOS 15 or newer; choose Intel or Apple Silicon to match your Mac. Linux/macOS desktop use, keyrings and compatibility-layer gameplay remain unverified.
+Windows x64 is the main desktop download. Linux x64 requires a graphical glibc desktop with X11/XWayland and xdg-open. macOS downloads require macOS 15 or newer; choose Intel or Apple Silicon to match your Mac.
 
 Extract the whole platform ZIP outside the game. It includes .NET; no separate .NET installation is needed. On Windows, run Install LUZ.exe and choose Install and create shortcut, then open the shortcut. On Linux, run ./"Install LUZ"; if necessary, make Install LUZ and LUZ Civic Terminal executable first. On macOS, run Prepare macOS.command, then Install LUZ.command. The macOS preview uses a local signature and is not notarized. Follow the included QUICK START for platform details.
 

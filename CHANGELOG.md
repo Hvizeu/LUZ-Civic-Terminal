@@ -4,7 +4,6 @@
 - Treat incomplete or inconsistent recovered save publication as a blocking integrity failure. Retain restartable restoration checkpoints and verify referenced generations.
 - Exclude archived recovery payloads from routine compatibility hashing without excluding them from deployment preservation.
 - Retain worker cancellation, timeout and bounded inputs without process RAM ceilings.
-- Native platform and game acceptance remains pending.
 
 # Changelog
 
@@ -42,7 +41,7 @@
 
 ## 0.4.3
 
-- Fix installation through linked home/application folders, including Bazzite-style home paths. Native Bazzite use remains unverified.
+- Fix installation through linked home/application folders, including Bazzite-style home paths.
 - Add Nexus-handler removal to Windows Maintenance and the extracted installer, including after the old LUZ folder was deleted.
 
 ## 0.4.2
