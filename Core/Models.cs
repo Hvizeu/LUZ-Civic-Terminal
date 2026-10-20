@@ -33,6 +33,12 @@ public sealed class Profile
     public string Name { get; set; } = "Everyday";
     public List<ModEntry> Mods { get; set; } = [];
 }
+public sealed class CompatibilityDecision
+{
+    public string Action { get; set; } = "";
+    public string Fingerprint { get; set; } = "";
+    public DateTime ReviewedUtc { get; set; }
+}
 public sealed class TerminalState
 {
     public int Schema { get; set; } = 2;
@@ -46,6 +52,7 @@ public sealed class TerminalState
     public string LoaderVersion { get; set; } = "";
     public List<Profile> Profiles { get; set; } = [new()];
     public List<ModPackage> Packages { get; set; } = [];
+    public List<CompatibilityDecision> CompatibilityDecisions { get; set; } = [];
 }
 public sealed record Issue(string Severity, string Message, string Code = "Deployment", bool CanOverride = false);
 public sealed record CatalogMod(string Id, string Name, string Version, string Description, string PageUrl, string IconUrl, string DownloadUrl, string[] Dependencies, string Source, long FileId = 0);

@@ -1,0 +1,1 @@
+Manage Nivalis mods, profiles, BepInEx and protected saves. CorpSec Terminal helps authors detect support requirements, keep reusable projects and build Nexus or Thunderstore packages with guided LUZ recovery setup.

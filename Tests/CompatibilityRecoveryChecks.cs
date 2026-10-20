@@ -42,6 +42,26 @@ internal static class CompatibilityRecoveryChecks
         using (var cancellation = new CancellationTokenSource())
         { cancellation.Cancel(); try { Compatibility.InspectSnapshot(snapshot, cancellation.Token); throw new Exception("Cancellation ignored"); } catch (OperationCanceledException) { check(true, "metadata inspection cancels before parsing"); } }
 
+        string decisionRoot = Path.Combine(root, "CompatibilityDecisionLibrary");
+        CompatibilityReport warning = new(1, "Play", new string('A', 64), CompatibilityStatus.Unverified,
+            [new("DynamicContractsUnverified", "Warning", "plugins/NivalisGreenhouse/NivalisGreenhouse.dll", "Declared native/reflection capabilities", "No maintained compatibility metadata; only compiled references checked", true)]);
+        using (var decisionLibrary = new Library(decisionRoot))
+        {
+            var package = new ModPackage { Name = "Nivalis Greenhouse", Version = "2.0.2", Files = ["plugins/NivalisGreenhouse/NivalisGreenhouse.dll"] };
+            string packageFile = Path.Combine(decisionLibrary.PackageRoot(package.Id), "payload", package.Files[0]);
+            Directory.CreateDirectory(Path.GetDirectoryName(packageFile)!); File.WriteAllText(packageFile, "fixture");
+            decisionLibrary.State.Packages.Add(package); decisionLibrary.Active.Mods.Add(new() { PackageId = package.Id }); decisionLibrary.Save();
+            var guidance = CompatibilityGuidance.Create(decisionLibrary, warning);
+            check(guidance.Title == "Compatibility not confirmed" && guidance.ContinueLabel == "Launch anyway", "unverified Play decision uses an action-specific title and button");
+            check(guidance.Message.Contains("Nivalis Greenhouse 2.0.2") && guidance.Message.Contains("does not mean the mod is broken") && guidance.Message.Contains("The mod author or the LUZ maintainer must test") && guidance.Message.Contains("report this on the mod's page") && guidance.Message.Contains("The game will not launch."), "unverified mod guidance explains the risk, cancel result, and permanent support route");
+            check(!guidance.Message.Contains("Expected:") && !guidance.Message.Contains("Observed:"), "user decision does not lead with scanner field names");
+            check(!CompatibilityDecisions.IsRemembered(decisionLibrary, warning), "unreviewed setup still requires a decision");
+            CompatibilityDecisions.Remember(decisionLibrary, warning);
+            check(CompatibilityDecisions.IsRemembered(decisionLibrary, warning), "reviewed exact Play setup is remembered");
+            check(!CompatibilityDecisions.IsRemembered(decisionLibrary, warning with { Fingerprint = new string('B', 64) }) && !CompatibilityDecisions.IsRemembered(decisionLibrary, warning with { Action = "Apply" }), "file changes and different operations require a new decision");
+        }
+        using (var reopened = new Library(decisionRoot)) check(CompatibilityDecisions.IsRemembered(reopened, warning), "exact compatibility decision survives an application restart");
+
         string saves = Path.Combine(root, "RecoverySaves"); Directory.CreateDirectory(saves); Directory.CreateDirectory(config);
         const string slot = "Recovery Fixture"; string nativeSave = Path.Combine(saves, slot + ".sav"); File.WriteAllText(nativeSave, "native fixture"); string hash = RecoveryFiles.Hash(nativeSave);
         string Key(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));

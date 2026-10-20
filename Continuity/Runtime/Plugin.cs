@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
@@ -6,7 +7,7 @@ using Luz.Continuity;
 
 namespace Luz.Continuity.Runtime;
 
-[BepInPlugin(Guid, "LUZ Mod Continuity", "0.1.0")]
+[BepInPlugin(Guid, "LUZ Mod Continuity", "0.2.0")]
 [BepInProcess("Nivalis Nights.exe")]
 public sealed class Plugin : BasePlugin
 {
@@ -51,6 +52,7 @@ public static class Host
     private static Action<string> report = null!;
     private static string game = "";
     private static Operations operations = null!;
+    private static readonly List<LoadedSupportAdapter> supportAdapters = new();
     private static readonly Dictionary<string, string> owners = new(StringComparer.Ordinal)
     {
         ["NivalisSlowDays"] = "bettertime", ["NivalisUnofficialPatch"] = "unofficialpatch", ["NivalisCityLife"] = "citylife", ["NivalisFurnishings"] = "framework", ["NivalisFurnitureLab"] = "furniturelab"
@@ -86,11 +88,13 @@ public static class Host
         if (vendor.ReturnType != typeof(void)) throw new MissingMethodException("Native vendor registration return contract changed.");
         operations.Register("objects.register-vendor-item.v1", CapabilityState.Native, args => { InvokeNative(vendor, args[0]!, new[] { args[1], args[2] }); return true; });
         operations.Seal();
+        LoadSupportAdapters();
     }
     public static bool ValidateConsumer(string gameRoot, string assembly, string nativeHash, string metadataHash)
     {
         if (!Ready || Session == null || Path.GetFullPath(gameRoot) != Path.GetFullPath(game)) return false;
-        if (!owners.TryGetValue(assembly, out var owner)) return false;
+        string? owner = Session.Support.SingleOrDefault(s => s.Descriptor.Plugin.Assembly == assembly)?.Descriptor.Owner;
+        if (owner == null && !owners.TryGetValue(assembly, out owner)) return false;
         // A different source build needs a reviewed grant for this exact frozen consumer.
         var payloads = Session.Inputs.Where(p => Path.GetFileName(p.Key).Equals(assembly + ".dll", StringComparison.OrdinalIgnoreCase)).ToArray();
         string payload = payloads.Length == 1 ? payloads[0].Value : "";
@@ -124,6 +128,126 @@ public static class Host
         // Called only after the owning module has successfully validated/loaded its state.
         Preservation.Restore(Session, owner, _ => Array.Empty<string>());
         Session.PendingRestore.Remove(owner); Session.SuspendedPackages.Remove(owner); Session.SuspendedPlugins.Remove(owner); Session.Save();
+    }
+    private sealed class LoadedSupportAdapter
+    {
+        public string Owner { get; }
+        private readonly object instance;
+        private readonly Dictionary<string, MethodInfo> methods;
+        public LoadedSupportAdapter(string owner, object instance)
+        {
+            Owner = owner; this.instance = instance;
+            methods = new[] { "Preflight", "Activate", "PrepareSave", "CompleteSave", "Suspend", "Restore", "CleanupFailure" }.ToDictionary(name => name, name => instance.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string) }, null) ?? throw new MissingMethodException(instance.GetType().FullName, name));
+            if (methods.Values.Any(m => m.ReturnType != typeof(string))) throw new MissingMethodException("LUZ recovery adapter methods must return string.");
+        }
+        public void Invoke(string operation, Exception? failure = null, string stage = "", IReadOnlyList<StagedSupportFile>? files = null)
+        {
+            string context = JsonSerializer.Serialize(new { Api = 1, Operation = operation, Owner, Session = Host.Session!.Id, Host.Session.SourceSlot, Host.Session.ActiveSlot, Host.Session.BranchSlot, Host.Session.PendingRestore, Host.Session.Dormant, StageRoot = stage, Files = files ?? Array.Empty<StagedSupportFile>(), Failure = failure?.ToString() });
+            try
+            {
+                object? result = methods[operation].Invoke(instance, new object[] { context });
+                if (!string.Equals(result as string, "ok", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Recovery adapter rejected " + operation + ": " + (result as string ?? "invalid response"));
+            }
+            catch (TargetInvocationException error) when (error.InnerException != null) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw(); throw; }
+        }
+    }
+    private sealed record StagedSupportFile(string Root, string Relative, string Path, string NativeHash, bool Existed);
+    private static void LoadSupportAdapters()
+    {
+        supportAdapters.Clear();
+        foreach (var support in Session!.Support)
+        foreach (string adapterId in support.Descriptor.Capabilities.Select(c => c.Implementations.Single(i => i.Id == support.SelectedImplementations[c.Name])).Where(i => i.Kind == "adapter").Select(i => i.Adapter).Distinct(StringComparer.Ordinal))
+        {
+            var declaration = support.Descriptor.Adapters.Single(a => a.Id == adapterId);
+            string descriptor = SafeFiles.Under(game, support.DescriptorPath), file = SafeFiles.Under(Path.GetDirectoryName(descriptor)!, declaration.File);
+            if (SafeFiles.Hash(file) != declaration.Sha256) throw new IOException("Recovery adapter changed after LUZ preflight: " + adapterId);
+            // Load the verified bytes without holding the package DLL open for the process lifetime.
+            var assembly = Assembly.Load(File.ReadAllBytes(file)); var type = assembly.GetType(declaration.Type, true)!;
+            supportAdapters.Add(new(support.Descriptor.Owner, Activator.CreateInstance(type) ?? throw new InvalidOperationException("Recovery adapter could not be created.")));
+        }
+        foreach (var adapter in supportAdapters) adapter.Invoke("Preflight");
+        var activated = new List<LoadedSupportAdapter>();
+        try
+        {
+            foreach (var adapter in supportAdapters) { adapter.Invoke("Activate"); activated.Add(adapter); }
+            foreach (var adapter in supportAdapters.Where(a => Session.Dormant.Any(d => d.StartsWith(a.Owner + "/", StringComparison.Ordinal)))) TransformSupport(adapter, "Suspend", Session.Slots.Values, true);
+            foreach (var adapter in supportAdapters.Where(a => Session.PendingRestore.Contains(a.Owner))) { TransformSupport(adapter, "Restore", Session.Slots.Values, true); CompleteRestore(adapter.Owner); }
+        }
+        catch (Exception error)
+        {
+            var failures = new List<Exception> { error };
+            foreach (var adapter in activated.AsEnumerable().Reverse()) try { adapter.Invoke("CleanupFailure", error); } catch (Exception cleanup) { failures.Add(cleanup); }
+            try { Session!.Fail(error); } catch (Exception retention) { failures.Add(retention); }
+            if (failures.Count == 1) throw; throw new AggregateException("Recovery adapter activation and cleanup failed.", failures);
+        }
+    }
+    private static void InvokeSupport(string operation, Exception? failure = null)
+    {
+        var failures = new List<Exception>();
+        foreach (var adapter in operation == "CleanupFailure" ? supportAdapters.AsEnumerable().Reverse() : supportAdapters)
+        {
+            try { adapter.Invoke(operation, failure); }
+            catch (Exception error) { if (operation != "CleanupFailure") throw; failures.Add(error); }
+        }
+        if (failures.Count != 0) throw new AggregateException("Recovery adapter cleanup failed.", failures);
+    }
+    private static void TransformSupport(LoadedSupportAdapter adapter, string operation, IEnumerable<string> slots, bool ownJournal)
+    {
+        var session = Session!; var entries = new List<(CompanionFile Rule, string Live, string Stage, string NativeHash, bool Existed)>();
+        string transaction = Publications.Root(session), stage = SafeFiles.Under(transaction, "adapter-stage-" + adapter.Owner + "-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(stage);
+        foreach (string slot in slots.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string native = session.File("saves/" + slot + ".sav"); if (!File.Exists(native)) continue;
+            string nativeHash = SafeFiles.Hash(native);
+            foreach (var companion in Companions.ForSlot(session, slot).Where(c => c.Owner == adapter.Owner))
+            {
+                string relative = companion.Root + "/" + companion.Relative, live = session.File(relative), copy = SafeFiles.Under(stage, relative); bool existed = File.Exists(live);
+                Directory.CreateDirectory(Path.GetDirectoryName(copy)!); if (existed) File.Copy(live, copy, true);
+                entries.Add((companion, live, copy, nativeHash, existed));
+            }
+        }
+        string[] paths = entries.Select(e => e.Rule.Root + "/" + e.Rule.Relative).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (ownJournal && paths.Length != 0) Publications.Begin(session, paths);
+        try
+        {
+            adapter.Invoke(operation, null, stage, entries.Select(e => new StagedSupportFile(e.Rule.Root, e.Rule.Relative, e.Stage, e.NativeHash, e.Existed)).ToArray());
+            ValidateStage(stage, entries.Select(e => e.Stage).ToHashSet(StringComparer.OrdinalIgnoreCase));
+            foreach (var entry in entries)
+            {
+                if (File.Exists(entry.Stage))
+                {
+                    Companions.Validate(entry.Stage, entry.Rule, entry.NativeHash, verifyMarker: false);
+                    Directory.CreateDirectory(Path.GetDirectoryName(entry.Live)!); File.Copy(entry.Stage, entry.Live, true);
+                }
+                else if (entry.Rule.Required) throw new InvalidDataException("Recovery adapter removed a required companion: " + entry.Rule.Relative);
+                else if (File.Exists(entry.Live)) File.Delete(entry.Live);
+            }
+            if (ownJournal && paths.Length != 0) Publications.Commit(session);
+            Directory.Delete(stage, true);
+        }
+        catch (Exception error)
+        {
+            if (ownJournal && paths.Length != 0) throw Publications.RetainFailure(session, error);
+            throw;
+        }
+    }
+    private static void TransformSupport(string operation, string slot)
+    {
+        foreach (var adapter in supportAdapters) TransformSupport(adapter, operation, new[] { slot }, false);
+    }
+    private static void ValidateStage(string folder, IReadOnlySet<string> allowed)
+    {
+        void Visit(string directory)
+        {
+            SafeFiles.NoLinks(directory);
+            foreach (string entry in Directory.EnumerateFileSystemEntries(directory, "*", SearchOption.TopDirectoryOnly))
+            {
+                SafeFiles.NoLinks(entry);
+                if (Directory.Exists(entry)) Visit(entry);
+                else if (!allowed.Contains(Path.GetFullPath(entry))) throw new InvalidDataException("Recovery adapter created an undeclared staged file.");
+            }
+        }
+        Visit(folder);
     }
     private static void RequireRuntime()
     {
@@ -160,9 +284,15 @@ public static class Host
         {
             RequireRuntime(); Companions.VerifyOutputs(Session!); __0 = Session!.Route(__0, false);
             if (Session.PendingRestore.Count != 0) throw new InvalidOperationException("Restored modules have not acknowledged their native state; saving remains blocked.");
+            InvokeSupport("PrepareSave");
             Publications.Begin(Session, Companions.WriteSet(Session, __0)); __state = true; return true;
         }
-        catch (Exception error) { report("Continuity save preflight failed: " + error); __result = false; return false; }
+        catch (Exception error)
+        {
+            try { InvokeSupport("CleanupFailure", error); }
+            catch (Exception cleanup) { error = new AggregateException("Continuity save preflight and adapter cleanup failed.", error, cleanup); }
+            report("Continuity save preflight failed: " + error); __result = false; return false;
+        }
     }
     public static Exception? AfterSave(string __0, ref bool __result, bool __state, Exception? __exception)
     {
@@ -173,15 +303,15 @@ public static class Host
             if (!__result)
             {
                 Publications.Observe(Session!); var refused = Publications.Read(Session!);
-                if (refused.Before.All(p => refused.After[p.Key] == (p.Value ?? ""))) { Publications.Restore(Session!); return null; }
+                if (refused.Before.All(p => refused.After[p.Key] == (p.Value ?? ""))) { InvokeSupport("CleanupFailure", new IOException("Native save returned false.")); Publications.Restore(Session!); return null; }
                 throw new IOException("Native save was refused after changing its write set; publication remains pending.");
             }
-            Preservation.CarryForward(Session!, __0);
+            Preservation.CarryForward(Session!, __0); TransformSupport("CompleteSave", __0);
             string hash = SafeFiles.Hash(Session!.File("saves/" + __0 + ".sav"));
-            foreach (var companion in Companions.ForSlot(__0))
+            foreach (var companion in Companions.ForSlot(Session, __0))
             {
-                string file = Session.File("config/" + companion.Relative);
-                if (File.Exists(file)) { Companions.Validate(file, companion.Owner, hash, verifyMarker: false); if (File.Exists(file + ".required")) File.WriteAllText(file + ".required", hash); }
+                string file = Session.File(companion.Root + "/" + companion.Relative);
+                if (File.Exists(file)) { Companions.Validate(file, companion, hash, verifyMarker: false); if (File.Exists(file + ".required")) File.WriteAllText(file + ".required", hash); }
                 else if (File.Exists(file + ".required")) throw new InvalidDataException("Required companion was not published.");
             }
             Companions.VerifyOriginal(Session); Session.ActiveSlot = __0; Publications.Commit(Session);
@@ -189,7 +319,7 @@ public static class Host
         catch (Exception error)
         {
             __result = false; report("Continuity publication failed; original checkpoint retained: " + error);
-            try { Publications.Observe(Session!); Session!.Fail(error); }
+            try { InvokeSupport("CleanupFailure", error); Publications.Observe(Session!); Session!.Fail(error); }
             catch (Exception cleanup) { report(new AggregateException("Continuity failure retention also failed.", error, cleanup).ToString()); return new AggregateException(error, cleanup); }
             return __exception ?? error;
         }

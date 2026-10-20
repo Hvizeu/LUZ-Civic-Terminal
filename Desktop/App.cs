@@ -61,6 +61,7 @@ public sealed class App : Application
     [STAThread] public static int Main(string[] args)
     {
         if (args.SequenceEqual(new[] { "--compatibility-worker" })) return CompatibilityWorker.RunChild();
+        if (args.Length >= 2 && args[0] == "--corpsec") return CorpSecCommand.Run(args, HostPlatform.DataRoot());
         if (args.Length == 2 && args[0] == "--update-restart") {
             try {
                 if (!int.TryParse(args[1], out int previousPid)) throw new InvalidDataException("Invalid LUZ update restart request.");
@@ -99,8 +100,19 @@ public sealed class App : Application
             {
                 var package = new ModPackage { Name = name, Description = description, Version = "1.0.0", Source = "Thunderstore", SourceId = name }; library.State.Packages.Add(package); library.Active.Mods.Add(new() { PackageId = package.Id });
             }
+            string builds = Path.Combine(root, "PreviewBuilds"), projects = Path.Combine(root, "authoring", "projects"); Directory.CreateDirectory(Path.Combine(builds, "Better Time")); Directory.CreateDirectory(Path.Combine(builds, "City Life"));
+            var betterTime = new CorpSecProject { Id = new string('A', 64), Input = Path.Combine(builds, "Better Time"), ProjectRoot = builds, Workspace = Path.Combine(root, "authoring", "workspaces", new string('A', 64)), Owner = "hvizeu.nivalis.slowdays", DisplayName = "Better Time", Version = "2.2.8", Author = "Hvizeu", Description = "Time controls and safe waiting.", SupportContact = "Nexus Better Time page", PluginGuid = "hvizeu.nivalis.slowdays", PluginAssembly = "NivalisSlowDays", PluginFile = "NivalisSlowDays.dll", PackageFolder = "better-time", ThunderstoreName = "Better_Time", ProjectFile = Path.Combine(projects, new string('A', 64) + ".json"), Capabilities = [new("module", "native", [], [])], PackageOutput = Path.Combine(root, "PreviewPackages") };
+            var cityLife = new CorpSecProject { Id = new string('B', 64), Input = Path.Combine(builds, "City Life"), ProjectRoot = builds, Workspace = Path.Combine(root, "authoring", "workspaces", new string('B', 64)), Owner = "hvizeu.nivalis.citylife", DisplayName = "City Life", Version = "1.1.3", Author = "Hvizeu", Description = "City activities and citizen life.", SupportContact = "Nexus City Life page", PluginGuid = "hvizeu.nivalis.citylife", PluginAssembly = "NivalisCityLife", PluginFile = "NivalisCityLife.dll", PackageFolder = "city-life", ThunderstoreName = "City_Life", ProjectFile = Path.Combine(projects, new string('B', 64) + ".json"), Capabilities = [new("module", "native", [], [])] };
+            CorpSec.Save(betterTime); CorpSec.Save(cityLife);
+            string[] extraProjects = ["Behavior Inspector", "Furniture Lab", "Greenhouse", "Night Market Workshop", "Object Framework", "Object Framework Interaction Example", "Performance Fix", "Tracked Quests HUD", "Unofficial Patch", "Use Oldest First"];
+            for (int index = 0; index < extraProjects.Length; index++)
+            {
+                string name = extraProjects[index], id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("preview." + name))), input = Path.Combine(builds, name); Directory.CreateDirectory(input);
+                CorpSec.Save(new() { Id = id, Input = input, ProjectRoot = builds, Workspace = Path.Combine(root, "authoring", "workspaces", id), Owner = "preview.mod." + index, DisplayName = name, Version = "1.0." + index, Author = "Preview Author", PluginGuid = "preview.mod." + index, PluginAssembly = "PreviewMod" + index, PluginFile = "PreviewMod" + index + ".dll", PackageFolder = "preview-mod-" + index, ThunderstoreName = "Preview_Mod_" + index, ProjectFile = Path.Combine(projects, id + ".json"), Capabilities = [new("module", "native", [], [])] });
+            }
+            CorpSec.RememberSelection(library.Root, betterTime.Id);
             var window = new MainWindow(library, true); window.Show();
-            foreach (var page in new[] { "Registry", "Catalogue", "Maintenance", "Registry-search", "Registry-empty", "Registry-disabled", "Registry-only-disabled", "Registry-only-enabled", "Registry-issues", "Registry-applied", "Maintenance-recovery-loader", "Maintenance-recovery-profile", "Maintenance-recovery-both", "Maintenance-recovery-missing" })
+            foreach (var page in new[] { "Registry", "Catalogue", "Maintenance", "Registry-search", "Registry-empty", "Registry-disabled", "Registry-only-disabled", "Registry-only-enabled", "Registry-issues", "Registry-applied", "Maintenance-recovery-loader", "Maintenance-recovery-profile", "Maintenance-recovery-both", "Maintenance-recovery-missing", "CorpSec-Project", "CorpSec-Support", "CorpSec-Validation", "CorpSec-Package" })
             foreach (int width in new[] { 1440, 1100 })
             {
                 window.Width = width; window.Height = width == 1100 ? 720 : 900; window.PreviewPage(page); Dispatcher.UIThread.RunJobs();
@@ -110,8 +122,22 @@ public sealed class App : Application
                     window.PreviewMaintenanceBottom(); Dispatcher.UIThread.RunJobs();
                     using var bottom = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("No maintenance frame."); bottom.Save(Path.Combine(output, "maintenance-browser-" + width + ".png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
                 }
+                if (page == "CorpSec-Project")
+                {
+                    window.PreviewCorpProjectBottom(); Dispatcher.UIThread.RunJobs();
+                    using var bottom = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("No CorpSec project frame."); bottom.Save(Path.Combine(output, "corpsec-project-bottom-" + width + ".png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+                }
             }
             window.PreviewCheckInteractions(Path.Combine(output, "presentation-checks.txt")); CivicIcons.Export(Path.Combine(output, "vectors")); window.Close();
+            var greenhouse = new ModPackage { Name = "Nivalis Greenhouse", Version = "2.0.2", Files = ["plugins/NivalisGreenhouse/NivalisGreenhouse.dll"] };
+            library.State.Packages.Add(greenhouse); library.Active.Mods.Add(new() { PackageId = greenhouse.Id });
+            CompatibilityReport warning = new(1, "Play", new string('A', 64), CompatibilityStatus.Unverified,
+                [new("DynamicContractsUnverified", "Warning", greenhouse.Files[0], "Declared native/reflection capabilities", "No maintained compatibility metadata; only compiled references checked", true)]);
+            var warningOwner = new MainWindow(library, true); warningOwner.Show();
+            var warningWindow = warningOwner.PreviewCompatibilityPrompt(CompatibilityGuidance.Create(library, warning)); Dispatcher.UIThread.RunJobs();
+            using var warningFrame = warningWindow.CaptureRenderedFrame() ?? throw new InvalidOperationException("No compatibility warning frame.");
+            warningFrame.Save(Path.Combine(output, "compatibility-warning.png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+            warningWindow.Close(); warningOwner.Close();
             var installer = new InstallerWindow(); installer.Show(); Dispatcher.UIThread.RunJobs();
             using var installerFrame = installer.CaptureRenderedFrame() ?? throw new InvalidOperationException("No installer frame.");
             installerFrame.Save(Path.Combine(output, "installer.png"), Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);

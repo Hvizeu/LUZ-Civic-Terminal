@@ -1,0 +1,64 @@
+LUZ CIVIC TERMINAL 0.7.2 - NEXUS UPLOAD
+
+Use the existing LUZ Civic Terminal listing.
+This is a desktop application. Choose manual-download installation guidance.
+The application is extracted outside the Nivalis game directory.
+
+FILES
+
+Upload the four platform ZIPs from the LUZ deployment folder as separate files.
+Do not re-ZIP them or upload the private QA/status records.
+
+Main Windows file
+  Filename: LUZ-Civic-Terminal-0.7.2-win-x64.zip
+  Display name: LUZ Civic Terminal 0.7.2 - Windows x64
+  Description: Mod management and CorpSec author tools. Includes the installer,
+  .NET, bundled Mod Continuity and step-by-step guides. Extract outside the
+  game and run Install LUZ.exe.
+
+Optional Linux file
+  Filename: LUZ-Civic-Terminal-0.7.2-linux-x64.zip
+  Display name: LUZ Civic Terminal 0.7.2 - Linux x64 (experimental)
+  Description: Graphical glibc desktop build. Requires X11/XWayland and xdg-open.
+  Includes installation and author guides. Protected game sessions require
+  native Windows.
+
+Optional Intel Mac file
+  Filename: LUZ-Civic-Terminal-0.7.2-osx-x64.zip
+  Display name: LUZ Civic Terminal 0.7.2 - macOS Intel (experimental)
+  Description: macOS 15 or newer. Follow Prepare macOS.command and
+  Install LUZ.command. Not notarized. Protected game sessions require Windows.
+
+Optional Apple Silicon file
+  Filename: LUZ-Civic-Terminal-0.7.2-osx-arm64.zip
+  Display name: LUZ Civic Terminal 0.7.2 - macOS Apple Silicon (experimental)
+  Description: macOS 15 or newer on M-series hardware. Follow the included
+  preparation and installer helpers. Not notarized. Protected game sessions
+  require Windows.
+
+Every ZIP has a .sha256 sidecar. Use it to verify the selected upload matches
+the release package. Players need only the ZIP for their platform.
+
+PAGE UPDATE
+
+1. Set the version to 0.7.2.
+2. Paste DESCRIPTION.bbcode.txt into the existing page's BBCode description.
+   Keep any existing gallery images and required credits.
+3. Paste CHANGELOG.txt into the new version's changelog.
+4. Use SUMMARY.txt for the short description.
+5. Confirm Windows is the main download and the other platforms are clearly
+   labelled experimental.
+6. Check the rendered page: cyan player features, gold author tools, green
+   save features and purple maintenance features should have large headings.
+7. Check that the page's current requirements distinguish ordinary mod
+   management from protected saves, which require native Windows, supported
+   game build 25984046, loader 6.0.0-be.788 and compatible mod support.
+
+UPGRADE NOTES
+
+LUZ 0.4.0+ can use Maintenance > LUZ updates. Users on 0.3.x need one manual
+installation. Keep profiles and author settings; do not mix application
+files from different versions.
+
+The GitHub updater release uses these same four ZIP filenames and checksums.
+No Nexus page edits or uploads are performed by preparing these files.

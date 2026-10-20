@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Luz.Continuity;
 
@@ -9,6 +11,8 @@ public sealed record ContinuityOptions(bool Enabled = false, string Saves = "", 
 /// <summary>LUZ owns distribution, launch admission and checkpoints. Only the runtime owns live save routing.</summary>
 public static class ModContinuity
 {
+    private sealed class MaintainedSupportCatalog { public int Schema { get; set; } public MaintainedSupportModule[] Modules { get; set; } = Array.Empty<MaintainedSupportModule>(); }
+    private sealed record MaintainedSupportModule(string Guid, string Assembly, string Owner, string DisplayName, string[] Capabilities, SupportCompanion[] Companions);
     public const string PluginGuid = "hvizeu.luz.continuity";
     private static string OptionsPath(Library library) => FileSafety.Under(library.Root, "continuity/options-" + library.Active.Id + ".json");
     public static ContinuityOptions Options(Library library) => File.Exists(OptionsPath(library)) ? JsonFiles.Read<ContinuityOptions>(OptionsPath(library)) : new();
@@ -65,7 +69,7 @@ public static class ModContinuity
     public static Dictionary<string, string> VerifyBundle(string folder)
     {
         var manifest = SafeFiles.Read<Dictionary<string, string>>(Path.Combine(folder, "payload.json"));
-        string[] required = { "Luz.Continuity.Runtime.dll", "Luz.Continuity.dll", "catalog.json" };
+        string[] required = { "Luz.Continuity.Runtime.dll", "Luz.Continuity.dll", "catalog.json", "maintained-support.json" };
         if (manifest.Count != required.Length || required.Any(f => !manifest.ContainsKey(f))) throw new InvalidDataException("Continuity bundle is incomplete.");
         foreach (var pair in manifest) if (SafeFiles.Hash(SafeFiles.Under(folder, pair.Key)) != pair.Value) throw new IOException("Continuity update payload failed verification: " + pair.Key);
         return manifest;
@@ -129,35 +133,32 @@ public static class ModContinuity
         foreach (var area in new[] { "core", "interop", "unity-libs" })
         foreach (string file in Directory.EnumerateFiles(Path.Combine(game, "BepInEx", area), "*", SearchOption.TopDirectoryOnly))
             if (file.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(file) == "assembly-hash.txt") inputs["BepInEx/" + area + "/" + Path.GetFileName(file)] = FileSafety.Hash(file);
-        var supported = new HashSet<string> { PluginGuid, "hvizeu.nivalis.slowdays", "hvizeu.nivalis.citylife", "hvizeu.nivalis.unofficialpatch", "hvizeu.nivalis.furnishings", "hvizeu.nivalis.furniturelab" };
-        foreach (var input in inputs.Where(p => p.Key.StartsWith("BepInEx/plugins/") && p.Key.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
-        {
-            string file = SafeFiles.Under(game, input.Key);
-            foreach (var plugin in PluginMetadata.Read(file))
-            {
-                if (!supported.Contains(plugin.Guid)) throw new InvalidDataException("Protected continuation has no preservation contract for " + plugin.Name + ". The preflight checkpoint is retained.");
-                if (plugin.Guid != PluginGuid)
-                {
-                    using var assembly = Mono.Cecil.AssemblyDefinition.ReadAssembly(file);
-                    if (!assembly.CustomAttributes.Any(a => a.AttributeType.FullName == "System.Reflection.AssemblyMetadataAttribute" && a.ConstructorArguments.Count == 2 && a.ConstructorArguments[0].Value as string == "Nivalis.Continuity.Api" && a.ConstructorArguments[1].Value as string == "1")) throw new InvalidDataException("Install the continuity migration build of " + plugin.Name + " before protected play.");
-                }
-            }
-        }
+        var support = InstalledSupport(game, inputs);
         string catalogHash = SafeFiles.Hash(catalogPath);
-        string epoch = SafeFiles.Key(library.Active.Id + library.Fingerprint(library.Active) + JsonSerializer.Serialize(identity) + catalogHash + JsonSerializer.Serialize(inputs));
+        string epoch = SafeFiles.Key(library.Active.Id + library.Fingerprint(library.Active) + JsonSerializer.Serialize(identity) + catalogHash + JsonSerializer.Serialize(inputs) + JsonSerializer.Serialize(support, SafeFiles.Json));
         ContinuitySession? session = options.SessionId.Length == 0 ? null : Session(library, options.SessionId);
         if (session != null) { Checkpoints.Verify(session.Checkpoint); Companions.VerifyOutputs(session); }
         if (session?.Fingerprint != epoch)
         {
+            var currentOwners = support.Select(s => s.Descriptor.Owner).ToHashSet(StringComparer.Ordinal);
+            var previousOwners = session?.Support.Count > 0 ? session.Support.Select(s => s.Descriptor.Owner) : new[] { "bettertime", "citylife", "framework" }.Where(owner => session?.Inputs.Keys.Any(k => LegacyAssembly(owner) == Path.GetFileNameWithoutExtension(k)) == true);
+            var frozenSupport = support.ToList();
+            if (session != null)
+            foreach (var previous in session.Support.Where(s => !currentOwners.Contains(s.Descriptor.Owner)))
+            {
+                bool custom = previous.Descriptor.Capabilities.Any(c => c.Implementations.Single(i => i.Id == previous.SelectedImplementations[c.Name]).Kind == "adapter");
+                if (custom) throw new InvalidDataException("Restore " + previous.Descriptor.DisplayName + " and its exact recovery adapter before removing it from this protected timeline. The existing checkpoint is retained.");
+                frozenSupport.Add(JsonSerializer.Deserialize<FrozenModSupport>(JsonSerializer.Serialize(previous, SafeFiles.Json), SafeFiles.Json)!);
+            }
             cancellation.ThrowIfCancellationRequested(); string checkpoint = Checkpoints.Capture(library.Root, options.Saves, config, cancellation);
             string id = System.Guid.NewGuid().ToString("N"), source = session == null ? options.SourceSlot : session.ActiveSlot.Length != 0 ? session.ActiveSlot : session.BranchSlot;
             var dormant = session?.Dormant.ToList() ?? new();
-            var restore = dormant.Select(d => d.Split('/')[0]).Distinct().Where(owner => inputs.Keys.Any(k => Path.GetFileName(k) == (owner == "citylife" ? "NivalisCityLife.dll" : owner == "bettertime" ? "NivalisSlowDays.dll" : "NivalisFurnishings.dll"))).ToList();
-            foreach (var pair in new[] { ("citylife", "NivalisCityLife.dll"), ("bettertime", "NivalisSlowDays.dll") })
-                if (!inputs.Keys.Any(k => Path.GetFileName(k) == pair.Item2) && (session?.Inputs.Keys.Any(k => Path.GetFileName(k) == pair.Item2) == true || Companions.ForSlot(source).Any(c => c.Owner == pair.Item1 && File.Exists(Path.Combine(config, c.Relative)))) && !dormant.Contains(pair.Item1 + "/module")) dormant.Add(pair.Item1 + "/module");
-            if (session != null && session.Inputs.Keys.Any(k => Path.GetFileName(k) == "NivalisFurnishings.dll") && !inputs.Keys.Any(k => Path.GetFileName(k) == "NivalisFurnishings.dll")) throw new InvalidDataException("A compatible Object Framework persistence adapter is required for this timeline.");
+            foreach (string owner in previousOwners.Where(owner => !currentOwners.Contains(owner)))
+                if (!dormant.Contains(owner + "/module")) dormant.Add(owner + "/module");
+            var restore = dormant.Select(d => d.Split('/')[0]).Distinct().Where(currentOwners.Contains).ToList();
+            if (session != null && previousOwners.Contains("framework") && !currentOwners.Contains("framework")) throw new InvalidDataException("A compatible Object Framework persistence adapter is required for this timeline.");
             var suspendedPackages = session?.SuspendedPackages ?? new(); var suspendedPlugins = session?.SuspendedPlugins ?? new();
-            session = new ContinuitySession { Id = id, LibraryRoot = library.Root, Saves = options.Saves, Config = config, SourceSlot = source, BranchSlot = "Protected - " + options.SourceSlot[..Math.Min(options.SourceSlot.Length, 48)] + " " + id[..8], Checkpoint = checkpoint, Fingerprint = epoch, CatalogHash = catalogHash, Identity = identity, Inputs = new(inputs, StringComparer.OrdinalIgnoreCase), Dormant = dormant, PendingRestore = restore, SuspendedPackages = suspendedPackages, SuspendedPlugins = suspendedPlugins };
+            session = new ContinuitySession { Id = id, LibraryRoot = library.Root, Saves = options.Saves, Config = config, SourceSlot = source, BranchSlot = "Protected - " + options.SourceSlot[..Math.Min(options.SourceSlot.Length, 48)] + " " + id[..8], Checkpoint = checkpoint, Fingerprint = epoch, CatalogHash = catalogHash, Identity = identity, Inputs = new(inputs, StringComparer.OrdinalIgnoreCase), Dormant = dormant, PendingRestore = restore, SuspendedPackages = suspendedPackages, SuspendedPlugins = suspendedPlugins, Support = frozenSupport };
             session.Slots.Add(session.SourceSlot, session.BranchSlot); session.Save();
             JsonFiles.Write(OptionsPath(library), options with { SessionId = session.Id }); Companions.Clone(session);
             foreach (string owner in dormant.Select(d => d.Split('/')[0]).Distinct()) Preservation.Capture(session, owner);
@@ -191,8 +192,10 @@ public static class ModContinuity
     public static void Suspend(Library library, string capability)
     {
         GameFiles.RequireClosed(); var options = Options(library); var session = Session(library, options.SessionId);
-        // Native serialization remains active. Only explicitly isolated features may sleep.
-        if (capability is not ("bettertime/module" or "citylife/module" or "framework/behaviours")) throw new InvalidDataException("No verified isolated preservation adapter for this capability.");
+        var parts = capability.Split('/'); if (parts.Length != 2) throw new InvalidDataException("Choose a declared LUZ capability.");
+        var declared = session.Support.SingleOrDefault(s => s.Descriptor.Owner == parts[0])?.Descriptor.Capabilities.SingleOrDefault(c => c.Name == parts[1]);
+        if (declared == null && session.Support.Count != 0) throw new InvalidDataException("No verified isolated preservation adapter for this capability.");
+        if (session.Support.Count == 0 && capability is not ("bettertime/module" or "citylife/module" or "framework/behaviours")) throw new InvalidDataException("No verified isolated preservation adapter for this capability.");
         bool added = !session.Dormant.Contains(capability); if (added) session.Dormant.Add(capability);
         string owner = capability.Split('/')[0];
         try { Preservation.Capture(session, owner); session.PendingRestore.Remove(owner); SetModuleAvailability(library, session, owner, false); session.Save(); }
@@ -202,7 +205,15 @@ public static class ModContinuity
     {
         var options = Options(library); if (options.SessionId.Length == 0) return Array.Empty<Capability>();
         var session = Session(library, options.SessionId);
-        return SafeFiles.Read<AdapterCatalog>(Path.Combine(library.State.GameFolder, "BepInEx/plugins/LUZContinuity/catalog.json")).Resolve(session.Identity, session.Dormant.ToHashSet());
+        var result = SafeFiles.Read<AdapterCatalog>(Path.Combine(library.State.GameFolder, "BepInEx/plugins/LUZContinuity/catalog.json")).Resolve(session.Identity, session.Dormant.ToHashSet()).ToList();
+        foreach (var support in session.Support)
+        foreach (var capability in support.Descriptor.Capabilities)
+        {
+            string selected = support.SelectedImplementations[capability.Name]; var implementation = capability.Implementations.Single(i => i.Id == selected);
+            CapabilityState state = session.Dormant.Contains(support.Descriptor.Owner + "/" + capability.Name) ? CapabilityState.Dormant : implementation.Kind == "native" ? CapabilityState.Native : implementation.Kind == "adapter" ? CapabilityState.Fallback : CapabilityState.Dormant;
+            result.Add(new(support.Descriptor.Owner, capability.Name, state, implementation.Id + " · " + support.Descriptor.Provenance));
+        }
+        return result;
     }
     public static void RequestRestore(Library library, string owner)
     {
@@ -214,8 +225,9 @@ public static class ModContinuity
     }
     private static void SetModuleAvailability(Library library, ContinuitySession session, string owner, bool enabled)
     {
-        string? guid = owner == "citylife" ? "hvizeu.nivalis.citylife" : owner == "bettertime" ? "hvizeu.nivalis.slowdays" : null;
-        if (guid == null) return; // Framework serialization remains installed during behavior dormancy.
+        string? guid = session.Support.SingleOrDefault(s => s.Descriptor.Owner == owner)?.Descriptor.Plugin.Guid ?? (owner == "citylife" ? "hvizeu.nivalis.citylife" : owner == "bettertime" ? "hvizeu.nivalis.slowdays" : null);
+        bool moduleDormant = session.Dormant.Contains(owner + "/module");
+        if (guid == null || !moduleDormant) return; // Persistence providers remain installed during feature dormancy.
         if (!session.SuspendedPackages.TryGetValue(owner, out var savedPackages)) session.SuspendedPackages[owner] = savedPackages = new();
         if (!session.SuspendedPlugins.TryGetValue(owner, out var savedPlugins)) session.SuspendedPlugins[owner] = savedPlugins = new();
         if (enabled)
@@ -250,5 +262,49 @@ public static class ModContinuity
         GameFiles.RequireClosed();
         bool applied = library.State.AppliedProfileId == library.Active.Id && library.State.AppliedFingerprint == library.Fingerprint(library.Active);
         if (InstallBundle(library) && applied) new Deployment(library).Apply();
+    }
+
+    private static string LegacyAssembly(string owner) => owner switch { "bettertime" => "NivalisSlowDays", "citylife" => "NivalisCityLife", "framework" => "NivalisFurnishings", _ => "" };
+    private static List<FrozenModSupport> InstalledSupport(string game, IReadOnlyDictionary<string, string> inputs)
+    {
+        string plugins = Path.Combine(game, "BepInEx/plugins"), maintainedPath = Path.Combine(plugins, "LUZContinuity/maintained-support.json");
+        var declared = CorpSec.Discover(plugins, requireAllPlugins: false);
+        var maintained = SafeFiles.Read<MaintainedSupportCatalog>(maintainedPath);
+        if (maintained.Schema != 1 || maintained.Modules.Length > 64) throw new InvalidDataException("Unsupported maintained mod-support catalogue.");
+        var result = new List<FrozenModSupport>();
+        foreach (var input in inputs.Where(p => p.Key.StartsWith("BepInEx/plugins/", StringComparison.OrdinalIgnoreCase) && p.Key.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)))
+        {
+            string file = SafeFiles.Under(game, input.Key);
+            foreach (var plugin in PluginMetadata.Read(file))
+            {
+                if (plugin.Guid == PluginGuid) continue;
+                var author = declared.Where(d => d.Descriptor.Plugin.Guid == plugin.Guid).ToArray();
+                if (author.Length > 1) throw new InvalidDataException("More than one LUZ support declaration owns " + plugin.Name + ".");
+                if (author.Length == 1)
+                {
+                    var found = author[0]; using var assembly = Mono.Cecil.AssemblyDefinition.ReadAssembly(file); var metadata = AssemblyMetadata(assembly);
+                    bool declaresContracts = CorpSec.DeclaresCompiledContracts(found.Descriptor);
+                    if (CorpSec.RequiresCompiledContracts(found.Descriptor) && !declaresContracts) throw new InvalidDataException("Rebuild support files for " + plugin.Name + " after adding compiled contracts for its native recovery behavior.");
+                    if (declaresContracts && (metadata.GetValueOrDefault("Nivalis.Requirements.Schema") != found.Descriptor.Compatibility.RequirementsSchema.ToString() || found.Descriptor.Compatibility.ContractsSha256.Length != 0 && ContractHash(assembly) != found.Descriptor.Compatibility.ContractsSha256)) throw new InvalidDataException("Rebuild support files for " + plugin.Name + " after changing its compiled contracts.");
+                    if (found.Descriptor.Compatibility.Native.Length != 0 && metadata.GetValueOrDefault("Nivalis.NativeBuild") != found.Descriptor.Compatibility.Native || found.Descriptor.Compatibility.Metadata.Length != 0 && metadata.GetValueOrDefault("Nivalis.MetadataBuild") != found.Descriptor.Compatibility.Metadata) throw new InvalidDataException("LUZ support and compiled native identities disagree for " + plugin.Name + ".");
+                    result.Add(new() { DescriptorPath = Path.GetRelativePath(game, found.DescriptorPath).Replace('\\', '/'), DescriptorSha256 = found.DescriptorHash, Descriptor = found.Descriptor, SelectedImplementations = new(found.Selected, StringComparer.Ordinal) }); continue;
+                }
+                var template = maintained.Modules.SingleOrDefault(m => m.Guid == plugin.Guid && m.Assembly == Path.GetFileNameWithoutExtension(file));
+                if (template == null) throw new InvalidDataException("Protected recovery is not configured for " + plugin.Name + ". Ask its author to generate support in CorpSec Terminal; the checkpoint is retained.");
+                using var module = Mono.Cecil.AssemblyDefinition.ReadAssembly(file); var data = AssemblyMetadata(module);
+                if (data.GetValueOrDefault("Nivalis.Continuity.Api") != "1") throw new InvalidDataException("Install the continuity build of " + plugin.Name + " before protected play.");
+                var descriptor = new ModSupportDescriptor { Owner = template.Owner, DisplayName = template.DisplayName, Provenance = "luz-maintained", SupportContact = "LUZ Civic Terminal", Plugin = new(plugin.Guid, template.Assembly, plugin.Version, Path.GetFileName(file), input.Value), Compatibility = new(data.GetValueOrDefault("Nivalis.NativeBuild") ?? "", data.GetValueOrDefault("Nivalis.MetadataBuild") ?? "", int.TryParse(data.GetValueOrDefault("Nivalis.Requirements.Schema"), out int schema) ? schema : 0, ContractHash(module)), Capabilities = template.Capabilities.Select(c => new SupportCapability(c, new[] { new SupportImplementation("native", "native", "", 1000) }, Array.Empty<string>())).ToArray(), Companions = template.Companions };
+                descriptor.Validate(); string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(descriptor, SafeFiles.Json))));
+                result.Add(new() { DescriptorPath = Path.GetRelativePath(game, maintainedPath).Replace('\\', '/'), DescriptorSha256 = digest, Descriptor = descriptor, SelectedImplementations = descriptor.Capabilities.ToDictionary(c => c.Name, _ => "native", StringComparer.Ordinal) });
+            }
+        }
+        if (result.Select(s => s.Descriptor.Owner).Distinct(StringComparer.Ordinal).Count() != result.Count) throw new InvalidDataException("Duplicate LUZ preservation owner in installed profile.");
+        foreach (var support in result) support.Validate(); return result;
+    }
+    private static Dictionary<string, string> AssemblyMetadata(Mono.Cecil.AssemblyDefinition assembly) => assembly.CustomAttributes.Where(a => a.AttributeType.FullName == "System.Reflection.AssemblyMetadataAttribute" && a.ConstructorArguments.Count == 2).ToDictionary(a => (string)a.ConstructorArguments[0].Value, a => (string)a.ConstructorArguments[1].Value);
+    private static string ContractHash(Mono.Cecil.AssemblyDefinition assembly)
+    {
+        var resource = assembly.MainModule.Resources.OfType<Mono.Cecil.EmbeddedResource>().SingleOrDefault(r => r.Name == "Nivalis.Contracts.v2.json"); if (resource == null) return "";
+        using var stream = resource.GetResourceStream(); return Convert.ToHexString(SHA256.HashData(stream));
     }
 }

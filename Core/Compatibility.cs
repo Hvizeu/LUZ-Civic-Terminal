@@ -10,7 +10,17 @@ public sealed record CompatibilityFinding(string Code, string Severity, string P
 public sealed record CompatibilityIdentity(string File, string Identity, string Sha256);
 public sealed record CompatibilityReport(int Schema, string Action, string Fingerprint, CompatibilityStatus Status, IReadOnlyList<CompatibilityFinding> Findings, IReadOnlyList<CompatibilityIdentity>? Identities = null)
 {
-    public string Describe() => Status + "\n" + string.Join("\n\n", Findings.Select(f => $"{f.Severity}: {f.Plugin}: {f.Code}\nExpected: {f.Expected}\nObserved: {f.Observed}")) + "\n\nChecks inspect compiled contracts. Gameplay still requires testing.";
+    public string Describe()
+    {
+        string summary = Status switch
+        {
+            CompatibilityStatus.CheckedContractsPassed => "LUZ found no problem in the contracts it can inspect.",
+            CompatibilityStatus.Unverified => "LUZ could not verify every enabled mod for this exact setup.",
+            _ => "LUZ found a compatibility problem in this exact setup."
+        };
+        if (Findings.Count == 0) return summary;
+        return summary + "\n\nTechnical details:\n" + string.Join("\n\n", Findings.Select(f => $"{f.Severity}: {f.Plugin}\nCode: {f.Code}\nNeeded: {f.Expected}\nFound: {f.Observed}"));
+    }
 }
 public sealed class CompatibilityAcknowledgment
 {
@@ -261,5 +271,32 @@ public static class Compatibility
         public AssemblyDefinition Resolve(AssemblyNameReference name) => Resolve(name, new());
         public AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters) => assemblies.TryGetValue(name.Name, out var value) ? value : throw new AssemblyResolutionException(name);
         public void Dispose() { }
+    }
+}
+
+public static class CompatibilityDecisions
+{
+    private const int MaximumRemembered = 32;
+    public static bool IsRemembered(Library library, CompatibilityReport report)
+        => report.Status != CompatibilityStatus.CheckedContractsPassed
+            && library.State.CompatibilityDecisions.Any(d => d.Action == report.Action && d.Fingerprint.Equals(report.Fingerprint, StringComparison.OrdinalIgnoreCase));
+
+    public static void Remember(Library library, CompatibilityReport report)
+    {
+        if (report.Status == CompatibilityStatus.CheckedContractsPassed) return;
+        _ = Compatibility.Acknowledge(report);
+        var previous = library.State.CompatibilityDecisions.ToList();
+        try
+        {
+            library.State.CompatibilityDecisions.RemoveAll(d => d.Action == report.Action && d.Fingerprint.Equals(report.Fingerprint, StringComparison.OrdinalIgnoreCase));
+            library.State.CompatibilityDecisions.Add(new() { Action = report.Action, Fingerprint = report.Fingerprint, ReviewedUtc = DateTime.UtcNow });
+            library.State.CompatibilityDecisions = library.State.CompatibilityDecisions.OrderByDescending(d => d.ReviewedUtc).Take(MaximumRemembered).ToList();
+            library.Save();
+        }
+        catch
+        {
+            library.State.CompatibilityDecisions = previous;
+            throw;
+        }
     }
 }

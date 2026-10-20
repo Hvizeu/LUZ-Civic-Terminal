@@ -10,6 +10,10 @@ public sealed partial class MainWindow : Window
     private readonly bool preview;
     private readonly Grid shell = new(), body = new();
     private readonly StackPanel sidebar = new(), details = new();
+    private Control sidebarFrame = null!;
+    private readonly List<Button> workspaceButtons = new();
+    private StackPanel headerActions = null!;
+    private TextBlock brandTitle = null!, brandSubtitle = null!;
     private readonly TextBlock status = new(), profileLabel = new(), summary = new();
     private readonly ListBox mods = new(), catalogList = new();
     private readonly ComboBox modFilter = new() { ItemsSource = new[] { "All", "Enabled", "Disabled" }, SelectedIndex = 0, MinWidth = 120 };
@@ -20,7 +24,7 @@ public sealed partial class MainWindow : Window
     private readonly Button cancel = new() { Content = "Cancel", IsVisible = false };
     private readonly List<CatalogMod> catalog = [];
     private CancellationTokenSource? operation;
-    private string page = "Registry", nexusAddress = "", lastError = "";
+    private string page = "Registry", workspace = "Civic", nexusAddress = "", lastError = "";
     private bool refreshing;
     private string? selectedId;
     private Point dragStart;
@@ -43,6 +47,8 @@ public sealed partial class MainWindow : Window
         library.State.AppliedFingerprint = value == "Registry-applied" ? library.Fingerprint(library.Active) : "";
         search.Text = value == "Registry-search" ? "table" : value == "Registry-empty" ? "no matching permit" : "";
         PreviewRecoveryState(value);
+        workspace = value.StartsWith("CorpSec", StringComparison.Ordinal) ? "CorpSec" : "Civic";
+        if (workspace == "CorpSec") corpSection = value switch { "CorpSec-Support" => "LUZ Support", "CorpSec-Validation" => "Validation", "CorpSec-Package" => "Package", _ => "Project" };
         page = value.StartsWith("Registry", StringComparison.Ordinal) ? "Registry" : value.StartsWith("Maintenance", StringComparison.Ordinal) ? "Maintenance" : value; RefreshPage();
 
     }
@@ -56,13 +62,16 @@ public sealed partial class MainWindow : Window
         Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://LUZ Civic Terminal/Assets/luz-icon.png")));
         Background = TerminalTheme.Ink; Foreground = TerminalTheme.Text; WindowStartupLocation = WindowStartupLocation.CenterScreen;
         shell.Background = TerminalTheme.Ink;
-        shell.RowDefinitions.Add(new() { Height = new GridLength(88) }); shell.RowDefinitions.Add(new()); shell.RowDefinitions.Add(new() { Height = GridLength.Auto });
-        var header = new Grid { Margin = new Thickness(0, 0, 0, 1) }; header.ColumnDefinitions.Add(new()); header.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
-        var identity = new DockPanel { Margin = new Thickness(22, 12, 16, 8) };
+        shell.RowDefinitions.Add(new() { Height = new GridLength(126) }); shell.RowDefinitions.Add(new()); shell.RowDefinitions.Add(new() { Height = GridLength.Auto });
+        var header = new Grid { Margin = new Thickness(0, 0, 0, 1) }; header.ColumnDefinitions.Add(new()); header.ColumnDefinitions.Add(new() { Width = GridLength.Auto }); header.RowDefinitions.Add(new()); header.RowDefinitions.Add(new() { Height = new GridLength(40) });
+        var identity = new DockPanel { Margin = new Thickness(22, 10, 16, 4) };
         var emblem = new CutBorder { Cut = 12, Width = 52, Height = 52, BorderBrush = TerminalTheme.Gold, BorderThickness = new Thickness(2), Margin = new Thickness(0, 0, 14, 0), Child = new TextBlock { Text = "LUZ", FontFamily = FontFamily.Default, FontWeight = FontWeight.Bold, FontSize = 20, Foreground = TerminalTheme.Gold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } }; DockPanel.SetDock(emblem, Dock.Left); identity.Children.Add(emblem);
-        var brand = new StackPanel { VerticalAlignment = VerticalAlignment.Center }; brand.Children.Add(Label("CIVIC TERMINAL", 26, TerminalTheme.Gold, true)); brand.Children.Add(Label("NIVALIS NIGHTS  /  MOD REGISTRY", 11, TerminalTheme.Muted)); identity.Children.Add(brand); header.Children.Add(identity);
-        var headerActions = Row(); headerActions.Margin = new Thickness(10, 20, 20, 10);
+        var brand = new StackPanel { VerticalAlignment = VerticalAlignment.Center }; brandTitle = Label("CIVIC TERMINAL", 26, TerminalTheme.Gold, true); brandSubtitle = Label("NIVALIS NIGHTS  /  MOD REGISTRY", 11, TerminalTheme.Muted); brand.Children.Add(brandTitle); brand.Children.Add(brandSubtitle); identity.Children.Add(brand); header.Children.Add(identity);
+        headerActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 18, 20, 6) };
         applyButton = Button("Apply profile", Apply, icon: CivicSymbol.Apply); playButton = Button("Play Nivalis", Play, icon: CivicSymbol.Play); headerActions.Children.Add(applyButton); headerActions.Children.Add(playButton); Grid.SetColumn(headerActions, 1); header.Children.Add(headerActions); shell.Children.Add(new CutBorder { Cut = 20, Background = TerminalTheme.Panel, BorderBrush = TerminalTheme.Edge, BorderThickness = new Thickness(1), Child = header, Margin = new Thickness(10, 6, 10, 6) });
+        var workspaces = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(22, 0, 0, 0) };
+        foreach (var title in new[] { ("Civic", "Civic Terminal"), ("CorpSec", "CorpSec Terminal") }) { string target = title.Item1; var button = QuietButton(title.Item2, () => { workspace = target; RefreshPage(); }, target == "Civic" ? "Player profiles and maintenance" : "Mod author support and packaging"); button.Tag = target; button.Margin = new Thickness(0, 0, 8, 0); button.MinWidth = 160; workspaceButtons.Add(button); workspaces.Children.Add(button); }
+        Grid.SetRow(workspaces, 1); Grid.SetColumnSpan(workspaces, 2); header.Children.Add(workspaces);
         body.ColumnDefinitions.Add(new() { Width = new GridLength(220) }); body.ColumnDefinitions.Add(new()); Grid.SetRow(body, 1); shell.Children.Add(body);
         sidebar.Margin = new Thickness(0, 0, 1, 0); sidebar.Children.Add(Label("Nivalis Nights", 15, TerminalTheme.Muted, margin: new Thickness(22, 22, 10, 16)));
         foreach (var title in new[] { "Registry", "Catalogue", "Maintenance" }) { string target = title; var b = QuietButton(title, () => { page = target; RefreshPage(); }, title == "Registry" ? "Manage the selected profile" : title); b.Tag = title; b.Content = CivicIcons.Label(Enum.Parse<CivicSymbol>(title), title, controlContent: true); b.HorizontalContentAlignment = HorizontalAlignment.Left; b.HorizontalAlignment = HorizontalAlignment.Stretch; b.Margin = new Thickness(14, 0, 14, 10); sidebar.Children.Add(b); }
@@ -72,9 +81,9 @@ public sealed partial class MainWindow : Window
         var more = new ComboBox { Margin = new Thickness(14, 0, 14, 12), ItemsSource = new[] { "Profile actions…", "Rename", "Delete", "Export profile", "Import profile" }, SelectedIndex = 0 };
         more.SelectionChanged += (_, _) => { if (more.SelectedIndex > 0) { int action = more.SelectedIndex; more.SelectedIndex = 0; Run(() => ProfileAction(action)); } }; sidebar.Children.Add(more);
         profileLabel.TextWrapping = TextWrapping.Wrap; profileLabel.Foreground = TerminalTheme.Muted; profileLabel.Margin = new Thickness(22, 18, 18, 20); sidebar.Children.Add(profileLabel);
-        body.Children.Add(new CutBorder { Cut = 18, Background = TerminalTheme.Panel, BorderBrush = TerminalTheme.Edge, BorderThickness = new Thickness(1), Child = sidebar, Margin = new Thickness(10, 12, 0, 12) });
+        sidebarFrame = new CutBorder { Cut = 18, Background = TerminalTheme.Panel, BorderBrush = TerminalTheme.Edge, BorderThickness = new Thickness(1), Child = sidebar, Margin = new Thickness(10, 12, 0, 12) }; body.Children.Add(sidebarFrame);
         var footer = new DockPanel { Background = TerminalTheme.Panel, Margin = new Thickness(0, 1, 0, 0), LastChildFill = true }; Grid.SetRow(footer, 2);
-        cancel.Click += (_, _) => operation?.Cancel(); DockPanel.SetDock(cancel, Dock.Right); cancel.Margin = new Thickness(8); footer.Children.Add(cancel);
+        AutomationProperties.SetName(cancel, "Cancel current operation"); cancel.Click += (_, _) => operation?.Cancel(); DockPanel.SetDock(cancel, Dock.Right); cancel.Margin = new Thickness(8); footer.Children.Add(cancel);
         status.Text = library.State.GameFolder.Length == 0 ? "Select your game folder in Maintenance to begin." : "Ready."; status.TextWrapping = TextWrapping.Wrap; status.Foreground = TerminalTheme.Muted; status.Margin = new Thickness(22, 12, 22, 12); footer.Children.Add(status); shell.Children.Add(footer); Content = shell;
         search.TextChanged += (_, _) => RefreshMods();
         AutomationProperties.SetName(modFilter, "Filter mods by enabled state");
@@ -114,10 +123,13 @@ public sealed partial class MainWindow : Window
     private void RefreshProfiles() { refreshing = true; profiles.ItemsSource = null; profiles.ItemsSource = library.State.Profiles; profiles.SelectedItem = library.Active; refreshing = false; }
     private void RefreshPage()
     {
+        foreach (var button in workspaceButtons) { bool active = button.Tag as string == workspace; button.Background = active ? TerminalTheme.Gold : Brushes.Transparent; button.Foreground = active ? TerminalTheme.Ink : TerminalTheme.Muted; }
+        bool civic = workspace == "Civic"; sidebarFrame.IsVisible = civic; body.ColumnDefinitions[0].Width = civic ? new GridLength(220) : new GridLength(0); headerActions.IsVisible = civic;
+        brandTitle.Text = civic ? "CIVIC TERMINAL" : "CORPSEC TERMINAL"; brandSubtitle.Text = civic ? "NIVALIS NIGHTS  /  MOD REGISTRY" : "NIVALIS NIGHTS  /  AUTHOR TOOLING";
         foreach (var b in sidebar.Children.OfType<Button>()) { bool active = b.Tag as string == page; b.Background = active ? TerminalTheme.Gold : Brushes.Transparent; b.Foreground = active ? TerminalTheme.Ink : TerminalTheme.Muted; }
         while (body.Children.Count > 1) body.Children.RemoveAt(1);
-        RefreshProfileStatus();
-        Control view = page switch { "Catalogue" => CataloguePage(), "Maintenance" => MaintenancePage(), _ => RegistryPage() }; Grid.SetColumn(view, 1); body.Children.Add(view);
+        if (civic) RefreshProfileStatus();
+        Control view = civic ? page switch { "Catalogue" => CataloguePage(), "Maintenance" => MaintenancePage(), _ => RegistryPage() } : CorpSecPage(); Grid.SetColumn(view, 1); body.Children.Add(view);
     }
     private Grid RegistryPage()
     {
@@ -250,7 +262,8 @@ public sealed partial class MainWindow : Window
         var issues=ModPlanner.Check(library.Active,library.State.Packages);
         if(library.State.GameFolder.Length==0){await Notice("Profile checks",string.Join("\n\n",issues.Select(i=>i.Severity+": "+i.Message))+"\nSelect a game folder to check compiled contracts.");return;}
         var report=await InspectCompatibility(false);if(report==null)return;
-        await Notice("Profile checks",string.Join("\n\n",issues.Select(i=>i.Severity+": "+i.Message))+"\n\n"+report.Describe());
+        string compatibility=report.Status==CompatibilityStatus.CheckedContractsPassed?report.Describe():CompatibilityGuidance.Create(library,report).Message;
+        await Notice("Profile checks",string.Join("\n\n",issues.Select(i=>i.Severity+": "+i.Message))+"\n\n"+compatibility);
     }
     private static void ValidateWeb(string url) { if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.UserInfo.Length > 0) throw new InvalidDataException("Use a valid HTTPS page address."); }
     private static Task OpenUrl(string url) { ValidateWeb(url); return HostPlatform.Open(url); }

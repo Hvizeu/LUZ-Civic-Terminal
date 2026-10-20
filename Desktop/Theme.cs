@@ -6,7 +6,7 @@ using Avalonia.Themes.Fluent;
 namespace LuzDesktop;
 public static class TerminalTheme
 {
-    public static IBrush Ink = Brush("#111D24"), Panel = Brush("#263238"), Edge = Brush("#526064"), Text = Brush("#ECE4D4"), Muted = Brush("#B3BCBD"), Gold = Brush("#D5B176"), Teal = Brush("#60C9CB");
+    public static IBrush Ink = Brush("#111D24"), Panel = Brush("#263238"), Edge = Brush("#526064"), Text = Brush("#ECE4D4"), Muted = Brush("#B3BCBD"), Gold = Brush("#D5B176"), Teal = Brush("#60C9CB"), Success = Brush("#7FD3A2"), Danger = Brush("#F08C7E");
     public static SolidColorBrush Brush(string hex) => new(Color.Parse(hex));
     public static Control Section(string title, Control content)
     {

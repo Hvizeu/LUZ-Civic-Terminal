@@ -6,15 +6,28 @@ public sealed partial class MainWindow
     private Button QuietButton(string text, Func<Task> action, string? tip = null) => QuietButton(text, () => Run(action), tip);
     private async void Run(Func<Task> action) { try { await action(); } catch (Exception ex) { Error(ex); } }
     private Window Dialog(string title, Control content, double height = 240) => new() { Title = title, Width = 620, Height = height, MinWidth = 420, MinHeight = 200, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = TerminalTheme.Ink, Foreground = TerminalTheme.Text, Content = content };
-    private async Task<bool> Confirm(string message)
+    private Task<bool> Confirm(string message) => Confirm("Confirm action", message, "Continue", 410, 620);
+    private Window ConfirmationDialog(string title, string message, string continueLabel, double height, double width)
+    {
+        var panel = new DockPanel { Margin = new Thickness(22) }; var buttons = Row(); DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons);
+        var window = Dialog(title, panel, height); window.Width = width;
+        buttons.Children.Add(Button(continueLabel, () => window.Close(true), primary: true)); buttons.Children.Add(Button("Cancel", () => window.Close(false)));
+        panel.Children.Add(new ScrollViewer { Content = Label(message), VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        return window;
+    }
+    private async Task<bool> Confirm(string title, string message, string continueLabel, double height = 560, double width = 760)
     {
         if (preview) return false;
-        var panel = new DockPanel { Margin = new Thickness(22) }; var buttons = Row(); DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons);
-        var window = Dialog("Confirm action", panel, 410);
-        buttons.Children.Add(Button("Continue", () => window.Close(true), primary: true)); buttons.Children.Add(Button("Cancel", () => window.Close(false)));
-        panel.Children.Add(new ScrollViewer { Content = Label(message), VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        var window = ConfirmationDialog(title, message, continueLabel, height, width);
         return await window.ShowDialog<bool>(this);
     }
+#if PREVIEW_TOOL
+    internal Window PreviewCompatibilityPrompt(CompatibilityPrompt prompt)
+    {
+        if (!preview) throw new InvalidOperationException();
+        var window = ConfirmationDialog(prompt.Title, prompt.Message, prompt.ContinueLabel, 560, 760); window.Show(this); return window;
+    }
+#endif
     private async Task Notice(string title, string message)
     {
         if (preview) return;
@@ -49,6 +62,12 @@ public sealed partial class MainWindow
         if (preview) return null;
         var file = await StorageProvider.SaveFilePickerAsync(new() { Title = title, SuggestedFileName = name, ShowOverwritePrompt = true, FileTypeChoices = [new FilePickerFileType("Output file") { Patterns = [pattern] }] });
         return file == null ? null : file.TryGetLocalPath() ?? throw new IOException("Select a local output file.");
+    }
+    private async Task<string?> OpenFolder(string title)
+    {
+        if (preview) return null;
+        var folders = await StorageProvider.OpenFolderPickerAsync(new() { Title = title, AllowMultiple = false });
+        return folders.FirstOrDefault()?.TryGetLocalPath();
     }
     private async Task ChooseGame()
     {

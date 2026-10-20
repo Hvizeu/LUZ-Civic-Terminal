@@ -2,6 +2,7 @@
 using Luz;
 using Avalonia.Threading;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 namespace LuzDesktop;
 public sealed partial class MainWindow
 {
@@ -28,6 +29,10 @@ public sealed partial class MainWindow
         status.Text = Luz.OperationRecovery.CompletionMessage(library);
     }
     public void PreviewMaintenanceBottom() { if (body.Children[1] is ScrollViewer view) view.ScrollToEnd(); }
+    public void PreviewCorpProjectBottom()
+    {
+        var button = body.GetLogicalDescendants().OfType<Button>().Single(control => AutomationProperties.GetName(control) == "Remove from My mods"); button.GetVisualAncestors().OfType<ScrollViewer>().First().ScrollToEnd();
+    }
     public void PreviewCheckInteractions(string output)
     {
         var results = new List<string>();
@@ -75,6 +80,41 @@ public sealed partial class MainWindow
         Check(body.GetVisualDescendants().OfType<Button>().Any(b=>AutomationProperties.GetName(b)=="Install LUZ 9.8.7"),"Detected update exposes the install action without starting it");
         launcherRelease=null;
         PreviewPage("Catalogue"); Check(page == "Catalogue", "Catalogue navigation succeeds without network requests");
+        PreviewPage("Registry"); Dispatcher.UIThread.RunJobs();
+        string profileId = library.State.ActiveProfileId, profileFingerprint = library.Fingerprint(library.Active);
+        var corpWorkspace = workspaceButtons.Single(b => b.Tag as string == "CorpSec");
+        Check(workspaceButtons.All(b => b.Focusable && !string.IsNullOrWhiteSpace(AutomationProperties.GetName(b))), "Terminal tabs are keyboard accessible and named");
+        corpWorkspace.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(workspace == "CorpSec" && !sidebarFrame.IsVisible && !headerActions.IsVisible && brandTitle.Text == "CORPSEC TERMINAL", "CorpSec tab opens the independent author workspace");
+        Check(library.State.ActiveProfileId == profileId && library.Fingerprint(library.Active) == profileFingerprint, "Opening CorpSec leaves the active player profile untouched");
+        Check(corpProjects.Items.OfType<ListBoxItem>().Count(i => i.Tag != null) == 12 && corpProject?.DisplayName == "Better Time", "CorpSec opens a populated remembered author library with the last selected mod");
+        foreach (string action in new[] { "Add mods folder", "Scan for new builds", "Add one ZIP or DLL" }) Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == action), action + " is available beside My mods");
+        Check(corpProjects.Parent is Grid && Grid.GetRow(corpProjects) == 2 && ScrollViewer.GetVerticalScrollBarVisibility(corpProjects) == ScrollBarVisibility.Auto && AutomationProperties.GetName(corpProjects) == "Saved mod projects", "My mods uses the remaining rail height and exposes a vertical scrollbar");
+        var authorTabs = body.GetVisualDescendants().OfType<Button>().Where(b => new[] { "Project", "LUZ Support", "Validation", "Package" }.Contains(AutomationProperties.GetName(b))).ToArray();
+        Check(authorTabs.Length == 4 && authorTabs.All(b => b.Focusable), "All four CorpSec sections are keyboard accessible");
+        var cityLife = corpProjects.Items.OfType<ListBoxItem>().Single(i => i.Tag as string == new string('B', 64)); corpProjects.SelectedItem = cityLife; Dispatcher.UIThread.RunJobs();
+        Check(corpProject?.DisplayName == "City Life" && CorpSec.Workspace(library.Root).SelectedProjectId == new string('B', 64), "Selecting a mod in My mods changes the editor and persists the selection");
+        authorTabs = body.GetVisualDescendants().OfType<Button>().Where(b => new[] { "Project", "LUZ Support", "Validation", "Package" }.Contains(AutomationProperties.GetName(b))).ToArray();
+        authorTabs.Single(b => AutomationProperties.GetName(b) == "Project").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Remove from My mods"), "Project details expose a plainly named saved-project removal action");
+        corpContact.Text = ""; SaveCorpProject(); Check(corpProject!.Findings.Any(f => f.Id == "support-contact"), "Clearing the support contact immediately exposes its required action");
+        corpContact.Text = "Nexus Mods: Preview Author"; SaveCorpProject(); Check(!corpProject.Findings.Any(f => f.Id == "support-contact"), "Saving the support contact immediately clears its action without another analysis scan");
+        authorTabs = body.GetVisualDescendants().OfType<Button>().Where(b => new[] { "Project", "LUZ Support", "Validation", "Package" }.Contains(AutomationProperties.GetName(b))).ToArray();
+        authorTabs.Single(b => AutomationProperties.GetName(b) == "LUZ Support").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(corpSection == "LUZ Support" && body.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "No owned save or configuration files declared."), "Stateless mods get a clear recovery-files state instead of a format puzzle");
+        Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Add owned file"), "Owned save data has a guided add action");
+        Check(body.GetVisualDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Analyze this build") && body.GetLogicalDescendants().OfType<ComboBox>().Any(c => AutomationProperties.GetName(c) == "Where does this mod keep persistent state?"), "Guided support starts with analysis and one plain persistence question");
+        Check(body.GetLogicalDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Add capability") && body.GetLogicalDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Add adapter DLL"), "Structured capability and adapter actions replace raw declaration text");
+        Check(corpFindingList.Items.Count > 0, "Analysis results and next actions have a dedicated list");
+        authorTabs = body.GetVisualDescendants().OfType<Button>().Where(b => new[] { "Project", "LUZ Support", "Validation", "Package" }.Contains(AutomationProperties.GetName(b))).ToArray();
+        authorTabs.Single(b => AutomationProperties.GetName(b) == "Package").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(body.GetVisualDescendants().OfType<ComboBox>().Any(c => AutomationProperties.GetName(c) == "Package type"), "Package screen explicitly chooses ordinary or recovery-enabled export");
+        Check(MinWidth <= 1100 && MinHeight <= 720, "CorpSec supports the tested minimum window size");
+        operation = new CancellationTokenSource(); cancel.IsVisible = true; cancel.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Check(operation.IsCancellationRequested && AutomationProperties.GetName(cancel) == "Cancel current operation", "Long authoring operations expose an accessible cancellation action");
+        operation.Dispose(); operation = null; cancel.IsVisible = false;
+        workspaceButtons.Single(b => b.Tag as string == "Civic").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+        Check(workspace == "Civic" && sidebarFrame.IsVisible && headerActions.IsVisible && library.State.ActiveProfileId == profileId, "Returning to Civic restores player controls and profile selection");
         var secrets = new Credentials(library.Root); secrets.UseForSession("fixture-session-key");
         Check(secrets.Read().GetAwaiter().GetResult() == "fixture-session-key", "Session-only credential retrieval avoids native stores");
         if (OperatingSystem.IsWindows())

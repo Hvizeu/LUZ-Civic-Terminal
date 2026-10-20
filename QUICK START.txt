@@ -1,56 +1,18 @@
-LUZ CIVIC TERMINAL 0.5.0
-Mod manager and launcher for Nivalis Nights
+LUZ CIVIC TERMINAL 0.7.2
+Mod management, protected saves and author packaging for Nivalis Nights
 
-MOVED YOUR GAME?
-In Maintenance, use Detect Steam install or Choose game folder to select its
-new location. Confirm that it is the same moved installation. Complete any
-pending recovery, then review and apply your profile again.
-This release upgrades the library registry format. Keep using LUZ 0.4.5 or newer
-after updating; older versions cannot read the upgraded registry.
-
-UPDATING LUZ
-Maintenance > LUZ updates checks GitHub and installs newer releases.
-Automatic checks run at startup, at most once per day. Installing an update
-verifies the download, preserves your profiles and restarts only LUZ.
-Version 0.5.0 can also install verified updates automatically on startup.
-Both startup preferences are under Maintenance > LUZ updates. Older LUZ users
-can install 0.5.0 through the existing manual update button once.
-Users on 0.3.x must install this version manually once to receive the updater.
-
-MOD CONTINUITY
-This optional feature requires native Windows, Nivalis Nights build 25984046,
-BepInEx 6.0.0-be.788 and continuity-compatible versions of supported mods.
-In Maintenance > Mod Continuity, choose Enable protected saves and select the
-original native save. Apply the matching mod profile, then use Play in LUZ.
-LUZ creates a verified checkpoint and a separate protected working timeline.
-Compatibility adapters run first; supported unavailable features can retain
-dormant data for restoration when their compatible mods return. Restore
-original checkpoint and Resume protected timeline preserve separate histories.
-Existing standalone profiles can keep working without enabling protection.
-See Continuity/README.md for supported capabilities and restoration controls.
-
-HUD OVERHAUL VERSION ERROR
-Version 0.4.1 fixes the launcher error Unrecognized version: 1.03 / >=1.03.
-Upgrade LUZ, reopen your profile and check its issues again. A matching
-dependency now passes; missing or incompatible dependencies still need fixing.
-
-AFTER A GAME PATCH
-Maintenance > After a game update can diagnose saved errors and back up/refresh
-BepInEx game bindings. Close the game before refreshing. Mods that require an
-older game build need a compatible mod update; LUZ does not bypass their checks.
-
-DOWNLOAD ONE VERSION
+CHOOSE ONE DOWNLOAD
 
 Windows PC: win-x64.zip.
-Linux x64 desktop: linux-x64.zip. Experimental native build.
-Mac with an Intel processor: osx-x64.zip. Experimental native build.
-Mac with Apple Silicon (M-series): osx-arm64.zip. Experimental native build.
+Linux x64 desktop: linux-x64.zip.
+Intel Mac: osx-x64.zip.
+Apple Silicon Mac: osx-arm64.zip.
 
-The Linux and Mac launcher builds are experimental. Protected game sessions
-currently require native Windows; Wine/Proton protected sessions are unsupported.
-Object Studio is a separate Windows application; it is not included here.
+Windows is the main desktop build. Linux and macOS builds are experimental.
+Protected game sessions require native Windows. .NET is included.
+Extract the whole ZIP outside the game. Keep its files together.
 
-INSTALL THE TERMINAL
+INSTALL LUZ
 
 Windows
 1. Right-click the ZIP and choose Extract All.
@@ -58,145 +20,101 @@ Windows
 3. Click Install and create shortcut, then open the desktop shortcut.
 
 Linux
-1. Extract the ZIP archive into a writable folder.
-2. In that folder, run ./"Install LUZ" and click Install and create shortcut.
-   If extraction lost executable permissions, run:
-   chmod +x "Install LUZ" "LUZ Civic Terminal"
-   Then run ./"Install LUZ" again.
-3. Open the desktop shortcut. Your desktop may require Allow Launching.
-   Requires a graphical glibc-based x64 desktop with X11/XWayland and
-   xdg-open. Alpine/musl is not supported. See README.md for library details.
+1. Extract the ZIP to a writable folder.
+2. Run ./"Install LUZ" from that folder.
+   If needed: chmod +x "Install LUZ" "LUZ Civic Terminal"
+3. Click Install and create shortcut. Your desktop may require Allow Launching.
+   A graphical glibc desktop with X11/XWayland and xdg-open is required.
 
 macOS 15 or newer
-1. Extract the ZIP for your Mac's processor.
-2. Run Prepare macOS.command once to apply a local ad-hoc signature.
-   If Finder blocks the helper, open Terminal in the extracted folder and
-   run: sh "Prepare macOS.command"
+1. Extract the ZIP for your processor.
+2. Run Prepare macOS.command to apply a local signature.
+   If needed, open Terminal there and run: sh "Prepare macOS.command"
 3. Run Install LUZ.command and click Install and create shortcut.
-4. Open the desktop shortcut. This application is not notarized. For a trusted
-   copy, use macOS Privacy & Security > Open Anyway if required.
+4. Open the shortcut. The application is not notarized. For a trusted copy,
+   macOS Privacy & Security > Open Anyway may be required.
 
-Keep the whole extracted folder together until installation finishes. Do not
-run an executable inside the ZIP. .NET is included. Portable use is supported:
-open LUZ Civic Terminal directly instead of the installer.
+For portable use, open LUZ Civic Terminal directly instead of the installer.
 
-SET UP NIVALIS AND BEPINEX
+PLAYERS: SET UP YOUR MODS
 
-1. Close Nivalis. Open Maintenance in LUZ.
-2. Check Game location. If it is missing or wrong, choose the folder that
-   contains Nivalis Nights.exe. In Steam, Manage > Browse local files shows it.
-3. Already have mods? Choose Import existing installation BEFORE applying
-   any profile. Select your intended profile first. This copies installed
-   plugins, patchers and settings into LUZ; it does not change the game.
-4. Under BepInEx setup, choose Install recommended BepInEx and confirm.
-   LUZ downloads BepInEx 6.0.0-be.788, Windows x64 IL2CPP, from the official
-   server. It backs up replaced loader files and preserves mods/settings.
-   Internet access is required. BepInEx is not bundled in this download.
-5. On a first-time BepInEx installation, start the game yourself, let its
-   first-run generation finish, then close it before applying mods.
+1. Close Nivalis. In Civic Terminal > Maintenance, check Game location.
+   Use Detect Steam install or Choose game folder if it is wrong.
+2. Already have mods? Select your intended profile and choose Import existing
+   installation before the first Apply. This copies its mods and settings.
+3. If needed, choose Install recommended BepInEx. LUZ downloads the official
+   Windows x64 IL2CPP build 6.0.0-be.788 and backs up replaced loader files.
+   After first-time installation, launch the game yourself once, let loader
+   initialization finish, then close it.
+4. In Registry, choose Import ZIP / DLL. Select a mod's complete ZIP and add
+   its required dependencies. Catalogue also offers package downloads.
+5. Enable the desired mods. Review Profile issues and use Auto-sort if needed.
+6. With the game closed, choose Apply profile and review the proposed change.
+   Expected: the profile is shown as applied to the game.
+7. Choose Play Nivalis when ready.
 
-The optional Check latest official build button checks for a newer upstream
-build. It is a separate choice; the recommended build is the default.
-Do not import a BepInEx ZIP through Import ZIP / DLL; use BepInEx setup.
+Import adds files to LUZ. Apply installs the selected profile. Play starts the
+game. Apply replaces deployed plugins and patchers with that profile's contents.
+Ordinary profiles can use your usual launcher; protected saves must use Play
+through LUZ.
 
-Nivalis is a Windows game on every host. On Linux it needs working Steam Proton;
-on macOS it needs a working Wine/CrossOver setup. LUZ does not install or test
-those compatibility layers. Always use Windows x64 IL2CPP BepInEx for this game.
+MOD AUTHORS: BUILD YOUR FIRST PACKAGE
 
-For Proton, merge this into the game's Steam Launch Options:
-WINEDLLOVERRIDES="winhttp=n,b" %command%
-For Wine/CrossOver, set winhttp to native, then builtin in the game's bottle.
-On macOS, set Maintenance > Game launch to your existing launcher executable
-or script. Use one literal argument per line, without shell quoting. See the
-complete platform instructions and official BepInEx link in README.md.
+1. Open CorpSec Terminal > Add mods folder. Select the folder where your build
+   writes DLLs or release ZIPs. Choose your mod from My mods.
+2. In Project, verify Current build and Build edition to follow, if shown.
+   Fill in Author, Description, Website and Support contact. Switching to
+   another section saves those fields.
+3. In LUZ Support, click Analyze this build. Review the detected information.
+4. Answer Where does this mod keep persistent state?
+   No extra persistent state: no mod-owned data needs restoration.
+   Separate save or configuration files: declare the files you own.
+   State stored inside the game save / Custom recovery adapter: reuse a
+   supported integration or supply the required recovery implementation.
+   I don't know yet: keep recovery incomplete and use a normal export.
+5. Resolve the listed actions. For recovery support, click Generate support
+   files. Expected: Package checks passed and Recovery declaration checks
+   passed. In-game recovery has not been tested remains a separate result.
+6. Open Package. Choose Normal package or Package with LUZ recovery support.
+7. Choose output folder once, then review Package file list.
+8. Click Build Nexus ZIP. Expected: a Built message naming the ZIP, with its
+   checksum beside it in your output folder.
+9. For Thunderstore, review the package name and supply any required plugin
+   dependency mappings, then click Build Thunderstore ZIP or Build both.
 
-INSTALL MODS
+For your next release, compile the mod into the watched folder and build its
+package again. CorpSec refreshes the selected edition and regenerates support.
+No need to reopen each release ZIP or arrange the LUZ folder manually.
 
-The browser/manual route works without a Nexus API key:
-1. Download a Nivalis mod ZIP from its page. Read its requirements.
-2. In Registry, choose Import ZIP / DLL and select the ZIP without extracting it.
-3. Confirm the destination profile and enable the mod. Import its dependencies
-   too. A DLL alone may be missing files that its complete ZIP includes.
-4. Choose Auto-sort, then inspect any Profile issues in Mod details.
-5. With the game closed, choose Apply profile and confirm the proposed change.
-6. When ready, choose Play Nivalis or start through your usual launcher.
+CORPSEC-GUIDE.md explains every step, the saved-data choices, dependency
+mappings, build integration, custom recovery and troubleshooting.
 
-Import changes the library/profile. Apply changes the game. Play starts it.
-Apply replaces deployed plugins and patchers with this profile's enabled mods.
-Do not apply an empty profile if you meant to keep your existing installation.
+OPTIONAL PROTECTED SAVES
 
-Catalogue can also download Thunderstore packages and declared dependencies.
-Nexus lookup/download features require your own API key and the permissions
-available to your Nexus account. They do not bypass download restrictions.
-If a page only offers Manual Download, download the ZIP and import it as above.
-LUZ cannot make a missing Mod Manager Download button appear on Nexus.
+Read Continuity/README.md first. In Maintenance > Mod Continuity, Enable
+protected saves selects an original native save. Apply compatible mods, then
+use Play in LUZ to prepare a checkpoint and a separate protected timeline.
 
-NXM DEFAULT MANAGER
+Protection requires native Windows, supported game build 25984046, loader
+6.0.0-be.788 and compatible mod support. Author declarations do not qualify
+unknown game behavior. Keep separate backups for saves outside protection.
 
-Making LUZ the default NXM manager sends Nexus links for ALL games to LUZ
-instead of your current manager. LUZ supports Nivalis Nights only. To keep
-your current manager, do not register LUZ. Import ZIPs manually or use
-Paste download link for Nivalis instead.
+UPDATES AND HELP
 
-On Windows, Maintenance > Browser downloads has Remove LUZ as NXM manager
-right beside Change system-wide NXM handler. One click removes LUZ's
-registration and shows the result. Mods, profiles and other managers stay
-in place. Open Windows Default apps lets you choose a replacement. If the
-other manager is missing, use its registration or repair procedure.
+Maintenance > LUZ updates checks GitHub. Startup checks and automatic
+installation have separate preferences. LUZ 0.4.0+ can use the updater;
+0.3.x users need one manual installation. Profiles and author settings remain
+in LUZ's separate data folder. Do not mix files from different releases.
 
-PROFILES, UPDATES AND SORTING
+After a game update, use Diagnose game update. Refresh game bindings backs up
+generated bindings and enables regeneration on your next launch. An unsupported
+mod still needs a compatible release.
 
-Use New for an empty profile or Copy to keep the current mods and settings.
-Switch profiles with Active profile; Apply profile makes that selection live.
-Drag the dotted handles to change file priority, or use Move up/down.
-Lower rows win overlapping files. Auto-sort orders declared dependencies;
-BepInEx determines plugin startup order itself.
+For a failed Apply or loader installation, use the matching Recovery required
+action in Maintenance. Export diagnostics captures a report for support.
 
-For updates, import the new ZIP or use Check updates and review the offered
-files. Apply profile again. Pin this version excludes a mod from update checks.
-Modders' packs and mods may need additional dependencies that LUZ cannot infer.
-
-OBJECT STUDIO COLLECTIONS
-
-For game build 25828494 (Update #4), use Object Framework Runtime 0.3.11 in the same profile.
-Future game patches may require a newer runtime.
-Send to LUZ in Studio builds the open project and opens an import confirmation.
-Confirm it, then Apply profile. Importing a new build updates the same project.
-The Studio SDK is an authoring application; do not import its ZIP as a game mod.
-
-IF APPLY PROFILE IS GREYED OUT
-
-Read the blocking issue in the sidebar and Mod details. A missing or older
-dependency must be updated in the LUZ PROFILE, even if you manually updated the
-game folder. Import the required runtime/mod ZIP and enable it there. Also
-check the game location, close the game and wait for current work to finish.
-If Apply and Play are blocked by recovery, open Maintenance. Recovery required
-appears at the top. Use Recover profile deployment or Recover BepInEx installation
-as shown; complete both if both appear. Each action selects its matching backup.
-If a backup cannot be used, choose Export recovery diagnostics for support.
-
-UPDATING OR REMOVING LUZ
-
-Use Maintenance > LUZ updates, or close LUZ, extract the new release into a
-new folder and run its installer.
-The shortcut changes to the new version. Your separate profile/library data
-stays in place. Do not mix executable files from different versions.
-Windows installs refresh an existing LUZ browser-download registration.
-Register again after moving a portable copy or updating on Linux/macOS.
-To stop using LUZ, your last applied game files can remain installed. Keep its
-data folder if you want your profiles, downloaded packages and restore points.
-
-BACKUPS AND HELP
-
-Apply creates mod/config restore points. Maintenance > Restore profile backup
-restores one. BepInEx uses a separate Restore loader backup action.
-Save games are not backed up or switched by LUZ. Keep your own save backups,
-particularly before removing object/content mods used by a save.
-
-If LUZ does not show a window, use 0.3.1 or newer: those versions fix the older
-windowless-process deadlock. Close an older running instance before updating.
-For a report, include your OS, LUZ version, steps and the exact error. Use
-Maintenance > Export diagnostics and review the ZIP before sharing it.
-
-README.md contains the full Nexus/NXM, key storage, recovery, platform and
-package-format reference. Required third-party license notices are in Notices.
+PLAYER-GUIDE.md: profiles, downloads, NXM links, platforms and backups.
+CORPSEC-GUIDE.md: complete mod-author walkthrough and repeat releases.
+Continuity/README.md: checkpoints, protected saves and feature restoration.
+RELEASE-NOTES.md: changes in this release.
+Notices: required third-party licences.

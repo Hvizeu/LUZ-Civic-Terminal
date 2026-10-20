@@ -19,6 +19,7 @@ public sealed class Library : IDisposable
         {
             State = RegistryRecovery.Read(Root, allowFirstRun: true);
             State.PreviousGameFolders ??= [];
+            State.CompatibilityDecisions ??= [];
             bool migrate = State.Schema == 1;
             if (migrate) State.Schema = 2;
             if (State.Schema != 2 || State.Profiles.Count == 0) throw new InvalidDataException("Unsupported or empty registry. Restore registry.json from a backup.");

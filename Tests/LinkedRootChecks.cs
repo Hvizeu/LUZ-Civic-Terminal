@@ -40,7 +40,7 @@ internal static class LinkedRootChecks
                 if (new DirectoryInfo(link).LinkTarget != null) Directory.Delete(link);
         }
     }
-    private static void Link(string link, string target)
+    internal static void Link(string link, string target)
     {
         if (!OperatingSystem.IsWindows()) { Directory.CreateSymbolicLink(link, target); return; }
         // Junctions exercise the same reparse-point guard without administrator

@@ -91,9 +91,10 @@ def package(rid):
     from build_continuity import digest
     payload = ROOT / 'Continuity/Payload'
     manifest = json.loads((payload / 'payload.json').read_text())
-    if set(manifest) != {'Luz.Continuity.Runtime.dll', 'Luz.Continuity.dll', 'catalog.json'} or any(digest(payload / name) != value for name, value in manifest.items()):
+    if set(manifest) != {'Luz.Continuity.Runtime.dll', 'Luz.Continuity.dll', 'catalog.json', 'maintained-support.json'} or any(digest(payload / name) != value for name, value in manifest.items()):
         raise RuntimeError('Continuity bundle is incomplete or changed; build it before packaging')
-    dist = ROOT / 'dist'; dist.mkdir(exist_ok=True)
+    dist = ROOT.parents[1] / 'Deployments/LUZ Civic Terminal' if ROOT.parent.name == 'Projects' else ROOT / 'dist'
+    dist.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='luz-package-') as temp:
         staging = Path(temp)
         folder = staging / (APP + ' ' + VERSION + ' ' + rid); folder.mkdir()
@@ -104,10 +105,11 @@ def package(rid):
         for symbols in publish.rglob('*.pdb'): symbols.unlink()
         verify_target(publish, rid)
         notices(publish)
-        shutil.copy2(ROOT / 'README.md', folder / 'README.md')
+        for name in ('README.md', 'QUICK START.txt', 'PLAYER-GUIDE.md', 'CORPSEC-GUIDE.md',
+                     'BUILDING.md', 'CHANGELOG.md', 'RELEASE-NOTES.md'):
+            shutil.copy2(ROOT / name, folder / name)
         (folder / 'Continuity').mkdir(exist_ok=True)
         shutil.copy2(ROOT / 'Continuity/README.md', folder / 'Continuity/README.md')
-        shutil.copy2(ROOT / 'QUICK START.txt', folder / 'QUICK START.txt')
         if not rid.startswith('osx-'):
             suffix = '.exe' if rid.startswith('win-') else ''
             shutil.copy2(publish / (APP + suffix), publish / ('Install LUZ' + suffix))
@@ -132,18 +134,25 @@ def package(rid):
             + 'Protected saves require native Windows, a supported game/loader build and continuity-compatible mods. See Continuity/README.md.\n', encoding='utf8')
         run(sys.executable, ROOT / 'tools/release_check.py', folder)
         archive = dist / ('LUZ-Civic-Terminal-' + VERSION + '-' + rid + '.zip')
-        archive_folder(staging, folder, archive)
-        with archive.open('rb') as stream: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
-        archive.with_name(archive.name + '.sha256').write_text(digest + '  ' + archive.name + '\n')
+        # Validate a complete replacement before touching the current usable ZIP.
+        with tempfile.TemporaryDirectory(prefix='.luz-export-', dir=dist) as pending:
+            candidate = Path(pending) / archive.name
+            archive_folder(staging, folder, candidate)
+            with candidate.open('rb') as stream: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+            checksum = candidate.with_name(candidate.name + '.sha256')
+            checksum.write_text(digest + '  ' + archive.name + '\n', encoding='utf8')
+            os.replace(candidate, archive)
+            os.replace(checksum, archive.with_name(archive.name + '.sha256'))
         print('Packaged:', archive, '\nSHA256:', digest, flush=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--rid', choices=(*RIDS, 'all'), default='all')
     parser.add_argument('--loader', type=Path, help='Pinned official loader compiler references; nothing is installed')
+    parser.add_argument('--object-framework', action='store_true', help='Include the real sibling Object Framework author-workflow check')
     arguments = parser.parse_args()
     from build_continuity import build
     build(arguments.loader)
     from validate import validate
-    validate()
+    validate(arguments.object_framework)
     for target in RIDS if arguments.rid == 'all' else (arguments.rid,): package(target)

@@ -49,8 +49,10 @@ public static class RegistryRecovery
     {
         try
         {
-            if (state.Profiles == null || state.Packages == null || state.Profiles.Any(p => p == null || p.Mods == null) || state.Packages.Any(p => p == null || p.Files == null))
+            if (state.Profiles == null || state.Packages == null || state.CompatibilityDecisions == null || state.Profiles.Any(p => p == null || p.Mods == null) || state.Packages.Any(p => p == null || p.Files == null))
                 throw new InvalidDataException("Missing profile or package records.");
+            if (state.CompatibilityDecisions.Count > 32 || state.CompatibilityDecisions.Any(d => d == null || d.Action is not ("Apply" or "Play") || d.Fingerprint.Length != 64 || d.Fingerprint.Any(c => !char.IsAsciiHexDigit(c)) || d.ReviewedUtc == default))
+                throw new InvalidDataException("Invalid remembered compatibility decision.");
             foreach (var p in state.Profiles) Library.ValidateId(p.Id);
             foreach (var p in state.Packages) Library.ValidateId(p.Id);
             if (state.Profiles.Select(p => p.Id).Distinct(StringComparer.Ordinal).Count() != state.Profiles.Count || state.Packages.Select(p => p.Id).Distinct(StringComparer.Ordinal).Count() != state.Packages.Count)

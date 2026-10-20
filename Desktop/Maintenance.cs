@@ -126,22 +126,29 @@ public sealed partial class MainWindow
         await Busy("Checking game and mod contracts…",ct=>Task.Run(()=>report=Compatibility.Inspect(library,installed,ct),ct));
         return report;
     }
-    private async Task<CompatibilityAcknowledgment?> ReviewCompatibility(CompatibilityReport report)
+    private async Task<(bool Continue, CompatibilityAcknowledgment? Acknowledgment)> ReviewCompatibility(CompatibilityReport report)
     {
-        if(report.Status==CompatibilityStatus.CheckedContractsPassed)return null;
-        if(report.Findings.Any(f=>f.Severity=="Error"&&!f.CanOverride))throw new InvalidOperationException(report.Describe());
-        string recovery=report.Findings.Any(f=>f.Code=="BindingsUnverified")?"\n\nMaintenance > Refresh game bindings offers the existing regeneration recovery operation.":"";
-        if(!await Confirm(report.Describe()+recovery+"\n\nProceed with this exact "+report.Action+" attempt despite these findings? Runtime guards still apply."))throw new OperationCanceledException("Compatibility override declined.");
-        return Compatibility.Acknowledge(report);
+        if(report.Status==CompatibilityStatus.CheckedContractsPassed)return (true,null);
+        var prompt=CompatibilityGuidance.Create(library,report);
+        if(report.Findings.Any(f=>f.Severity=="Error"&&!f.CanOverride))throw new InvalidOperationException(prompt.Message);
+        if(CompatibilityDecisions.IsRemembered(library,report))return (true,Compatibility.Acknowledge(report));
+        if(!await Confirm(prompt.Title,prompt.Message,prompt.ContinueLabel))
+        {
+            status.Text=report.Action=="Play"?"Launch canceled. The game was not started.":"Apply canceled. No game files were changed.";
+            return (false,null);
+        }
+        CompatibilityDecisions.Remember(library,report);
+        return (true,Compatibility.Acknowledge(report));
     }
     private async Task Apply()
     {
         var deployment=new Deployment(library);var issues=deployment.Preview(includeCompatibility:false);
         if(issues.Any(i=>i.Severity=="Error"))throw new InvalidOperationException(string.Join('\n',issues.Select(i=>i.Message)));
         var report=await InspectCompatibility(false);if(report==null)return;
-        var acknowledgment=await ReviewCompatibility(report);
+        var review=await ReviewCompatibility(report);if(!review.Continue)return;var acknowledgment=review.Acknowledgment;
         string first=library.State.AppliedProfileId.Length==0?"FIRST APPLY: this replaces plugins and patchers. Import your existing installation first to retain its mods.\n\n":"";
-        if(!await Confirm(first+"Apply “"+library.Active.Name+"”? A restore point is created. Save games are not altered.\n\n"+report.Describe()))return;
+        string reviewed=report.Status==CompatibilityStatus.CheckedContractsPassed?"LUZ found no problem in the contracts it can inspect.":"You accepted the compatibility warning for this exact profile setup.";
+        if(!await Confirm(first+"Apply “"+library.Active.Name+"”? A restore point is created. Save games are not altered.\n\n"+reviewed))return;
         await Busy("Backing up and applying profile…",ct=>Task.Run(()=>deployment.Apply(acknowledgment,ct),ct));
     }
     private async Task Play()
@@ -150,7 +157,7 @@ public sealed partial class MainWindow
         if(new Deployment(library).Pending!=null||File.Exists(Path.Combine(library.Root,"loader-pending.json")))throw new InvalidOperationException("Restore the interrupted installation before playing.");
         if(library.State.AppliedProfileId!=library.Active.Id||library.State.AppliedFingerprint!=library.Fingerprint(library.Active))throw new InvalidOperationException("Apply this profile before playing.");
         var report=await InspectCompatibility(true);if(report==null)return;
-        var acknowledgment=await ReviewCompatibility(report);
+        var review=await ReviewCompatibility(report);if(!review.Continue)return;var acknowledgment=review.Acknowledgment;
         await Busy("Rechecking installed files before launch…",ct=>Task.Run(()=>GameFiles.Play(library,acknowledgment,ct),ct));status.Text="Launch requested. Check the game window for the result.";
     }
     private async Task RestoreBackup()

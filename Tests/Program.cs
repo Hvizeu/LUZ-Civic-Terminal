@@ -30,6 +30,9 @@ try
     PluginDependencyChecks.Run(root, Check, Reject);
     RecoveryChecks.Run(root, Check, Reject);
     CompatibilityRecoveryChecks.Run(root, Check, Reject);
+    CorpSecChecks.Run(root, Check, Reject);
+    if (args.Contains("--object-framework")) ObjectFrameworkCorpSecChecks.Run(root, Check);
+    else Console.WriteLine("NOT RUN: optional Object Framework workspace check (use --object-framework with both built editions). Independent CorpSec fixtures ran above.");
     await NxmChecks.Run(root, Check, Reject);
     foreach (var bad in new[] { "../outside", "foo/../../outside", "C:/outside", "foo:bar", "con.dll", "x/../y", "x. /y", "foo./x" }) Reject(() => FileSafety.Under(root, bad), "reject path " + bad);
     var traversal = Zip("traversal", ("../escape.txt", "bad")); Reject(() => FileSafety.Extract(traversal, Path.Combine(root, "extract")), "reject ZIP traversal");

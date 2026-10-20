@@ -13,7 +13,7 @@ public sealed record AdapterBuild(string Id, BuildIdentity Identity, CapabilityR
 public sealed class AdapterCatalog
 {
     public int Schema { get; set; } = 1;
-    public string Version { get; set; } = "0.1.0";
+    public string Version { get; set; } = "0.2.0";
     public AdapterBuild[] Builds { get; set; } = Array.Empty<AdapterBuild>();
     public AdapterBuild Require(BuildIdentity identity)
     {
@@ -107,6 +107,7 @@ public sealed class ContinuitySession
     public Dictionary<string, List<string>> SuspendedPlugins { get; set; } = new();
     public Dictionary<string, string> LastOutputs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string?> OriginalWitness { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<FrozenModSupport> Support { get; set; } = new();
     public string FirstFailure { get; set; } = "";
     public bool RecoveryRequired { get; set; }
     public string ActiveSlot { get; set; } = "";
@@ -115,17 +116,19 @@ public sealed class ContinuitySession
     public List<string> CleanupFailures { get; set; } = new();
     public void Validate()
     {
-        if (Schema != 1 || Id.Length != 32 || !Id.All(Uri.IsHexDigit) || Inputs.Count > 22000 || Slots.Count > 256 || Dormant.Count > 128 || LastOutputs.Count > 4096) throw new InvalidDataException("Unsupported continuity session.");
+        if (Schema != 1 || Id.Length != 32 || !Id.All(Uri.IsHexDigit) || Inputs.Count > 22000 || Slots.Count > 256 || Dormant.Count > 128 || LastOutputs.Count > 4096 || Support.Count > 128) throw new InvalidDataException("Unsupported continuity session.");
         if (!Path.IsPathFullyQualified(LibraryRoot) || !Path.IsPathFullyQualified(Saves) || !Path.IsPathFullyQualified(Config)) throw new InvalidDataException("Continuity roots must be absolute.");
         if (SourceSlot == BranchSlot || !BranchSlot.StartsWith("Protected - ", StringComparison.Ordinal)) throw new InvalidDataException("Continuation must use a separate slot.");
         SafeFiles.Slot(SourceSlot); SafeFiles.Slot(BranchSlot);
         foreach (var pair in Slots) { SafeFiles.Slot(pair.Key); SafeFiles.Slot(pair.Value); if (!pair.Value.StartsWith("Protected - ", StringComparison.Ordinal) || pair.Value == SourceSlot) throw new InvalidDataException("Invalid branch write ownership."); }
         if (Slots.Values.Distinct(StringComparer.OrdinalIgnoreCase).Count() != Slots.Count) throw new InvalidDataException("Branch slot collision.");
         SafeFiles.NoLinks(LibraryRoot); SafeFiles.NoLinks(Saves); SafeFiles.NoLinks(Config);
+        foreach (var support in Support) support.Validate();
+        if (Support.Select(s => s.Descriptor.Owner).Distinct(StringComparer.Ordinal).Count() != Support.Count) throw new InvalidDataException("Duplicate LUZ support owner in continuity session.");
         string checkpoint = Path.GetFullPath(Checkpoint);
         if (!checkpoint.StartsWith(Path.GetFullPath(Path.Combine(LibraryRoot, "continuity/checkpoints")) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Checkpoint is outside its library.");
         foreach (var path in LastOutputs.Keys) _ = File(path);
-        var originalPaths = new[] { "saves/" + SourceSlot + ".sav" }.Concat(Companions.ForSlot(SourceSlot).SelectMany(c => new[] { "config/" + c.Relative, "config/" + c.Relative + ".required" })).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var originalPaths = new[] { "saves/" + SourceSlot + ".sav" }.Concat(Companions.ForSlot(this, SourceSlot).SelectMany(c => new[] { c.Root + "/" + c.Relative, c.Root + "/" + c.Relative + ".required" })).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (OriginalWitness.Count > originalPaths.Count || OriginalWitness.Any(p => !originalPaths.Contains(p.Key) || p.Value != null && (p.Value.Length != 64 || !p.Value.All(Uri.IsHexDigit)))) throw new InvalidDataException("Invalid original-file witness for restored timeline.");
     }
     public string File(string relative) => relative.StartsWith("saves/", StringComparison.Ordinal) ? SafeFiles.Under(Saves, relative[6..]) : relative.StartsWith("config/", StringComparison.Ordinal) ? SafeFiles.Under(Config, relative[7..]) : throw new InvalidDataException("Unknown continuity file owner.");

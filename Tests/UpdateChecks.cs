@@ -26,7 +26,8 @@ public static class UpdateChecks
                     var contents = new Dictionary<string, byte[]> {
                         ["Luz.Continuity.dll"] = File.ReadAllBytes(typeof(Luz.Continuity.ContinuitySession).Assembly.Location),
                         ["Luz.Continuity.Runtime.dll"] = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,"UpdateFixture.dll")),
-                        ["catalog.json"] = Encoding.UTF8.GetBytes("{\"Schema\":1,\"Version\":\"fixture\",\"Builds\":[]}") };
+                        ["catalog.json"] = Encoding.UTF8.GetBytes("{\"Schema\":1,\"Version\":\"fixture\",\"Builds\":[]}"),
+                        ["maintained-support.json"] = Encoding.UTF8.GetBytes("{\"Schema\":1,\"Modules\":[]}") };
                     foreach (var item in contents) Add("Continuity/"+item.Key,item.Value);
                     Add("Continuity/payload.json",JsonSerializer.SerializeToUtf8Bytes(contents.ToDictionary(p=>p.Key,p=>Convert.ToHexString(SHA256.HashData(p.Value)))));
                 }
