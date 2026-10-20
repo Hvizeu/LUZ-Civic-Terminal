@@ -1,4 +1,8 @@
 [size=6][color=#FFD166][b]LUZ CIVIC TERMINAL[/b][/color][/size]
+
+[img]https://i.imgur.com/XYmkd68.png[/img]
+[url=https://ko-fi.com/henriquevizeu][img]https://imgur.com/1xL45if.png[/img][/url]
+
 [size=5][color=#5DD9FF][b]MODS, PROFILES, PROTECTED SAVES AND AUTHOR TOOLS[/b][/color][/size]
 
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. CorpSec Terminal gives mod authors a saved workspace for preparing their releases.

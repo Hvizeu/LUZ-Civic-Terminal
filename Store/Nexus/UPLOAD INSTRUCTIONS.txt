@@ -43,6 +43,7 @@ PAGE UPDATE
 
 1. Set the version to 0.7.2.
 2. Paste DESCRIPTION.bbcode.txt into the existing page's BBCode description.
+   Keep the endorsement image and the clickable Ko-fi banner directly below it.
    Keep any existing gallery images and required credits.
 3. Paste CHANGELOG.txt into the new version's changelog.
 4. Use SUMMARY.txt for the short description.
