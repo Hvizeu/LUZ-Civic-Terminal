@@ -103,8 +103,10 @@ public sealed class Library : IDisposable
                         package.RequiredPlugins.Add(new(dep.GetProperty("guid").GetString() ?? throw new InvalidDataException("Missing plugin ID."), dep.GetProperty("minimum_version").GetString() ?? "", false));
             }
         }
-        string target = PackageRoot(package.Id); if (Directory.Exists(target)) throw new IOException("An incomplete library record exists. Preserve it and retry with a repaired library.");
-        string payload = Path.Combine(target, "payload"); Directory.CreateDirectory(payload);
+        if (State.Packages.Any(p => p.Id == package.Id))
+            throw new InvalidDataException("A different registered package uses this import identity: " + package.Id);
+        string staged = FileSafety.Under(Root, "staging/import-" + Guid.NewGuid().ToString("N"));
+        string payload = Path.Combine(staged, "payload"); Directory.CreateDirectory(payload);
         try
         {
             var mapped = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -144,11 +146,52 @@ public sealed class Library : IDisposable
             if (!package.Files.Any(f => f.StartsWith("plugins/") || f.StartsWith("patchers/"))) throw new InvalidDataException("No supported plugins or patchers were found in this package.");
             if (source == null && manifestFile == null && package.Plugins.Count == 1) { package.Name = package.Plugins[0].Name; package.Version = package.Plugins[0].Version; }
             var icon = all.FirstOrDefault(f => Path.GetFileName(f).Equals("icon.png", StringComparison.OrdinalIgnoreCase));
-            if (icon != null && new FileInfo(icon).Length <= 5_242_880) { File.Copy(icon, Path.Combine(target, "icon.png")); package.Icon = "icon.png"; }
-            JsonFiles.Write(Path.Combine(target, "package.json"), package);
-            State.Packages.Add(package); AddToProfile(package); return package;
+            if (icon != null && new FileInfo(icon).Length <= 5_242_880) { File.Copy(icon, Path.Combine(staged, "icon.png")); package.Icon = "icon.png"; }
+            JsonFiles.Write(Path.Combine(staged, "package.json"), package);
+            PublishImport(package, staged);
+            return package;
         }
-        catch { State.Packages.Remove(package); Active.Mods.RemoveAll(m => m.PackageId == package.Id); FileSafety.DeleteOwned(Root, target); throw; }
+        finally { FileSafety.DeleteOwned(Root, staged); }
+    }
+    private void PublishImport(ModPackage package, string staged)
+    {
+        string target = PackageRoot(package.Id);
+        FileSafety.NoLinks(target);
+        string? preserved = null;
+        bool published = false;
+        try
+        {
+            if (FileSafety.DirectoryExistsReadable(target))
+            {
+                // A crash or registry restore can leave a complete or partial
+                // package behind. Rebuild only from this validated import, never
+                // trust orphan metadata, and keep its original bytes recoverable.
+                preserved = FileSafety.Under(Root, "import-recovery/" + package.Id + "-" + Guid.NewGuid().ToString("N"));
+                FileSafety.NoLinks(Path.GetDirectoryName(preserved)!);
+                Directory.CreateDirectory(Path.GetDirectoryName(preserved)!);
+                Directory.Move(target, preserved);
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            Directory.Move(staged, target);
+            published = true;
+            State.Packages.Add(package);
+            AddToProfile(package);
+        }
+        catch (Exception operation)
+        {
+            State.Packages.Remove(package);
+            try
+            {
+                if (published) FileSafety.DeleteOwned(Root, target);
+                if (preserved != null && Directory.Exists(preserved)) Directory.Move(preserved, target);
+            }
+            catch (Exception rollback)
+            {
+                throw new IOException("Import failed and its original package could not be restored. Preserved location: " + preserved
+                    + ". Original error: " + operation.Message, new AggregateException(operation, rollback));
+            }
+            throw;
+        }
     }
     public void AddToProfile(ModPackage package)
     {

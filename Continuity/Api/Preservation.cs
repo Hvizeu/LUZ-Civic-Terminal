@@ -8,7 +8,7 @@ public static class Companions
     private static readonly SupportCompanion[] LegacyRules =
     {
         new("config", "NivalisUnofficialPatch/Hauling/{slot}.json", "sha256", false, "json-revision", 1, 4),
-        new("config", "NivalisUnofficialPatch/ManagerPolicies/{slot}.json", "sha256", false, "json-revision", 2, 2),
+        new("config", "NivalisUnofficialPatch/ManagerPolicies/{slot}.json", "sha256", false, "json-revision", 2, 4),
         new("config", "NivalisCityLife/Saves/{slot}.json", "sha256-upper", false, "json-revision", 1, 3)
     };
     private static readonly string[] LegacyOwners = { "unofficialpatch", "unofficialpatch", "citylife" };

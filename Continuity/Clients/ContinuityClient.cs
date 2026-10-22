@@ -5,7 +5,11 @@ using System.Reflection;
 [assembly: AssemblyMetadata("Nivalis.Continuity.Coverage", "activation,input-display;residual-native-references-require-exact-build")]
 #endif
 
+#if NIVALIS_EXPANDED
+namespace NivalisExpandedCompatibility;
+#else
 namespace NivalisCompatibility;
+#endif
 
 internal static class ContinuityClient
 {

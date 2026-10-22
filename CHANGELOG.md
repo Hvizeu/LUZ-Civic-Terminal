@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.6
+
+- Added saved-data recovery support for Culinary Inspiration and restaurant reviews.
+- Updated compatibility checks for Nivalis Expanded and Unofficial Patch.
+
+## 0.7.5
+
+- Repair imports whose package directory survived an interrupted import or registry restore. Validate a fresh copy before publication and preserve the original directory under import-recovery.
+- Keep disabled and pinned settings intact, and restore the original directory if registration fails. Includes the disabled-import Apply fix from 0.7.4.
+
+## 0.7.4
+
+- Fix Apply after importing an existing installation when imported mods are disabled. Exact imported DLL and ASI bytes are recognized as managed, allowing the disabled files to be removed into the normal restore point.
+- Preserve disabled settings on reimport and continue blocking unknown binaries or imported binaries changed on disk.
+
+## 0.7.3
+
+- Validate Nivalis Expanded against the compiled Unofficial Patch plugin dependency `hvizeu.nivalis.unofficialpatch >=0.4.7 <0.5.0` for Nexus and local imports.
+- Accept compatible 0.4.x patch versions while keeping missing, disabled, out-of-range and duplicate plugin identities blocking. Unrelated package dependencies remain strict.
+
 ## 0.7.2
 
 - Let author-declared stateless and ordinary companion-file support omit compiled contracts when it claims no native recovery implementation.

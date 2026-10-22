@@ -1,30 +1,6 @@
-LUZ Civic Terminal 0.7.2
+LUZ Civic Terminal 0.7.6
 
-- Add CorpSec Terminal alongside Civic Terminal, with Project, LUZ Support,
-  Validation and Package sections for mod authors.
-- Save watched build folders, author decisions, build editions and output
-  folders so later releases reuse the same project.
-- Analyze DLL metadata, assets, existing support and optional source without
-  running mod code. Review saved-file evidence through guided editors.
-- Generate package-local LUZ support without rewriting the plugin DLL.
-- Build Nexus/manual and Thunderstore ZIPs, checksums and deployment metadata;
-  validate finished archives through LUZ's importer and planner.
-- Provide normal exports for standalone mods while recovery is incomplete,
-  plus recovery exports for complete supported declarations.
-- Add independent author support, adapter lifecycle and preferred/fallback
-  selection without a per-mod central approval.
-- Keep My mods scrollable and sorted; add Remove from My mods while preserving
-  the author's source, build outputs and exported packages.
-- Allow watched project folders with linked development documentation while
-  continuing to reject linked package payloads.
-- Let stateless and ordinary companion-file declarations omit unrelated native
-  contracts. Native/embedded recovery still checks the required contracts.
-- Refresh the support-contact action when project details are saved.
-- Explain compatibility warnings and remember decisions for an unchanged
-  inspected action and setup.
-- Include complete player and CorpSec step-by-step guides in every platform
-  download, with protected-save, restoration, automation and CLI instructions.
-
-Includes the Mod Continuity system introduced in 0.5.0: verified checkpoints,
-separate protected timelines, supported feature preservation/restoration,
-interrupted-save recovery and bundled runtime updates.
+- Fixed Nexus and local imports checking Expanded's Unofficial Patch requirement by plugin version.
+- Fixed Apply after importing installed mods that are disabled.
+- Repaired orphaned package folders during import while preserving disabled and pinned settings.
+- Added saved-data recovery support for Culinary Inspiration and restaurant reviews.

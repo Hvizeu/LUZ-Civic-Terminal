@@ -25,6 +25,7 @@ def catalog():
     rules = [rule('core', 'save-lifecycle'), rule('core', 'input-display', 'unbound-input-v1'),
              rule('bettertime', 'module', dependencies=save), rule('bettertime', 'clock', dependencies=save),
              rule('unofficialpatch', 'module', dependencies=save), rule('unofficialpatch', 'inventory-transactions', dependencies=save),
+             rule('expanded', 'module', dependencies=('core/save-lifecycle', 'unofficialpatch/module', 'unofficialpatch/inventory-transactions')),
              rule('citylife', 'module', dependencies=save), rule('framework', 'module', dependencies=save),
              rule('framework', 'catalogue', dependencies=save), rule('framework', 'behaviours', dependencies=('framework/catalogue',)),
              rule('furniturelab', 'module', dependencies=save)]
@@ -43,7 +44,8 @@ def maintained_support():
         module('hvizeu.nivalis.slowdays', 'NivalisSlowDays', 'bettertime', 'Better Time', ['module', 'clock']),
         module('hvizeu.nivalis.unofficialpatch', 'NivalisUnofficialPatch', 'unofficialpatch', 'Nivalis Unofficial Patch', ['module', 'inventory-transactions'], [
             companion('config', 'NivalisUnofficialPatch/Hauling/{slot}.json', 'sha256', minimum=1, maximum=4),
-            companion('config', 'NivalisUnofficialPatch/ManagerPolicies/{slot}.json', 'sha256', minimum=2, maximum=2)]),
+            companion('config', 'NivalisUnofficialPatch/ManagerPolicies/{slot}.json', 'sha256', minimum=2, maximum=4)]),
+        module('hvizeu.nivalis.expanded', 'NivalisExpanded', 'expanded', 'Nivalis Expanded', ['module']),
         module('hvizeu.nivalis.citylife', 'NivalisCityLife', 'citylife', 'Nivalis City Life', ['module'], [
             companion('config', 'NivalisCityLife/Saves/{slot}.json', 'sha256-upper', minimum=1, maximum=3)]),
         module('hvizeu.nivalis.furnishings', 'NivalisFurnishings', 'framework', 'Nivalis Object Framework', ['module', 'catalogue', 'behaviours']),
@@ -54,7 +56,7 @@ def build(loader=None):
         temp = Path(temp)
         if loader is None:
             archive = temp / 'loader.zip'
-            request = urllib.request.Request(LOADER_URL, headers={'User-Agent': 'LUZ-Civic-Terminal-Build/0.7.2 (+https://github.com/Hvizeu/LUZ-Civic-Terminal)'})
+            request = urllib.request.Request(LOADER_URL, headers={'User-Agent': 'LUZ-Civic-Terminal-Build/0.7.6 (+https://github.com/Hvizeu/LUZ-Civic-Terminal)'})
             with urllib.request.urlopen(request, timeout=60) as response, archive.open('wb') as output:
                 total = 0
                 while block := response.read(1024 * 1024):

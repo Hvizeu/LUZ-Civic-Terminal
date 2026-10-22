@@ -8,18 +8,23 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT.parent
 
-def prepare(output, baseline):
+def prepare(output, baseline, selected_products=None):
     sys.path.insert(0, str(SOURCE / 'NivalisSlowDays/tools'))
     from release_hygiene import validate_release_payload
     output = Path(output).resolve(); baseline = Path(baseline).resolve(); output.mkdir(parents=True, exist_ok=True)
     definitions = [
-        ('Better Time', 'NivalisBetterTime-2.2.7-Nexus.zip', 'NivalisSlowDays', '2.2.7', '2.3.0', SOURCE / 'NivalisSlowDays/src-v2/bin/Continuity/net6.0/NivalisSlowDays.dll'),
-        ('Unofficial Patch', 'Nivalis_Unofficial_Patch-0.4.6-Nexus.zip', 'NivalisUnofficialPatch', '0.4.6', '0.5.0', SOURCE / 'NivalisUnofficialPatch/src/bin/ContinuityPublic/net6.0/NivalisUnofficialPatch.dll'),
-        ('City Life', 'NivalisCityLife-1.1.0-Nexus.zip', 'NivalisCityLife', '1.1.0', '1.2.0', SOURCE / 'NivalisCityLife/src/bin/Continuity/net6.0/NivalisCityLife.dll'),
+        ('Better Time', 'NivalisBetterTime-2.2.12-Nexus.zip', 'NivalisSlowDays', '2.2.12', '2.3.4', SOURCE / 'NivalisSlowDays/src-v2/bin/Continuity/net6.0/NivalisSlowDays.dll'),
+        ('Unofficial Patch', 'NivalisUnofficialPatch-0.4.10-Nexus.zip', 'NivalisUnofficialPatch', '0.4.10', '0.5.4', SOURCE / 'NivalisUnofficialPatch/src/bin/ContinuityPublic/net6.0/NivalisUnofficialPatch.dll'),
         ('Object Framework', 'Nivalis-Object-Framework-Runtime-0.3.13.zip', 'NivalisFurnishings', '0.3.13', '0.4.0', SOURCE / 'NivalisFurnishings/Loader/bin/Continuity/net6.0/NivalisFurnishings.dll'),
         ('Furniture Lab', 'Nivalis-Furniture-Lab-0.1.8.zip', 'NivalisFurnitureLab', '0.1.8', '0.2.0', SOURCE / 'NivalisFurnitureLab/src/bin/Continuity/net6.0/NivalisFurnitureLab.dll')]
+    # City Life remains an owner-only package until the complete 60-preset
+    # schema 2 Humanoid payload passes native acceptance. Never rebuild its
+    # Continuity edition from an older or reduced locomotion baseline.
     records = []
+    selected = set(selected_products) if selected_products is not None else None
     for name, original, assembly, old, version, dll in definitions:
+        if selected is not None and name not in selected:
+            continue
         matches = list(baseline.rglob(original))
         if len(matches) != 1: raise RuntimeError('Choose the complete maintained baseline for ' + name)
         with zipfile.ZipFile(matches[0]) as archive:
@@ -35,9 +40,15 @@ def prepare(output, baseline):
             if path.endswith('/' + assembly + '/manifest.json'):
                 data = json.loads(files[path]); data['version_number'] = version
                 data['description'] = data.get('description', '') + ' Continuity migration: requires LUZ 0.5.0 protected saves.'
+                data['release_channel'] = 'Continuity'
                 files[path] = (json.dumps(data, indent=2) + '\n').encode()
             if Path(path).name.lower().startswith('readme'):
-                files[path] = (name + ' ' + version + '\nRequires LUZ Civic Terminal 0.5.0 with protected saves enabled. Import this complete archive in LUZ and Apply the profile. Existing assets and credits are retained below.\n\n' + files[path].decode('utf8').replace(old, version)).encode()
+                retained = files[path].decode('utf8').replace(old, version)
+                if name == 'Unofficial Patch':
+                    retained = retained.replace('Nivalis Expanded 0.2.x', 'Nivalis Expanded 0.3.x').replace('Expanded 0.2.x', 'Expanded 0.3.x')
+                files[path] = (name + ' ' + version + '\nRequires LUZ Civic Terminal 0.5.0 with protected saves enabled. Import this complete archive in LUZ and Apply the profile. Existing assets and credits are retained below.\n\n' + retained).encode()
+            if name == 'Unofficial Patch' and Path(path).name.lower().startswith('changelog'):
+                files[path] = files[path].decode('utf8').replace('# 0.4.10', '# 0.5.4', 1).encode()
         files['VERSION.txt'] = (name + ' ' + version + '\nContinuity API 1; LUZ 0.5.0 required.\n').encode()
         validate_release_payload(files)
         destination = output / (name.replace(' ', '-') + '-' + version + '-LUZ-Migration.zip')
@@ -50,7 +61,71 @@ def prepare(output, baseline):
         with destination.open('rb') as stream: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
         destination.with_suffix('.zip.sha256').write_text(digest + '  ' + destination.name + '\n')
         records.append(dict(Product=name, Version=version, Archive=destination.name, Sha256=digest, SourceDllSha256=hashlib.sha256(dll.read_bytes()).hexdigest(), Optional=name == 'Furniture Lab'))
-    (output / 'PACKAGES.json').write_text(json.dumps(records, indent=2) + '\n')
+
+    # Expanded is a new product, so there is no earlier complete archive to use as
+    # a payload baseline. Construct its package from an explicit public allowlist.
+    # Unofficial Patch remains a separate package and owns the existing companions.
+    if selected is None or 'Nivalis Expanded' in selected:
+        name, version = 'Nivalis Expanded', '0.3.7'
+        dll = SOURCE / 'NivalisExpanded/src/bin/ContinuityPublic/net6.0/NivalisExpanded.dll'
+        prefix = 'BepInEx/plugins/NivalisExpanded/'
+        manifest = {
+            'name': name,
+            'version_number': version,
+            'website_url': '',
+            'description': 'Culinary Inspiration, recipe collection, manager policies and staff improvements for Unofficial Patch.',
+            'dependencies': [],
+            'required_plugins': [
+                {'guid': 'hvizeu.nivalis.unofficialpatch', 'minimum_version': '0.5.4'},
+                {'guid': 'hvizeu.luz.continuity', 'minimum_version': ''}],
+            'author': 'Hvizeu',
+            'release_channel': 'Continuity'}
+        files = {
+            prefix + 'NivalisExpanded.dll': dll.read_bytes(),
+            prefix + 'manifest.json': (json.dumps(manifest, indent=2) + '\n').encode(),
+            'README.md': (name + ' ' + version + '\nRequires Unofficial Patch >=0.5.4 <0.6.0 and LUZ Civic Terminal with protected saves enabled. Import this complete archive in LUZ and Apply the profile. Unofficial Patch retains manager, Culinary Inspiration, restaurant-review companions, purchasing observation and recovery.\n\n' + (SOURCE / 'NivalisExpanded/README.md').read_text(encoding='utf8')).encode(),
+            'CHANGELOG.md': (SOURCE / 'NivalisExpanded/CHANGELOG.md').read_bytes(),
+            'VERSION.txt': (name + ' ' + version + '\nContinuity API 1; Unofficial Patch >=0.5.4 <0.6.0 and LUZ Continuity required.\n').encode()}
+        icon = SOURCE.parent / 'Shared Assets/Icons/Nivalis Expanded/icon.png'
+        files[prefix + 'icon.png'] = icon.read_bytes()
+        if any(Path(path).name.casefold() == 'nivalisunofficialpatch.dll' for path in files):
+            raise RuntimeError('Expanded must not bundle Unofficial Patch')
+        owned = [Path(path).name for path in files if path.lower().endswith('.dll')]
+        if owned != ['NivalisExpanded.dll']:
+            raise RuntimeError('Expanded migration package contains an unexpected binary')
+        validate_release_payload(files)
+        destination = output / 'Nivalis-Expanded-0.3.7-LUZ-Migration.zip'
+        stage = destination.with_suffix('.partial')
+        with zipfile.ZipFile(stage, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for path, data in files.items(): archive.writestr(path, data)
+        with zipfile.ZipFile(stage) as archive:
+            if archive.testzip() is not None or {entry.filename: archive.read(entry) for entry in archive.infolist()} != files:
+                raise RuntimeError('Expanded migration archive readback differs')
+        stage.replace(destination)
+        with destination.open('rb') as stream: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        destination.with_suffix('.zip.sha256').write_text(digest + '  ' + destination.name + '\n')
+        retained = destination.resolve()
+        for old in output.glob('Nivalis-Expanded-*-LUZ-Migration.zip'):
+            if old.resolve() == retained:
+                continue
+            if old.is_symlink() or old.resolve().parent != output.resolve():
+                raise RuntimeError('Refusing redirected superseded Expanded migration package: ' + str(old))
+            old.unlink()
+            checksum = old.with_suffix('.zip.sha256')
+            if checksum.exists():
+                if checksum.is_symlink() or checksum.resolve().parent != output.resolve():
+                    raise RuntimeError('Refusing redirected superseded Expanded checksum: ' + str(checksum))
+                checksum.unlink()
+        records.append(dict(Product=name, Version=version, Archive=destination.name, Sha256=digest,
+                            SourceDllSha256=hashlib.sha256(dll.read_bytes()).hexdigest(), Optional=True))
+    package_records = records
+    package_index = output / 'PACKAGES.json'
+    if selected is not None and package_index.is_file():
+        existing = json.loads(package_index.read_text(encoding='utf8'))
+        replacements = {record['Product']: record for record in records}
+        package_records = [replacements.pop(record.get('Product'), record) for record in existing]
+        package_records.extend(replacements.values())
+    package_index.write_text(json.dumps(package_records, indent=2) + '\n')
     print('Verified complete LUZ migration imports:', len(records))
     return records
 
@@ -96,5 +171,7 @@ def prepare_sdk(output, baseline, tools, studio):
 
 if __name__ == '__main__':
     if len(sys.argv) == 6 and sys.argv[1] == '--sdk': prepare_sdk(*sys.argv[2:])
+    elif len(sys.argv) == 4 and sys.argv[1] == '--culinary-inspiration':
+        prepare(Path(sys.argv[2]), Path(sys.argv[3]), {'Unofficial Patch', 'Nivalis Expanded'})
     elif len(sys.argv) == 3: prepare(Path(sys.argv[1]), Path(sys.argv[2]))
-    else: raise SystemExit('Supply output and complete baseline, or --sdk output baseline tools-publish studio-publish.')
+    else: raise SystemExit('Supply output and complete baseline, --culinary-inspiration output baseline, or --sdk output baseline tools-publish studio-publish.')

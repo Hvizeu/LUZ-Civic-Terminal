@@ -2,7 +2,7 @@
 
 LUZ manages Nivalis Nights mods, profiles, BepInEx setup and protected save timelines. Its **CorpSec Terminal** workspace helps mod authors turn their build folders into release packages with optional LUZ recovery support.
 
-**Current release: 0.7.2.** Download one platform ZIP from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Windows x64 is the main desktop build. Linux x64, macOS Intel and Apple Silicon builds are experimental.
+**Current release: 0.7.6.** Download one platform ZIP from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Windows x64 is the main desktop build. Linux x64, macOS Intel and Apple Silicon builds are experimental.
 
 ## Start here
 
@@ -20,7 +20,7 @@ All four desktop ZIPs include these guides. LUZ includes .NET; users do not need
 ## Civic Terminal for players
 
 - **Profiles and settings:** import mod ZIPs, DLLs or an existing installation; enable, disable, search, filter and reorder mods; copy profiles and keep their settings.
-- **Dependency checks:** inspect declared requirements and conflicts, sort dependencies and preview the files that Apply will deploy.
+- **Dependency checks:** inspect declared requirements and conflicts, sort dependencies and preview the files that Apply will deploy. LUZ 0.7.6 reads Nivalis Expanded's compiled requirement `hvizeu.nivalis.unofficialpatch >=0.4.10 <0.5.0` for Nexus and local imports; missing, disabled, out-of-range or duplicate copies remain blocking.
 - **Downloads and updates:** browse Thunderstore, check mod updates, pin versions and import manual Nexus downloads. Nexus lookup and permitted direct downloads use your own API key.
 - **BepInEx setup:** install the recommended Windows x64 IL2CPP loader from its official server, check upstream builds and restore loader backups.
 - **Compatibility guidance:** check compiled references before Apply and Play. Warnings explain the affected mod, the uncertainty and the next action. An accepted warning is remembered only for the same inspected action and setup.

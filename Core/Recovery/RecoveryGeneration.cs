@@ -104,7 +104,7 @@ public static class RecoveryFiles
             if (new FileInfo(file).Length > 16 * 1024 * 1024) throw new InvalidDataException("Companion exceeds its size limit.");
             var data = JsonNode.Parse(File.ReadAllText(file))?.AsObject() ?? throw new InvalidDataException("Invalid companion.");
             int schema = (int?)(data["Schema"] ?? data["Version"]) ?? -1;
-            if (pair.Value == "hauling" ? schema is < 1 or > 4 : pair.Value == "city" ? schema is < 1 or > 3 : schema != 2) throw new InvalidDataException("Unsupported companion schema: " + pair.Key);
+            if (pair.Value == "hauling" ? schema is < 1 or > 4 : pair.Value == "city" ? schema is < 1 or > 3 : schema is < 2 or > 4) throw new InvalidDataException("Unsupported companion schema: " + pair.Key);
             if ((string?)data["Revision"] != revision) throw new InvalidDataException("Companion revision mismatch: " + pair.Key);
             if(File.Exists(file+".required")&&(new FileInfo(file+".required").Length>256||!File.ReadAllText(file+".required").Trim().Equals(revision,StringComparison.OrdinalIgnoreCase)))throw new InvalidDataException("Required companion marker differs from the native generation: "+pair.Key);
             result.Companions[pair.Key] = pair.Value; result.CompanionHashes[pair.Key] = Hash(file);

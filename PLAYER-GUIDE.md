@@ -1,6 +1,6 @@
 # Player guide
 
-This guide matches LUZ 0.7.2. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
+This guide matches LUZ 0.7.6. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
 
 ## 1. Connect your game and existing mods
 
@@ -32,6 +32,8 @@ If you move Nivalis with Steam later, select the new location in Maintenance and
 7. Choose **Play Nivalis** when ready.
 
 Import adds a package to LUZ's library/profile. Apply replaces deployed plugins and patchers with the selected profile's enabled contents. A DLL alone can be missing assets or support files from its original ZIP.
+
+LUZ 0.7.6 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. A Nexus or local import is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.10 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
 
 Lower rows in the deployment order win shared-file conflicts. Drag the dotted handles or use **Move up** and **Move down**. Auto-sort follows declared dependencies; BepInEx controls plugin startup order.
 
@@ -143,3 +145,7 @@ Protected save sessions currently require native Windows; ordinary mod managemen
 Keep this folder when updating or uninstalling if you want to retain profiles, packages, author projects and recovery history. Your last applied game files can remain installed when you stop using LUZ.
 
 For support, record the operating system, LUZ version, steps and exact error. Choose **Maintenance > Export diagnostics** immediately after the problem and review the ZIP before sharing; mod logs can contain personal paths or other data.
+
+## Import recovery
+
+If a previous import or registry restore left an unregistered package folder, retry the original import or Maintenance > Import existing installation. LUZ rebuilds the package from the selected input and keeps the original folder under import-recovery in its data directory. Invalid imports do not replace existing data. This operation preserves profile enable and pin choices; applying the profile is still a separate action.

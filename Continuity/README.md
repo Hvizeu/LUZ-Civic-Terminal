@@ -1,6 +1,6 @@
 # Mod Continuity
 
-This reference matches LUZ 0.7.2. For ordinary profiles and backups, see the [player guide](../PLAYER-GUIDE.md). For author setup, see the [CorpSec walkthrough](../CORPSEC-GUIDE.md).
+This reference matches LUZ 0.7.6. For ordinary profiles and backups, see the [player guide](../PLAYER-GUIDE.md). For author setup, see the [CorpSec walkthrough](../CORPSEC-GUIDE.md).
 
 LUZ includes the compatibility runtime, API and supported-build catalog in its desktop release. GitHub releases update them with the launcher. No separate mod-site download is needed.
 
@@ -59,6 +59,6 @@ Run `python tools/build_continuity.py` before building or packaging the desktop 
 
 `python tools/package.py --rid all` includes that payload in every desktop package. The GitHub workflow builds matching version tags and publishes them as stable GitHub releases; manual and pull-request builds are also available. The launcher updater requires the platform ZIP and GitHub SHA-256 digest; pushing source alone does not update installed applications.
 
-Source integration in the maintained mods uses `-p:LuzContinuity=true`. Default builds retain their standalone behavior. Migration output directories are separate from existing public and owner outputs. Migration identities are Better Time 2.3.0, Unofficial Patch 0.5.0, City Life 1.2.0, Object Framework 0.4.0 and Furniture Lab 0.2.0.
+Source integration in the maintained mods uses `-p:LuzContinuity=true`. Default builds retain their standalone behavior. Migration output directories are separate from existing public and owner outputs. Migration identities are Better Time 2.3.0, Unofficial Patch 0.5.1, Nivalis Expanded 0.2.0, City Life 1.2.1, Object Framework 0.4.0 and Furniture Lab 0.2.0. Expanded requires Unofficial Patch `>=0.5.1 <0.6.0` and the Continuity runtime. Its capability waits for the Unofficial Patch module and inventory-transaction capability; Unofficial Patch remains the owner of existing manager companions, recovery and native inventory transactions.
 
 Protected game sessions initially require native Windows. Wine/Proton protected sessions are unsupported. Existing game launch and mod-management features remain available on the other launcher platforms.

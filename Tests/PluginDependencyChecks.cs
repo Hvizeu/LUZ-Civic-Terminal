@@ -46,5 +46,58 @@ public static class PluginDependencyChecks
         }
         using var reopened = new Library(data);
         check(!ModPlanner.Check(reopened.Active, reopened.State.Packages).Any(i => i.Severity == "Error"), "Stored range metadata works after reopening an existing library");
+        ExpandedPackageDependencies(check);
+    }
+
+    private static void ExpandedPackageDependencies(Action<bool,string> check)
+    {
+        const string pluginId = "hvizeu.nivalis.unofficialpatch";
+        static ModPackage Patch(string source, string version, string guid = pluginId, string name = "Nivalis Unofficial Patch") => new()
+        {
+            Name = name, Version = version, Source = source,
+            Plugins = [new(guid, name, version, [], [])]
+        };
+        static ModPackage Expanded(string source = "Nexus") => new()
+        {
+            Name = "Nivalis Expanded", Version = "0.2.6", Source = source,
+            Plugins = [new("hvizeu.nivalis.expanded", "Nivalis Expanded", "0.2.6",
+                [new(pluginId, ">=0.4.10 <0.5.0", false)], [])]
+        };
+        static Profile Pair(ModPackage expanded, ModPackage patch, bool patchEnabled = true) => new()
+        {
+            Mods = [new() { PackageId = expanded.Id }, new() { PackageId = patch.Id, Enabled = patchEnabled }]
+        };
+        static bool Errors(Profile profile, params ModPackage[] packages) => ModPlanner.Check(profile, packages).Any(i => i.Severity == "Error");
+
+        foreach (var (expandedSource, patchSource, title) in new[] {
+            ("Nexus", "Nexus", "Nexus/Nexus"), ("Local", "Nexus", "local/Nexus"),
+            ("Nexus", "Local", "Nexus/local"), ("Local", "Local", "local/local") })
+        {
+            var patch = Patch(patchSource, "0.4.10"); var expanded = Expanded(expandedSource); var profile = Pair(expanded, patch);
+            check(!Errors(profile, expanded, patch), title + " Expanded dependency resolves through compiled plugin GUID/version metadata");
+            check(ModPlanner.Sort(profile, [expanded, patch])[0].PackageId == patch.Id, title + " patch sorts before Expanded");
+        }
+
+        var missingExpanded = Expanded();
+        check(Errors(new Profile { Mods = [new() { PackageId = missingExpanded.Id }] }, missingExpanded), "Missing local patch remains a blocking dependency");
+        var disabledPatch = Patch("Local", "0.4.10"); var disabledExpanded = Expanded();
+        check(Errors(Pair(disabledExpanded, disabledPatch, false), disabledExpanded, disabledPatch), "Disabled local patch remains a blocking dependency");
+        foreach (var (version, accepted) in new[] { ("0.4.9", false), ("0.4.10", true), ("0.4.99", true), ("0.5.0", false), ("0.5.1", false) })
+        {
+            var patch = Patch("Local", version); var expanded = Expanded();
+            check(Errors(Pair(expanded, patch), expanded, patch) != accepted,
+                version + (accepted ? " satisfies" : " cannot satisfy") + " the standalone Expanded range");
+        }
+        var wrongPatch = Patch("Local", "0.4.10", "not.the.patch", "Nivalis Unofficial Patch"); var wrongExpanded = Expanded();
+        check(Errors(Pair(wrongExpanded, wrongPatch), wrongExpanded, wrongPatch), "Display name cannot impersonate the required patch GUID");
+        var malformedPatch = Patch("Local", "banana"); var malformedExpanded = Expanded();
+        check(ModPlanner.Check(Pair(malformedExpanded, malformedPatch), [malformedExpanded, malformedPatch]).Any(i => i.Severity == "Error" && i.Message.Contains("Unrecognized plugin version")), "Malformed plugin version remains an explicit error");
+        var duplicateA = Patch("Local", "0.4.10"); var duplicateB = Patch("Local", "0.4.10"); var duplicateExpanded = Expanded();
+        var duplicateProfile = new Profile { Mods = [new() { PackageId = duplicateExpanded.Id }, new() { PackageId = duplicateA.Id }, new() { PackageId = duplicateB.Id }] };
+        var duplicateIssues = ModPlanner.Check(duplicateProfile, [duplicateExpanded, duplicateA, duplicateB]);
+        check(duplicateIssues.Any(i => i.Message.Contains("Duplicate plugin ID")), "Duplicate patch plugin identities remain blocking");
+        var unrelatedPatch = Patch("Local", "0.4.10"); var unrelatedExpanded = Expanded();
+        unrelatedExpanded.Dependencies.Add("Other-Team-Package-1.0.0");
+        check(ModPlanner.Check(Pair(unrelatedExpanded, unrelatedPatch), [unrelatedExpanded, unrelatedPatch]).Any(i => i.Message.Contains("Other-Team-Package")), "Unrelated local package dependency remains strict");
     }
 }

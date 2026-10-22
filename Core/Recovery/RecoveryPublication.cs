@@ -78,7 +78,7 @@ public static class RecoveryPublication
                 if (new FileInfo(path).Length > 16 * 1024 * 1024) throw new InvalidDataException("Recovery companion exceeds its size limit.");
                 var document = JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? throw new InvalidDataException("Invalid recovery companion.");
                 int schema=(int?)(document["Schema"]??document["Version"])??-1;
-                if(pair.Value=="city"?schema is <1 or >3:schema!=2)throw new InvalidDataException("Unsupported recovered companion schema: "+pair.Key);
+                if(pair.Value=="city"?schema is <1 or >3:schema is <2 or >4)throw new InvalidDataException("Unsupported recovered companion schema: "+pair.Key);
                 if ((string?)document["Revision"] != receipt.OutputHash) throw new InvalidDataException("Recovery companion revision differs: " + pair.Key);
                 if (File.Exists(path + ".required") && (new FileInfo(path + ".required").Length > 256 || File.ReadAllText(path + ".required").Trim() != receipt.OutputHash))
                     throw new InvalidDataException("Recovery companion requirement differs: " + pair.Key);

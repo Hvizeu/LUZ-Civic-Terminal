@@ -31,7 +31,6 @@ public static class CompatibilityWorker
             var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
             if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase)) start.ArgumentList.Add(Assembly.GetEntryAssembly()!.Location);
             start.ArgumentList.Add("--compatibility-worker");
-            start.Environment["DOTNET_PROCESSOR_COUNT"] = "2";
             string request = JsonSerializer.Serialize(snapshot);
             if (request.Length > 4 * 1024 * 1024) throw new InvalidDataException("Compatibility request exceeds its size limit.");
             using var child = Process.Start(start) ?? throw new IOException("Could not start metadata worker.");

@@ -47,7 +47,7 @@ try
     Check(failedInsert && inventory.Attempts == 3 && inventory.Count == 1, "production inventory failure preserves first native cause and does not retry the mutation");
     var vendor = new Nivalis.Economy.Vendor(); Host.RegisterVendorItem(vendor, new Nivalis.Economy.EconomyManager.VendorItemDefinition(), new Nivalis.InventorySystem.ItemType());
     Check(vendor.Registered == 1, "production object registration facade calls the native owner once");
-    Check(Host.ValidateConsumer(game, "NivalisSlowDays", identity.Native, identity.Metadata) && !Host.ValidateConsumer(game, "UnknownMod", identity.Native, identity.Metadata), "production consumer admission accepts declared suite and rejects unknown owner");
+    Check(Host.ValidateConsumer(game, "NivalisSlowDays", identity.Native, identity.Metadata) && Host.ValidateConsumer(game, "NivalisExpanded", identity.Native, identity.Metadata) && !Host.ValidateConsumer(game, "UnknownMod", identity.Native, identity.Metadata), "production consumer admission accepts declared suite including Expanded and rejects unknown owner");
     Check(!Host.ValidateConsumer(game, "NivalisSlowDays", "old-native-layout", identity.Metadata), "residual raw native access cannot bypass its build guard");
     string load = "Original"; Host.BeforeLoad(ref load); Check(load == session.BranchSlot, "production load callback selects branch before a gameplay module loads companions");
     string unspecified = null!; bool rejectedUnspecified = false;

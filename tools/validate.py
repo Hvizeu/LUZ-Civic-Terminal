@@ -12,15 +12,22 @@ def validate(object_framework=False):
     output = ROOT / 'qa/platform/native' / (platform.system().lower() + '-' + platform.machine().lower())
     output.mkdir(parents=True, exist_ok=True)
     fixture_arguments = ['--', '--object-framework'] if object_framework else []
-    commands = [
-        ('continuity-runtime.log', ['dotnet', 'run', '--project', 'Continuity/RuntimeChecks/RuntimeChecks.csproj', '-c', 'Release', '-p:UseSharedCompilation=false']),
-        ('fixtures.log', ['dotnet', 'run', '--project', 'Tests/Tests.csproj', '-c', 'Release', '-p:UseSharedCompilation=false', *fixture_arguments]),
-        ('headless.log', ['dotnet', 'run', '--project', 'Desktop/Desktop.csproj', '-c', 'Release', '-p:RenderTools=true', '-p:UseSharedCompilation=false', '--', '--render-preview', str(output / 'render')])]
-    for name, command in commands:
+    jobs = [
+        ('continuity-runtime.log', 'Continuity/RuntimeChecks/RuntimeChecks.csproj', [], []),
+        ('fixtures.log', 'Tests/Tests.csproj', [], fixture_arguments),
+        ('headless.log', 'Desktop/Desktop.csproj', ['-p:RenderTools=true'],
+         ['--', '--render-preview', str(output / 'render')])]
+    for name, project, build_properties, run_arguments in jobs:
         with (output / name).open('w', encoding='utf8') as log:
-            result = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, env={**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'})
-        if result.returncode:
-            raise RuntimeError('Validation failed. See ' + str(output / name))
+            environment = {**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'}
+            commands = [
+                ['dotnet', 'build', project, '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1', *build_properties],
+                ['dotnet', 'run', '--project', project, '-c', 'Release', '--no-build', '--no-restore',
+                 '-p:UseSharedCompilation=false', *build_properties, *run_arguments]]
+            for command in commands:
+                result = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, env=environment)
+                if result.returncode:
+                    raise RuntimeError('Validation failed. See ' + str(output / name))
     print('Native-host fixtures and headless checks passed:', output, flush=True)
 
 if __name__ == '__main__':

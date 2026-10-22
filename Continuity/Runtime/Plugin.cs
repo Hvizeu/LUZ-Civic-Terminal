@@ -55,7 +55,7 @@ public static class Host
     private static readonly List<LoadedSupportAdapter> supportAdapters = new();
     private static readonly Dictionary<string, string> owners = new(StringComparer.Ordinal)
     {
-        ["NivalisSlowDays"] = "bettertime", ["NivalisUnofficialPatch"] = "unofficialpatch", ["NivalisCityLife"] = "citylife", ["NivalisFurnishings"] = "framework", ["NivalisFurnitureLab"] = "furniturelab"
+        ["NivalisSlowDays"] = "bettertime", ["NivalisUnofficialPatch"] = "unofficialpatch", ["NivalisExpanded"] = "expanded", ["NivalisCityLife"] = "citylife", ["NivalisFurnishings"] = "framework", ["NivalisFurnitureLab"] = "furniturelab"
     };
     public static Type GameType(string name) => (AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "Assembly-CSharp") ?? Assembly.Load("Assembly-CSharp")).GetType(name, true)!;
     public static void Initialize(string gameRoot, string config, Action<string> log)

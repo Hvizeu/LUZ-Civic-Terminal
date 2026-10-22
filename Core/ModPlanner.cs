@@ -77,8 +77,9 @@ public static class ModPlanner
                 var dep = ParseDependency(text);
                 if (dep.Id.Equals("BepInEx-BepInExPack_IL2CPP", StringComparison.OrdinalIgnoreCase)) continue;
                 var match = packages.FirstOrDefault(p => p.Source == "Thunderstore" && p.SourceId.Equals(dep.Id, StringComparison.OrdinalIgnoreCase));
-                if (match == null) issues.Add(new("Error", package.Name + " needs Thunderstore package " + text));
-                else if (CompareVersions(match.Version, dep.Version) < 0) issues.Add(new("Error", package.Name + " needs " + text + " or newer"));
+                string? available = match?.Version;
+                if (available == null) issues.Add(new("Error", package.Name + " needs Thunderstore package " + text));
+                else if (CompareVersions(available, dep.Version) < 0) issues.Add(new("Error", package.Name + " needs " + text + " or newer"));
             }
             catch (InvalidDataException ex) { issues.Add(new("Error", package.Name + ": " + ex.Message)); }
         }

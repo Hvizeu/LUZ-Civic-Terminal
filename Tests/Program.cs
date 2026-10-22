@@ -19,7 +19,28 @@ string Zip(string name, params (string Name, string Text)[] files)
 }
 try
 {
+    if (args.SequenceEqual(new[] { "--import-recovery" }))
+    {
+        ImportRecoveryChecks.Run(root, Check, Reject);
+        Console.WriteLine($"{passed} import recovery checks passed.");
+        return;
+    }
+    if (args.SequenceEqual(new[] { "--disabled-adoption" }))
+    {
+        DisabledAdoptionChecks.Run(root, Check, Reject);
+        Console.WriteLine($"{passed} disabled adoption checks passed.");
+        return;
+    }
+    if (args.SequenceEqual(new[] { "--manager-schema" }))
+    {
+        ManagerSchemaChecks.Run(root, Check);
+        Console.WriteLine($"\n{passed} manager schema checks passed. All writes confined to disposable fixtures.");
+        return;
+    }
+    ManagerSchemaChecks.Run(root, Check);
     RepairChecks.Run(root, Check, Reject);
+    ImportRecoveryChecks.Run(root, Check, Reject);
+    DisabledAdoptionChecks.Run(root, Check, Reject);
     ContinuityChecks.Run(root, Check, Reject);
     PlatformChecks.Run(root, Check, Reject);
     InstallationChecks.Run(root, Check, Reject);

@@ -3,19 +3,25 @@ from pathlib import Path
 import json
 import os
 import subprocess
+import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT.parent
 OUT = ROOT / 'qa/continuity'
+TEST_TEMP = OUT.resolve() / 'temp'
 
-def run(name, command):
+def run(name, command, use_test_temp=False):
     OUT.mkdir(parents=True, exist_ok=True)
+    TEST_TEMP.mkdir(parents=True, exist_ok=True)
     print('START', name, flush=True)
     path = OUT / (name + '.log')
+    environment = {**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'}
+    if use_test_temp:
+        environment['TEMP'] = environment['TMP'] = str(TEST_TEMP)
     with path.open('w', encoding='utf8') as log:
         child = subprocess.Popen([str(x) for x in command], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
-            env={**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'},
+            env=environment,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
         try:
             deadline = time.monotonic() + 1800
@@ -39,27 +45,37 @@ def run(name, command):
 def validate():
     common = ['-c', 'Release', '--nologo', '-v', 'minimal', '-m:1', '-p:UseSharedCompilation=false']
     projects = [('BetterTime', 'NivalisSlowDays/src-v2'), ('CityLife', 'NivalisCityLife/src'), ('Framework', 'NivalisFurnishings/Loader'), ('FurnitureLab', 'NivalisFurnitureLab/src')]
-    jobs = [('runtime-boundaries', ['dotnet', 'run', '--project', 'Continuity/RuntimeChecks/RuntimeChecks.csproj', '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1'])]
-    jobs += [(name + '-migration', ['dotnet', 'build', SOURCE / project] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/Continuity/net6.0/', '-p:NivalisInteropDirectory=' + str(SOURCE / 'NivalisSlowDays/analysis/update-25984046/interop')]) for name, project in projects]
-    jobs += [('UnofficialPatch-variants', ['pwsh', '-NoProfile', '-File', SOURCE / 'NivalisUnofficialPatch/Build-Variants.ps1', '-LuzContinuity'])]
-    results = [run(name, command) for name, command in jobs]
+    jobs = [
+        ('runtime-boundaries-build', ['dotnet', 'build', 'Continuity/RuntimeChecks/RuntimeChecks.csproj', '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1'], False),
+        ('runtime-boundaries', ['dotnet', 'Continuity/RuntimeChecks/bin/Release/net10.0/RuntimeChecks.dll'], True)
+    ]
+    jobs += [(name + '-migration', ['dotnet', 'build', SOURCE / project] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/Continuity/net6.0/', '-p:NivalisInteropDirectory=' + str(SOURCE / 'NivalisSlowDays/analysis/update-25984046/interop')], False) for name, project in projects]
+    jobs += [('UnofficialPatch-variants', ['pwsh', '-NoProfile', '-File', SOURCE / 'NivalisUnofficialPatch/Build-Variants.ps1', '-LuzContinuity'], False)]
+    results = [run(name, command, use_test_temp) for name, command, use_test_temp in jobs]
     (OUT / 'validation.json').write_text(json.dumps(results, indent=2) + '\n', encoding='utf8')
     if any(r['ExitCode'] for r in results): raise RuntimeError('Continuity validation failed; inspect retained logs')
 
 if __name__ == '__main__':
-    import sys
     if '--finish' in sys.argv:
         common = ['-c', 'Release', '--nologo', '-v', 'minimal', '-m:1', '-p:UseSharedCompilation=false']
+        render = OUT / 'render'; render.mkdir(parents=True, exist_ok=True)
+        for old in render.glob('*.png'): old.unlink()
         jobs = [
-            ('runtime-final', ['python', '-B', 'tools/build_continuity.py', '--loader', SOURCE / 'NivalisSlowDays/loader/BepInEx/core']),
-            ('fixtures-final', ['dotnet', 'run', '--project', 'Tests/Tests.csproj', '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1']),
-            ('runtime-boundaries-final', ['dotnet', 'run', '--project', 'Continuity/RuntimeChecks/RuntimeChecks.csproj', '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1']),
-            ('CityLife-migration-corrected', ['dotnet', 'build', SOURCE / 'NivalisCityLife/src'] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/Continuity/net6.0/']),
-            ('SDK-tools', ['dotnet', 'build', SOURCE / 'NivalisFurnishings/ToolsCli'] + common + ['-p:BaseOutputPath=bin/Continuity/', '-p:LuzContinuity=true']),
-            ('coverage-build', ['dotnet', 'build', 'Continuity/Coverage/Coverage.csproj'] + common),
-            ('native-adapter-targets', ['dotnet', 'Continuity/Coverage/bin/Release/net10.0/Coverage.dll', '--check-adapters', SOURCE / 'NivalisSlowDays/analysis/update-25984046/interop/Assembly-CSharp.dll']),
-            ('headless-final', ['dotnet', 'run', '--project', 'Desktop/Desktop.csproj', '-c', 'Release', '-p:RenderTools=true', '-p:UseSharedCompilation=false', '--', '--render-preview', OUT / 'render'])]
-        results = [run(name, command) for name, command in jobs]
+            ('runtime-final', [sys.executable, '-B', 'tools/build_continuity.py', '--loader', SOURCE / 'NivalisSlowDays/loader/BepInEx/core'], True),
+            ('fixtures-final-restore', ['dotnet', 'restore', 'Tests/Tests.csproj', '-p:NuGetAudit=false', '--ignore-failed-sources', '--nologo', '-v', 'minimal', '-m:1', '-p:UseSharedCompilation=false'], False),
+            ('fixtures-final-build', ['dotnet', 'build', 'Tests/Tests.csproj', '-c', 'Release', '--no-restore', '-p:UseSharedCompilation=false', '-m:1'], False),
+            ('fixtures-final', ['dotnet', 'Tests/bin/Release/net10.0/Tests.dll'], True),
+            ('runtime-boundaries-final-build', ['dotnet', 'build', 'Continuity/RuntimeChecks/RuntimeChecks.csproj', '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1'], False),
+            ('runtime-boundaries-final', ['dotnet', 'Continuity/RuntimeChecks/bin/Release/net10.0/RuntimeChecks.dll'], True),
+            ('CityLife-migration-corrected', ['dotnet', 'build', SOURCE / 'NivalisCityLife/src'] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/Continuity/net6.0/'], False),
+            ('NivalisExpanded-migration-corrected', ['dotnet', 'build', SOURCE / 'NivalisExpanded/src'] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/ContinuityPublic/net6.0/'], False),
+            ('SDK-tools', ['dotnet', 'build', SOURCE / 'NivalisFurnishings/ToolsCli'] + common + ['-p:BaseOutputPath=bin/Continuity/', '-p:LuzContinuity=true'], False),
+            ('coverage-build', ['dotnet', 'build', 'Continuity/Coverage/Coverage.csproj'] + common, False),
+            ('native-adapter-targets', ['dotnet', 'Continuity/Coverage/bin/Release/net10.0/Coverage.dll', '--check-adapters', SOURCE / 'NivalisSlowDays/analysis/update-25984046/interop/Assembly-CSharp.dll'], False),
+            ('preview-tools-restore', ['dotnet', 'restore', 'Desktop/Desktop.csproj', '-p:RenderTools=true', '-p:NuGetAudit=false', '--ignore-failed-sources', '--nologo', '-v', 'minimal', '-m:1', '-p:UseSharedCompilation=false'], False),
+            ('preview-tools-build', ['dotnet', 'build', 'Desktop/Desktop.csproj', '-c', 'Release', '--no-restore', '-p:RenderTools=true', '-p:UseSharedCompilation=false', '-m:1'], False),
+            ('headless-final', ['dotnet', 'Desktop/bin/Release/net10.0/win-x64/LUZ Civic Terminal.dll', '--render-preview', render], True)]
+        results = [run(name, command, use_test_temp) for name, command, use_test_temp in jobs]
         (OUT / 'finish-validation.json').write_text(json.dumps(results, indent=2) + '\n', encoding='utf8')
         if any(r['ExitCode'] for r in results): raise RuntimeError('Consolidated continuity checks failed')
     else: validate()

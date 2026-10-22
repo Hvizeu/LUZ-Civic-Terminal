@@ -90,7 +90,10 @@ public static class UpdateChecks
             check(!Directory.Exists(Path.Combine(folder,"unpacked")),label+" clears staging");
         }
         var request=LauncherUpdates.RestartRequest(destination,123,DesktopPlatform.Windows);
-        check(request.ArgumentList.SequenceEqual(new[]{"--update-restart","123"})&&!request.UseShellExecute&&!request.FileName.Contains("Nivalis Nights"),"Restart request targets only LUZ and waits for its previous process");
+        check(request.ArgumentList.SequenceEqual(new[]{"--update-restart","123"})&&!request.UseShellExecute
+            && Path.GetFileName(request.FileName)=="LUZ Civic Terminal.exe"
+            && Path.GetFullPath(request.WorkingDirectory)==Path.GetFullPath(destination),
+            "Restart request targets only LUZ and waits for its previous process");
         using(var child=Process.Start(new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=false,CreateNoWindow=true,ArgumentList={"--sleep-for-updater"}})!) {
             reject(()=>LauncherUpdates.WaitForPreviousProcess(child.Id,10),"Restart wait times out without killing an existing process");
             LauncherUpdates.WaitForPreviousProcess(child.Id,5000);check(child.HasExited,"New launcher waits until the old process releases its files and lock");

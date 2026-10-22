@@ -49,8 +49,11 @@ public sealed class Deployment(Library library)
                 }
             }
         }
-        // The newly selected profile can adopt installed files before its first Apply.
-        foreach (var entry in library.Active.Mods.Where(m => m.Enabled))
+        // Explicit imports establish ownership independently of deployment intent.
+        // A disabled imported mod must be removable by Apply, including after an
+        // external install that is absent from the last applied-files snapshot.
+        // Only exact immutable payload bytes qualify; unknown/changed files block.
+        foreach (var entry in library.Active.Mods)
         foreach (var rel in library.State.Packages.Single(p => p.Id == entry.PackageId).Files)
         {
             string installed = FileSafety.PortableDestination(library.State.GameFolder, "BepInEx/" + rel);
