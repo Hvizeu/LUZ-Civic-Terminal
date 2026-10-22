@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.7.6
+LUZ CIVIC TERMINAL 0.7.7
 Mod management, protected saves and author packaging for Nivalis Nights
 
 CHOOSE ONE DOWNLOAD
@@ -95,9 +95,10 @@ Read Continuity/README.md first. In Maintenance > Mod Continuity, Enable
 protected saves selects an original native save. Apply compatible mods, then
 use Play in LUZ to prepare a checkpoint and a separate protected timeline.
 
-Protection requires native Windows, supported game build 25984046, loader
-6.0.0-be.788 and compatible mod support. Author declarations do not qualify
-unknown game behavior. Keep separate backups for saves outside protection.
+Protection requires native Windows, catalogued game build 26118043 or the
+retained 25984046 recovery identity, loader 6.0.0-be.788 and compatible mod
+support. Author declarations do not qualify unknown game behavior. Keep
+separate backups for saves outside protection.
 
 UPDATES AND HELP
 

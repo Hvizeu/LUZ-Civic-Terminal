@@ -7,7 +7,7 @@ using Luz.Continuity;
 
 namespace Luz.Continuity.Runtime;
 
-[BepInPlugin(Guid, "LUZ Mod Continuity", "0.2.0")]
+[BepInPlugin(Guid, "LUZ Mod Continuity", "0.2.1")]
 [BepInProcess("Nivalis Nights.exe")]
 public sealed class Plugin : BasePlugin
 {

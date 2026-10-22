@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.7
+
+- Added the exact native and metadata identity for Nivalis Nights Steam build 26118043 while retaining build 25984046 for existing recovery timelines.
+- Updated the bundled Continuity API, runtime and adapter catalog to 0.2.1.
+- Added regression coverage that keeps both build identities selectable and rejects mixed native/metadata generations.
+- Retained Import Existing Installation, incomplete-library repair, disabled-selection preservation and unmanaged-binary safeguards for the coordinated Update #6 package batch.
+
 ## 0.7.6
 
 - Added saved-data recovery support for Culinary Inspiration and restaurant reviews.

@@ -49,7 +49,7 @@ def validate():
         ('runtime-boundaries-build', ['dotnet', 'build', 'Continuity/RuntimeChecks/RuntimeChecks.csproj', '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1'], False),
         ('runtime-boundaries', ['dotnet', 'Continuity/RuntimeChecks/bin/Release/net10.0/RuntimeChecks.dll'], True)
     ]
-    jobs += [(name + '-migration', ['dotnet', 'build', SOURCE / project] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/Continuity/net6.0/', '-p:NivalisInteropDirectory=' + str(SOURCE / 'NivalisSlowDays/analysis/update-25984046/interop')], False) for name, project in projects]
+    jobs += [(name + '-migration', ['dotnet', 'build', SOURCE / project] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/Continuity/net6.0/', '-p:NivalisInteropDirectory=' + str(SOURCE / 'NivalisSlowDays/analysis/update-26118043/interop')], False) for name, project in projects]
     jobs += [('UnofficialPatch-variants', ['pwsh', '-NoProfile', '-File', SOURCE / 'NivalisUnofficialPatch/Build-Variants.ps1', '-LuzContinuity'], False)]
     results = [run(name, command, use_test_temp) for name, command, use_test_temp in jobs]
     (OUT / 'validation.json').write_text(json.dumps(results, indent=2) + '\n', encoding='utf8')
@@ -71,7 +71,7 @@ if __name__ == '__main__':
             ('NivalisExpanded-migration-corrected', ['dotnet', 'build', SOURCE / 'NivalisExpanded/src'] + common + ['-p:LuzContinuity=true', '-p:OutputPath=bin/ContinuityPublic/net6.0/'], False),
             ('SDK-tools', ['dotnet', 'build', SOURCE / 'NivalisFurnishings/ToolsCli'] + common + ['-p:BaseOutputPath=bin/Continuity/', '-p:LuzContinuity=true'], False),
             ('coverage-build', ['dotnet', 'build', 'Continuity/Coverage/Coverage.csproj'] + common, False),
-            ('native-adapter-targets', ['dotnet', 'Continuity/Coverage/bin/Release/net10.0/Coverage.dll', '--check-adapters', SOURCE / 'NivalisSlowDays/analysis/update-25984046/interop/Assembly-CSharp.dll'], False),
+            ('native-adapter-targets', ['dotnet', 'Continuity/Coverage/bin/Release/net10.0/Coverage.dll', '--check-adapters', SOURCE / 'NivalisSlowDays/analysis/update-26118043/interop/Assembly-CSharp.dll'], False),
             ('preview-tools-restore', ['dotnet', 'restore', 'Desktop/Desktop.csproj', '-p:RenderTools=true', '-p:NuGetAudit=false', '--ignore-failed-sources', '--nologo', '-v', 'minimal', '-m:1', '-p:UseSharedCompilation=false'], False),
             ('preview-tools-build', ['dotnet', 'build', 'Desktop/Desktop.csproj', '-c', 'Release', '--no-restore', '-p:RenderTools=true', '-p:UseSharedCompilation=false', '-m:1'], False),
             ('headless-final', ['dotnet', 'Desktop/bin/Release/net10.0/win-x64/LUZ Civic Terminal.dll', '--render-preview', render], True)]

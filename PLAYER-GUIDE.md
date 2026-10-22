@@ -1,6 +1,6 @@
 # Player guide
 
-This guide matches LUZ 0.7.6. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
+This guide matches LUZ 0.7.7. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
 
 ## 1. Connect your game and existing mods
 
@@ -33,7 +33,7 @@ If you move Nivalis with Steam later, select the new location in Maintenance and
 
 Import adds a package to LUZ's library/profile. Apply replaces deployed plugins and patchers with the selected profile's enabled contents. A DLL alone can be missing assets or support files from its original ZIP.
 
-LUZ 0.7.6 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. A Nexus or local import is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.10 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
+LUZ 0.7.7 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. The Update #6 standalone package is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.11 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
 
 Lower rows in the deployment order win shared-file conflicts. Drag the dotted handles or use **Move up** and **Move down**. Auto-sort follows declared dependencies; BepInEx controls plugin startup order.
 

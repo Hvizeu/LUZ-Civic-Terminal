@@ -6,7 +6,7 @@ using Mono.Cecil;
 if (args.Length != 3) throw new ArgumentException("Supply migration archive directory, bundled payload directory and report path.");
 const string PatchGuid = "hvizeu.nivalis.unofficialpatch";
 const string ExpandedGuid = "hvizeu.nivalis.expanded";
-const string ExpandedPatchRange = ">=0.5.4 <0.6.0";
+const string ExpandedPatchRange = ">=0.5.5 <0.6.0";
 
 static bool HardDependency(PluginInfo plugin, string guid, string? requirement = null) =>
     plugin.Dependencies.Any(d => d.Guid == guid && !d.Optional && (requirement == null || d.MinimumVersion == requirement));
@@ -49,9 +49,10 @@ try
 {
     using var library = new Library(Path.Combine(root, "library"));
     var expected = new Dictionary<string, string> {
-        ["hvizeu.nivalis.slowdays"] = "2.3.4", [PatchGuid] = "0.5.4", [ExpandedGuid] = "0.3.7",
-        ["hvizeu.nivalis.furnishings"] = "0.4.0", ["hvizeu.nivalis.furniturelab"] = "0.2.0" };
-    string[] archives = Directory.GetFiles(args[0], "*-LUZ-Migration.zip").Order().ToArray();
+        ["hvizeu.nivalis.slowdays"] = "2.3.6", [PatchGuid] = "0.5.5", [ExpandedGuid] = "0.3.15",
+        ["hvizeu.nivalis.citylife"] = "1.2.11", ["hvizeu.nivalis.furnishings"] = "0.4.1",
+        ["hvizeu.nivalis.furniturelab"] = "0.2.1" };
+    string[] archives = Directory.GetFiles(args[0], "*-LUZ-Migration*.zip").Order().ToArray();
     if (archives.Length != expected.Count) throw new InvalidDataException("Missing or unexpected migration package count.");
     foreach (string archive in archives) library.Import(archive);
     var manifest = ModContinuity.VerifyBundle(args[1]);
@@ -75,7 +76,7 @@ try
     PluginInfo expandedPlugin = expanded.Plugins.Single(p => p.Guid == ExpandedGuid);
     if (!HardDependency(expandedPlugin, PatchGuid, ExpandedPatchRange) || !HardDependency(expandedPlugin, ModContinuity.PluginGuid))
         throw new InvalidDataException("Expanded Continuity plugin dependencies differ.");
-    if (!expanded.RequiredPlugins.Any(d => d.Guid == PatchGuid && d.MinimumVersion == "0.5.4" && !d.Optional) ||
+    if (!expanded.RequiredPlugins.Any(d => d.Guid == PatchGuid && d.MinimumVersion == "0.5.5" && !d.Optional) ||
         !expanded.RequiredPlugins.Any(d => d.Guid == ModContinuity.PluginGuid && d.MinimumVersion.Length == 0 && !d.Optional))
         throw new InvalidDataException("Expanded LUZ required_plugins metadata differs.");
     if (expanded.Files.Any(f => Path.GetFileName(f).Equals("NivalisUnofficialPatch.dll", StringComparison.OrdinalIgnoreCase)) ||

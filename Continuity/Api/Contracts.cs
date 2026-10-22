@@ -13,7 +13,7 @@ public sealed record AdapterBuild(string Id, BuildIdentity Identity, CapabilityR
 public sealed class AdapterCatalog
 {
     public int Schema { get; set; } = 1;
-    public string Version { get; set; } = "0.2.0";
+    public string Version { get; set; } = "0.2.1";
     public AdapterBuild[] Builds { get; set; } = Array.Empty<AdapterBuild>();
     public AdapterBuild Require(BuildIdentity identity)
     {

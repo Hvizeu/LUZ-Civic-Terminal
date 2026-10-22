@@ -29,9 +29,14 @@ def catalog():
              rule('citylife', 'module', dependencies=save), rule('framework', 'module', dependencies=save),
              rule('framework', 'catalogue', dependencies=save), rule('framework', 'behaviours', dependencies=('framework/catalogue',)),
              rule('furniturelab', 'module', dependencies=save)]
-    return dict(Schema=1, Version='0.2.0', Builds=[dict(Id='25984046-be788', Identity=dict(
-        Native='C65362434D61434A6FF5BFF771E7C2C44F2AEEABFDB1398C10B25FD9CBCF424E',
-        Metadata='012A276B3D48E5CD85E0AD910B427742C0052FA9F974BFFDCEA30A30A4915FC5', Loader=LOADER_HASH), Capabilities=rules)])
+    identities = [
+        ('25984046-be788', 'C65362434D61434A6FF5BFF771E7C2C44F2AEEABFDB1398C10B25FD9CBCF424E',
+         '012A276B3D48E5CD85E0AD910B427742C0052FA9F974BFFDCEA30A30A4915FC5'),
+        ('26118043-be788', '8A1265FF519B6D876E5403684CA9581FB18825FA6F818DCA1C5346AD8C147E46',
+         'C894031A903839ED1A382D8496EF2C746C196C9FF8CFB9823050C1D97BB1033E')]
+    return dict(Schema=1, Version='0.2.1', Builds=[dict(Id=build_id, Identity=dict(
+        Native=native, Metadata=metadata, Loader=LOADER_HASH), Capabilities=rules)
+        for build_id, native, metadata in identities])
 
 def maintained_support():
     def module(guid, assembly, owner, name, capabilities, companions=()):
@@ -56,7 +61,7 @@ def build(loader=None):
         temp = Path(temp)
         if loader is None:
             archive = temp / 'loader.zip'
-            request = urllib.request.Request(LOADER_URL, headers={'User-Agent': 'LUZ-Civic-Terminal-Build/0.7.6 (+https://github.com/Hvizeu/LUZ-Civic-Terminal)'})
+            request = urllib.request.Request(LOADER_URL, headers={'User-Agent': 'LUZ-Civic-Terminal-Build/0.7.7 (+https://github.com/Hvizeu/LUZ-Civic-Terminal)'})
             with urllib.request.urlopen(request, timeout=60) as response, archive.open('wb') as output:
                 total = 0
                 while block := response.read(1024 * 1024):

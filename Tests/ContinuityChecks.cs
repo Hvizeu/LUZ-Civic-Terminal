@@ -24,7 +24,11 @@ internal static class ContinuityChecks
         reject(() => mutation.Invoke<bool>("purchase"), "native mutation failure propagates"); check(attempts == 1, "failed mutation is never retried through a fallback");
         check(!InputPolicy.BindingValid(-1, 2, "x") && !InputPolicy.BindingValid(2, 2, "x") && !InputPolicy.BindingValid(0, 2, "") && InputPolicy.BindingValid(1, 2, "<Gamepad>/a"), "input fallback validates missing, out-of-range, empty and valid native bindings");
         var identity = new BuildIdentity("native-a", "metadata-a", "loader-a");
-        var catalog = new AdapterCatalog { Builds = new[] { new AdapterBuild("fixture", identity, new[] { new CapabilityRule("core", "save", "native", Array.Empty<string>()), new CapabilityRule("citylife", "module", "native", new[] { "core/save" }) }) } };
+        var currentIdentity = new BuildIdentity("native-b", "metadata-b", "loader-a");
+        var capabilities = new[] { new CapabilityRule("core", "save", "native", Array.Empty<string>()), new CapabilityRule("citylife", "module", "native", new[] { "core/save" }) };
+        var catalog = new AdapterCatalog { Version = "0.2.1", Builds = new[] { new AdapterBuild("previous", identity, capabilities), new AdapterBuild("current", currentIdentity, capabilities) } };
+        check(catalog.Require(identity).Id == "previous" && catalog.Require(currentIdentity).Id == "current", "previous and current native identities remain independently selectable");
+        reject(() => catalog.Require(new BuildIdentity(identity.Native, currentIdentity.Metadata, identity.Loader)), "mixed native and metadata generations cannot select an adapter");
         reject(() => catalog.Require(identity with { Native = "unknown" }), "unknown native layout blocks continuity");
         reject(() => catalog.Require(identity with { Metadata = "stale" }), "stale metadata blocks continuity");
         reject(() => catalog.Require(identity with { Loader = "changed" }), "unsupported loader blocks continuity");

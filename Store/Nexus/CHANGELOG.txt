@@ -1,6 +1,5 @@
-LUZ Civic Terminal 0.7.6
+LUZ Civic Terminal 0.7.7
 
-- Fixed Nexus and local imports checking Expanded's Unofficial Patch requirement by plugin version.
-- Fixed Apply after importing installed mods that are disabled.
-- Repaired orphaned package folders during import while preserving disabled and pinned settings.
-- Added saved-data recovery support for Culinary Inspiration and restaurant reviews.
+- Added exact support for Nivalis Nights Steam build 26118043 while retaining build 25984046 for existing recovery timelines.
+- Updated the bundled Continuity API, runtime and adapter catalog to 0.2.1.
+- Kept Import Existing Installation repair, disabled-selection preservation and unmanaged-binary safeguards in the Update #6 release path.

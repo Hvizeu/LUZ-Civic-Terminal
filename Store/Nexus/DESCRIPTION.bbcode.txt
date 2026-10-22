@@ -1,53 +1,137 @@
+[size=6][color=#FFD166][b]LUZ CIVIC TERMINAL[/b][/color][/size]
+
 [img]https://i.imgur.com/XYmkd68.png[/img]
 [url=https://ko-fi.com/henriquevizeu][img]https://imgur.com/1xL45if.png[/img][/url]
 
-[size=6][b]LUZ Civic Terminal[/b][/size]
+[size=5][color=#5DD9FF][b]FEATURES[/b][/color][/size]
 
-LUZ puts Nivalis mod installation, profiles and BepInEx setup in one application. Civic Terminal manages the mods you play with; CorpSec Terminal prepares your own mods for release.
+[b]MODS, PROFILES, PROTECTED SAVES AND AUTHOR TOOLS[/b]
 
-[size=4][b]Install mods and manage profiles[/b][/size]
+Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. CorpSec Terminal gives mod authors a saved workspace for preparing their releases.
 
-Import Nexus ZIPs, individual DLLs or the mods already installed in your game. Create profiles, choose enabled mods, sort them and Apply the selected setup. Dependency and file-conflict checks run before deployment. Import an existing installation before the first Apply to keep those mods.
+[b]Version 0.7.7 | Windows x64 | Experimental Linux and macOS downloads[/b]
 
-Manual Nexus ZIP imports need no API key. Nexus lookup and permitted direct downloads use your own key and follow your account's permissions. Install required mods separately.
+[url=https://ko-fi.com/henriquevizeu]Support my work on Ko-fi[/url]
+[url=https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest]GitHub downloads and source[/url]
 
-[size=4][b]BepInEx and maintenance[/b][/size]
+[size=5][color=#FFD166][b]TWO TERMINALS, ONE APPLICATION[/b][/color][/size]
 
-Install the recommended BepInEx 6 IL2CPP build 788, back up replaced loader files and restore a backup when needed. Maintenance also provides profile backups, interrupted-deployment recovery, game-update diagnosis and a diagnostics export.
+[b]Civic Terminal[/b] is for installing and managing the mods you play with. [b]CorpSec Terminal[/b] is for preparing your own mods for release. Switch between the tabs without losing the selected player profile.
 
-LUZ can check its GitHub releases for application updates. Updates preserve profiles and CorpSec projects.
+[size=5][color=#5DD9FF][b]INSTALL MODS AND KEEP SEPARATE PROFILES[/b][/color][/size]
 
-[size=4][b]CorpSec Terminal for authors[/b][/size]
+Import a complete ZIP, an individual DLL or the mods already installed in your game. Create and copy profiles with their own enabled mods, deployment order and settings. Search the Registry, filter enabled or disabled mods, and reuse packages from your library.
 
-Add a build folder once, select the plugin and save author details, edition and output choices. Analyze this build inspects assemblies, packaged assets and optional source without running the mod.
+[b]Import[/b] adds a package to LUZ. [b]Apply profile[/b] installs the selected setup. [b]Play Nivalis[/b] starts the game. Import your existing installation before the first Apply if you want to keep those mods.
 
-Review detected saved data and declare the files your mod owns. Generate support files adds package-local LUZ information without rewriting the plugin. Authors provide any recovery behaviour that cannot be inferred.
+[size=5][color=#5DD9FF][b]DEPENDENCY CHECKS AND MOD ORDER[/b][/color][/size]
 
-Build a Nexus ZIP with its checksum, inspect the file list and reuse the saved project for the next release. Normal standalone exports remain available when recovery support is incomplete. Command-line and build-integration tools support automated packaging.
+See missing dependencies, incompatible versions, declared conflicts and overlapping files before applying. LUZ 0.7.7 reads Nivalis Expanded's compiled [b]hvizeu.nivalis.unofficialpatch >=0.4.11 <0.5.0[/b] dependency for Nexus and local imports. Missing, disabled, out-of-range or duplicate copies remain blocking, and unrelated package dependencies retain their strict package checks.
 
-[size=4][b]Protected saves[/b][/size]
+Use [b]Auto-sort[/b], drag the handles or choose Move up/down. Lower rows win shared-file conflicts; BepInEx still controls plugin startup order.
 
-Optional Mod Continuity creates an original checkpoint and a separate protected timeline. Supported mods can preserve data while features are unavailable, then restore them when a compatible implementation returns. Interrupted saves retain recovery information.
+[size=5][color=#5DD9FF][b]BEPINEX SETUP BUILT IN[/b][/color][/size]
 
-Protected sessions require native Windows, Nivalis Nights Steam build 25984046, BepInEx build 788 and compatible mod support. Wine/Proton protection is unsupported. Ordinary profiles can be used without protection. A save that depends on a missing object or serialization provider still needs that provider.
+[b]Install recommended BepInEx[/b] downloads the official Windows x64 IL2CPP loader and backs up the files it replaces. The recommended build is [b]6.0.0-be.788[/b]. Check newer official builds or restore a loader backup from the same Maintenance section.
 
-[size=4][b]Installation[/b][/size]
+[size=5][color=#5DD9FF][b]THUNDERSTORE, NEXUS AND MOD UPDATES[/b][/color][/size]
 
-Download one platform ZIP and extract it outside the game folder. On Windows, run Install LUZ.exe and choose Install and create shortcut, or run the extracted application directly for portable use. .NET is included.
+Browse Thunderstore and import packages with their declared dependencies. Check installed mods for updates, review the new version and Apply when ready. Pin a version to keep it out of update checks.
 
-Linux x64 and macOS Intel/Apple Silicon downloads are experimental. Linux needs a graphical glibc desktop with X11/XWayland; macOS needs version 15 or newer. Follow the included platform helpers. Mac packages are not notarized. Nivalis itself still requires an existing Proton or Wine/CrossOver setup on those systems.
+Manual Nexus ZIP imports need no API key. Nexus lookup and permitted direct downloads use your own key and follow your account's permissions. Install Nexus dependencies separately. Keys can stay in the current session or use the operating system's credential store.
 
-The player and CorpSec guides are included. Use Maintenance > Export diagnostics for a report, alongside your OS, LUZ version, exact steps and full error.
+[size=5][color=#FFD166][b]CORPSEC TERMINAL: ADD YOUR BUILD FOLDER ONCE[/b][/color][/size]
 
-[size=4][b]Nexus links[/b][/size]
+Click [b]Add mods folder[/b] and select the folder where you build your mods. CorpSec finds the built plugins and saves them in [b]My mods[/b]. Choose a mod, review its current build and enter your author details and support contact.
 
-Making LUZ the NXM handler affects Nexus links across all games. Keep your existing manager if you need it for other games and use manual import or Paste download link instead. LUZ supports Nivalis BepInEx ZIPs and DLLs; it does not install Nexus Collections, FOMODs or RAR/7z archives.
+Later releases reuse the same project. Your chosen build edition, support decisions and output folder stay saved. You do not need to reopen every release ZIP. My mods scrolls, sorts by name and includes [b]Remove from My mods[/b] under Project. Removal keeps your source, builds and exported packages.
 
-[size=4][b]Recommended mods[/b][/size]
+[size=5][color=#FFD166][b]DETECT, REVIEW AND GENERATE LUZ SUPPORT[/b][/color][/size]
 
-[list]
-[*][url=https://www.nexusmods.com/nivalisnights/mods/14]Nivalis Unofficial Patch[/url]: Game fixes, quicksave/load and the shared Mods settings page.
-[*][url=https://www.nexusmods.com/nivalisnights/mods/13]Nivalis Better Time[/url]: Adjust the day speed and wait while businesses continue running.
-[*][url=https://www.nexusmods.com/nivalisnights/mods/138]Nivalis City Life[/url]: Character creation, everyday needs, home cooking and social relationships.
-[*][url=https://www.nexusmods.com/nivalisnights/mods/82]Nivalis Object Framework and Object Studio[/url]: Custom object packs and authoring tools. City Life support depends on each furniture item.
-[/list]
+[b]Analyze this build[/b] inspects DLL metadata, packaged assets, existing support and optional source without executing the mod or its build scripts. Existing compatible integrations can be reused. Possible save-file writes include evidence for the author to review.
+
+Tell CorpSec where your mod keeps persistent state. Declare owned save/configuration files, keep a valid detected integration or provide custom recovery code when needed. [b]I don't know yet[/b] keeps recovery incomplete while a normal package remains available for a standalone build.
+
+[b]Generate support files[/b] places [b]LUZ/mod-support.json[/b] beside the plugin in the package tree. It records exact file identities and leaves the original DLL unchanged. Independent authors can distribute their own support without a per-mod approval, central catalogue edit or release batch from me.
+
+LUZ generates the support structure. Authors still supply mod-specific recovery and fallback behavior that cannot be inferred.
+
+[size=5][color=#FFD166][b]BUILD NEXUS AND THUNDERSTORE PACKAGES[/b][/color][/size]
+
+Choose [b]Normal package[/b] or [b]Package with LUZ recovery support[/b], select an output folder and review the package file list. Build a Nexus/manual ZIP, a Thunderstore ZIP or both from the selected binaries.
+
+CorpSec regenerates support, checks the package through LUZ's importer and deployment planner, and writes the ZIP with its SHA-256 checksum. It keeps private author settings, logs, saves, credentials, debug symbols and development files out of the public package. Required plugin dependencies need real Thunderstore mappings; unresolved mappings are reported.
+
+Normal export can omit incomplete recovery support. A binary that directly requires LUZ must use its recovery edition or be replaced with a standalone build. Packaging does not upload or apply a player profile.
+
+[size=5][color=#FFD166][b]REPEAT RELEASES AND BUILD AUTOMATION[/b][/color][/size]
+
+Compile the next release into your watched folder, select the saved project and build again. CorpSec refreshes the selected edition and reports new questions without discarding your choices.
+
+The same workflow has command-line and JSON output. [b]Generate build integration[/b] creates an MSBuild target for support generation, an optional-runtime helper and a recovery-adapter example. Add the target to your project and use the package command in your release script for automated ZIP creation.
+
+[size=5][color=#8EE3A1][b]PROTECTED SAVE TIMELINES[/b][/color][/size]
+
+Optional [b]Mod Continuity[/b] creates a verified original checkpoint and a separate protected working timeline. Manual saves, quicksaves and autosaves use that timeline. Declared companion files are included in its save and restoration rules.
+
+Use [b]Restore original checkpoint[/b] to start another protected timeline from the historical checkpoint, or [b]Resume protected timeline[/b] to return to retained progress. Interrupted saves keep recovery records and can be handled through [b]Recover interrupted save[/b].
+
+[b]Protected sessions require native Windows, catalogued Nivalis Nights build 26118043 or retained recovery identity 25984046, BepInEx 6.0.0-be.788 and compatible mod support.[/b] Actual native, metadata and loader identities are checked together. Wine/Proton protected sessions are unsupported. Ordinary profiles can continue without enabling protection.
+
+[size=5][color=#8EE3A1][b]PRESERVE AND RESTORE SUPPORTED FEATURES[/b][/color][/size]
+
+Maintained suspension controls cover Better Time, City Life and Object Framework custom behaviors. Supported data can stay dormant while a feature is unavailable, then be validated when a compatible implementation returns. Object Framework's catalogue and native serialization remain necessary for saves containing its objects.
+
+Author adapters can declare preferred and fallback implementations. LUZ selects a complete implementation before effects begin and does not retry a partly completed transaction through another implementation. Saved recovery rules remain attached to the protected timeline even if a package is later updated or removed.
+
+These controls do not make every mod removable or every save repairable. A missing serialization owner or unsupported game build remains a blocker.
+
+[size=5][color=#8EE3A1][b]CLEAR VALIDATION RESULTS[/b][/color][/size]
+
+[b]Package checks passed[/b] confirms package checks. [b]Recovery declaration checks passed[/b] confirms the support declaration and selected implementation. [b]In-game recovery has not been tested[/b] means packaging did not run a gameplay recovery test.
+
+Generated files remain author-provided support. They do not become LUZ verified through generation, and they do not establish Greenhouse farming or Better Time Wait correctness.
+
+[size=5][color=#C6AAFF][b]COMPATIBILITY WARNINGS WITH NEXT ACTIONS[/b][/color][/size]
+
+Before Apply and Play, LUZ inspects compiled references and available compatibility declarations. Warnings name the affected mod, explain what is missing and tell you what the available choice does.
+
+Accepted warnings are remembered for the same action and inspected setup. Relevant changes require a fresh decision. Save-integrity and ownership failures cannot be overridden as ordinary warnings.
+
+[size=5][color=#C6AAFF][b]BACKUPS, DIAGNOSTICS AND GAME-UPDATE RECOVERY[/b][/color][/size]
+
+Restore profile/settings backups, restore loader backups and recover interrupted deployments through Maintenance. [b]Export diagnostics[/b] collects a support report.
+
+After a game patch, [b]Diagnose game update[/b] reads the installed build and saved loader errors. [b]Refresh game bindings[/b] backs up generated bindings and enables regeneration at the next launch. Mods that reject the new game build still need compatible updates.
+
+[b]Prepare saved-data recovery[/b] provides the separate supported retired-worker recovery route with matching game-side components. It is not a general corruption repair.
+
+[size=5][color=#C6AAFF][b]OBJECT STUDIO COLLECTIONS[/b][/color][/size]
+
+Use [b]Send to LUZ[/b] in Object Studio to build and import a collection. Confirm the profile, install the matching Object Framework Runtime and Apply. Rebuilding the same Studio project updates that collection. Studio/SDK downloads remain separate authoring tools.
+
+[size=5][color=#C6AAFF][b]LUZ UPDATES FROM GITHUB[/b][/color][/size]
+
+Maintenance checks GitHub for the matching platform release and verifies the download before installation. Startup checks and automatic installation have separate settings. Updates retain profiles and CorpSec projects.
+
+LUZ 0.4.0+ can use the updater. Users on 0.3.x need one manual installation. Do not mix files from different application versions.
+
+[size=5][color=#FFD166][b]INSTALLATION AND INCLUDED GUIDES[/b][/color][/size]
+
+Download one platform ZIP and extract it outside the game. On Windows, run [b]Install LUZ.exe[/b] and choose [b]Install and create shortcut[/b]. .NET is included. Portable use is available by opening LUZ directly from the extracted folder.
+
+Every package includes [b]QUICK START.txt[/b], [b]PLAYER-GUIDE.md[/b], [b]CORPSEC-GUIDE.md[/b], [b]Continuity/README.md[/b], the build/CLI reference, changelog and release notes.
+
+Linux x64 needs a graphical glibc desktop with X11/XWayland and xdg-open. macOS needs version 15 or newer and the matching Intel/Apple Silicon download; follow the supplied preparation and installation helpers. Mac packages are not notarized.
+
+Nivalis remains a Windows game. Linux needs an existing Proton setup; macOS needs an existing Wine/CrossOver setup. LUZ does not install those tools. The included player guide covers the Windows IL2CPP loader and launcher settings.
+
+[size=5][color=#FFD166][b]NEXUS LINKS AND SUPPORT[/b][/color][/size]
+
+Making LUZ the NXM manager changes the handler for Nexus links across all games. LUZ supports Nivalis only. Keep your existing manager if you need it elsewhere, and use manual import or Paste download link. Windows includes [b]Remove LUZ as NXM manager[/b] and a route to Default apps.
+
+For a report, include your OS, LUZ version, exact steps and full error. Use [b]Maintenance > Export diagnostics[/b] and review the ZIP before sharing.
+
+LUZ supports BepInEx ZIPs and DLLs. RAR/7z, FOMOD installers, Nexus Collections and arbitrary game-file replacement installers are outside its scope.
+
+Made by Hvizeu. This is an independent, unofficial project. Required third-party licences and credits are included in the download.

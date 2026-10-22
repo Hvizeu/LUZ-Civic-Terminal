@@ -2,7 +2,7 @@
 
 LUZ manages Nivalis Nights mods, profiles, BepInEx setup and protected save timelines. Its **CorpSec Terminal** workspace helps mod authors turn their build folders into release packages with optional LUZ recovery support.
 
-**Current release: 0.7.6.** Download one platform ZIP from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Windows x64 is the main desktop build. Linux x64, macOS Intel and Apple Silicon builds are experimental.
+**Current release: 0.7.7.** Download one platform ZIP from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Windows x64 is the main desktop build. Linux x64, macOS Intel and Apple Silicon builds are experimental.
 
 ## Start here
 
@@ -20,7 +20,7 @@ All four desktop ZIPs include these guides. LUZ includes .NET; users do not need
 ## Civic Terminal for players
 
 - **Profiles and settings:** import mod ZIPs, DLLs or an existing installation; enable, disable, search, filter and reorder mods; copy profiles and keep their settings.
-- **Dependency checks:** inspect declared requirements and conflicts, sort dependencies and preview the files that Apply will deploy. LUZ 0.7.6 reads Nivalis Expanded's compiled requirement `hvizeu.nivalis.unofficialpatch >=0.4.10 <0.5.0` for Nexus and local imports; missing, disabled, out-of-range or duplicate copies remain blocking.
+- **Dependency checks:** inspect declared requirements and conflicts, sort dependencies and preview the files that Apply will deploy. LUZ 0.7.7 reads Nivalis Expanded's compiled requirement `hvizeu.nivalis.unofficialpatch >=0.4.11 <0.5.0` for Nexus and local imports; missing, disabled, out-of-range or duplicate copies remain blocking.
 - **Downloads and updates:** browse Thunderstore, check mod updates, pin versions and import manual Nexus downloads. Nexus lookup and permitted direct downloads use your own API key.
 - **BepInEx setup:** install the recommended Windows x64 IL2CPP loader from its official server, check upstream builds and restore loader backups.
 - **Compatibility guidance:** check compiled references before Apply and Play. Warnings explain the affected mod, the uncertainty and the next action. An accepted warning is remembered only for the same inspected action and setup.
@@ -55,7 +55,7 @@ The [CorpSec guide](CORPSEC-GUIDE.md) includes the complete first release, subse
 
 Supported features can preserve dormant data while unavailable and validate restoration when a compatible implementation returns. Original checkpoints and retained timelines remain available. Interrupted saves retain recovery records instead of silently continuing.
 
-Protected sessions require **native Windows**, the supported **Nivalis Nights build 25984046**, **BepInEx 6.0.0-be.788**, and compatible mod declarations or maintained integrations. LUZ checks actual file identities. It cannot make an arbitrary mod or unknown game build safe by generating a descriptor. Wine/Proton protected sessions are unsupported.
+Protected sessions require **native Windows**, a catalogued Nivalis Nights build (**26118043** or retained recovery identity **25984046**), **BepInEx 6.0.0-be.788**, and compatible mod declarations or maintained integrations. LUZ checks the exact native binary, metadata and loader identities. It cannot make an arbitrary mod or unknown game build safe by generating a descriptor. Wine/Proton protected sessions are unsupported.
 
 See [Mod Continuity](Continuity/README.md) before enabling protection or removing a mod used by your save.
 
