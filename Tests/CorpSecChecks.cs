@@ -62,10 +62,10 @@ public static class CorpSecChecks
         string mixed = Path.Combine(root, "corpsec-mixed-editions");
         _ = Fixture(mixed, "Standalone", sourceDll, "fixture.editions", "Edition Fixture", "9.0.0"); _ = Fixture(mixed, "Recovery", sourceDll, "fixture.editions", "Edition Fixture", "1.0.0", true);
         var editionProject = CorpSec.ScanFolder(library.Root, mixed).Projects.Single();
-        check(editionProject.BuildChoices.Count == 2 && editionProject.BuildEdition.Length == 0 && editionProject.Findings.Any(f => f.Id == "choose-edition" && f.Severity == "Action"), "CorpSec refuses to choose silently between standalone and recovery editions sharing a plugin GUID");
-        editionProject.Author = "Edition Author"; editionProject = CorpSec.SelectBuild(editionProject, "recovery"); _ = Fixture(mixed, "Standalone-new", sourceDll, "fixture.editions", "Edition Fixture", "10.0.0");
+        check(editionProject.BuildChoices.Count == 2 && editionProject.BuildEdition.Length == 0 && editionProject.Findings.Any(f => f.Id == "choose-edition" && f.Severity == "Action"), "CorpSec refuses to choose silently between standalone and universal builds sharing a plugin GUID");
+        editionProject.Author = "Edition Author"; editionProject = CorpSec.SelectBuild(editionProject, "universal"); _ = Fixture(mixed, "Standalone-new", sourceDll, "fixture.editions", "Edition Fixture", "10.0.0");
         editionProject = CorpSec.RefreshFolders(library.Root).Single(p => p.PluginGuid == "fixture.editions");
-        check(editionProject.BuildEdition == "recovery" && editionProject.Version == "1.0.0" && editionProject.Author == "Edition Author", "CorpSec remembers the selected edition and author settings instead of switching to a higher standalone version");
+        check(editionProject.BuildEdition == "universal" && editionProject.Version == "1.0.0" && editionProject.Author == "Edition Author", "CorpSec remembers the selected universal build and author settings instead of switching to a higher standalone version");
 
         string statelessBuilds = Path.Combine(root, "corpsec-stateless-third-party");
         _ = Fixture(statelessBuilds, "current", sourceDll, "fixture.stateless", "Stateless Third Party", "1.0.0", contracts: false);

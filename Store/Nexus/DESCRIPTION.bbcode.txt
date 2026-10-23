@@ -9,7 +9,7 @@
 
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. CorpSec Terminal gives mod authors a saved workspace for preparing their releases.
 
-[b]Version 0.7.7 | Windows x64 | Experimental Linux and macOS downloads[/b]
+[b]Version 0.7.8 | Windows x64 | Experimental Linux and macOS downloads[/b]
 
 [url=https://ko-fi.com/henriquevizeu]Support my work on Ko-fi[/url]
 [url=https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest]GitHub downloads and source[/url]
@@ -26,7 +26,7 @@ Import a complete ZIP, an individual DLL or the mods already installed in your g
 
 [size=5][color=#5DD9FF][b]DEPENDENCY CHECKS AND MOD ORDER[/b][/color][/size]
 
-See missing dependencies, incompatible versions, declared conflicts and overlapping files before applying. LUZ 0.7.7 reads Nivalis Expanded's compiled [b]hvizeu.nivalis.unofficialpatch >=0.4.11 <0.5.0[/b] dependency for Nexus and local imports. Missing, disabled, out-of-range or duplicate copies remain blocking, and unrelated package dependencies retain their strict package checks.
+See missing dependencies, incompatible versions, declared conflicts and overlapping files before applying. LUZ 0.7.8 reads Nivalis Expanded's compiled [b]hvizeu.nivalis.unofficialpatch >=0.4.12 <0.5.0[/b] dependency for Nexus and local imports. Missing, disabled, out-of-range or duplicate copies remain blocking, and unrelated package dependencies retain their strict package checks.
 
 Use [b]Auto-sort[/b], drag the handles or choose Move up/down. Lower rows win shared-file conflicts; BepInEx still controls plugin startup order.
 

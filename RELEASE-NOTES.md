@@ -1,10 +1,10 @@
-# LUZ Civic Terminal 0.7.7
+# LUZ Civic Terminal 0.7.8
 
-Changes since 0.7.6:
+Changes since 0.7.7:
 
-- Added exact support for Nivalis Nights Steam build 26118043 while retaining build 25984046 for existing recovery timelines.
-- Updated the bundled Continuity API, runtime and adapter catalog to 0.2.1.
-- Kept Import Existing Installation repair, disabled-selection preservation and unmanaged-binary safeguards in the Update #6 release path.
+- Accepts the same universal mod ZIP for manual installation and LUZ import.
+- Activates a mod's embedded Continuity contract only when the protected runtime is present. Ordinary profiles no longer reject a universal mod because that optional runtime is absent.
+- Keeps protected sessions strict: the runtime, catalog, native build identity and exact mod payload must still match before protected play.
 
 ## Installation
 

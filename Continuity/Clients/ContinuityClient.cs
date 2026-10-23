@@ -1,9 +1,7 @@
 using System.Reflection;
 
-#if LUZ_CONTINUITY
 [assembly: AssemblyMetadata("Nivalis.Continuity.Api", "1")]
 [assembly: AssemblyMetadata("Nivalis.Continuity.Coverage", "activation,input-display;residual-native-references-require-exact-build")]
-#endif
 
 #if NIVALIS_EXPANDED
 namespace NivalisExpandedCompatibility;
@@ -15,6 +13,8 @@ internal static class ContinuityClient
 {
     private static Type? cachedHost;
     private static Type? Host => cachedHost ??= AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "Luz.Continuity.Runtime")?.GetType("Luz.Continuity.Runtime.Host");
+    internal static bool Present => Host != null;
+    internal static bool Active => Host?.GetProperty("Ready")?.GetValue(null) is true;
     internal static bool Validate(string game, string assembly, string native, string metadata)
     {
         var host = Host;
@@ -23,11 +23,7 @@ internal static class ContinuityClient
     }
     internal static bool IsDormant(string owner, string feature)
     {
-#if LUZ_CONTINUITY
-        return Host?.GetMethod("IsDormant")?.Invoke(null, new object[] { owner, feature }) is true;
-#else
-        return false;
-#endif
+        return Active && Host?.GetMethod("IsDormant")?.Invoke(null, new object[] { owner, feature }) is true;
     }
     private static Func<int, int, string?, bool>? binding;
     private static Action<object, float>? advance;
@@ -46,12 +42,9 @@ internal static class ContinuityClient
     }
     internal static bool BindingValid(int index, int count, string? path)
     {
-#if LUZ_CONTINUITY
+        if (!Active) return index >= 0 && index < count && !string.IsNullOrEmpty(path);
         binding ??= Host?.GetMethod("BindingValid")?.CreateDelegate<Func<int, int, string?, bool>>() ?? throw new MissingMethodException("LUZ input adapter is unavailable.");
         return binding(index, count, path);
-#else
-        return index >= 0 && index < count && !string.IsNullOrEmpty(path);
-#endif
     }
     internal static void AddTime(object clock, float seconds)
     {
@@ -60,18 +53,13 @@ internal static class ContinuityClient
     }
     internal static string Status()
     {
-#if LUZ_CONTINUITY
-        return Host?.GetMethod("Status")?.Invoke(null, null) as string ?? "LUZ continuity unavailable";
-#else
-        return "";
-#endif
+        return Active ? Host?.GetMethod("Status")?.Invoke(null, null) as string ?? "LUZ continuity unavailable" : "";
     }
     internal static void CompleteRestore(string owner)
     {
-#if LUZ_CONTINUITY
+        if (!RestorationPending(owner)) return;
         var method = Host?.GetMethod("CompleteRestore") ?? throw new MissingMethodException("LUZ continuity restoration service is unavailable.");
         method.Invoke(null, new object[] { owner });
-#endif
     }
     internal static bool RestorationPending(string owner) => Host?.GetMethod("RestorationPending")?.Invoke(null, new object[] { owner }) is true;
     internal static void FailRestore(string owner, Exception error)

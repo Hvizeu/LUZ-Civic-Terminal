@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.7.7
+LUZ CIVIC TERMINAL 0.7.8
 Mod management, protected saves and author packaging for Nivalis Nights
 
 CHOOSE ONE DOWNLOAD

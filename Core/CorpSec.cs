@@ -582,7 +582,7 @@ public static partial class CorpSec
             {
                 var plugins = ReadPlugins(dll).ToArray(); if (plugins.Length == 0) continue;
                 using var assembly = AssemblyDefinition.ReadAssembly(dll);
-                string edition = Metadata(assembly).GetValueOrDefault("Nivalis.Continuity.Api") == "1" ? "recovery" : "standalone";
+                string edition = Metadata(assembly).GetValueOrDefault("Nivalis.Continuity.Api") == "1" ? "universal" : "standalone";
                 foreach (var plugin in plugins) result.Add(new(input, dll, Path.GetRelativePath(root, dll).Replace('\\', '/'), plugin, assembly.Name.Name, File.GetLastWriteTimeUtc(File.Exists(input) ? input : dll), edition));
             }
             catch (Exception error) when (error is BadImageFormatException or IOException or UnauthorizedAccessException) { }
@@ -647,8 +647,8 @@ public static partial class CorpSec
         return candidate with { Input = input, Relative = relative };
     }
     private static CorpSecBuildChoice Choice(ScanCandidate candidate) => new(candidate.Edition,
-        candidate.Edition == "recovery" ? "Recovery-ready build" : "Standalone build", candidate.Plugin.Version, Path.GetFullPath(candidate.Input), candidate.Relative,
-        candidate.Edition == "recovery" ? "Compiled LUZ continuity client detected" : "No compiled LUZ continuity client detected");
+        candidate.Edition == "universal" ? "Universal build" : "Standalone build", candidate.Plugin.Version, Path.GetFullPath(candidate.Input), candidate.Relative,
+        candidate.Edition == "universal" ? "Normal operation with embedded optional LUZ continuity support" : "No compiled LUZ continuity client detected");
     private static IEnumerable<PluginInfo> ReadPlugins(string dll) { try { return PluginMetadata.Read(dll); } catch (BadImageFormatException) { return Array.Empty<PluginInfo>(); } }
     private static Dictionary<string, string> Metadata(AssemblyDefinition assembly) => assembly.CustomAttributes.Where(a => a.AttributeType.FullName == "System.Reflection.AssemblyMetadataAttribute" && a.ConstructorArguments.Count == 2).ToDictionary(a => (string)a.ConstructorArguments[0].Value, a => (string)a.ConstructorArguments[1].Value);
     private static string ContractHash(AssemblyDefinition assembly)

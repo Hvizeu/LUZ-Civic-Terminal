@@ -7,14 +7,14 @@ public static class ObjectFrameworkCorpSecChecks
     public static void Run(string root, Action<bool, string> check)
     {
         string sourceRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "NivalisFurnishings"));
-        string standalone = Path.Combine(sourceRoot, "Loader", "bin", "Release", "net6.0"), recovery = Path.Combine(sourceRoot, "Loader", "bin", "Continuity", "net6.0");
-        if (!File.Exists(Path.Combine(standalone, "NivalisFurnishings.dll")) || !File.Exists(Path.Combine(recovery, "NivalisFurnishings.dll"))) throw new FileNotFoundException("Build both Object Framework editions before running the CorpSec workflow fixture.");
+        string universal = Path.Combine(sourceRoot, "Loader", "bin", "Release", "net6.0");
+        if (!File.Exists(Path.Combine(universal, "NivalisFurnishings.dll"))) throw new FileNotFoundException("Build the universal Object Framework before running the CorpSec workflow fixture.");
 
-        string builds = Path.Combine(root, "object-framework-builds"); Copy(standalone, Path.Combine(builds, "Standalone")); Copy(recovery, Path.Combine(builds, "Recovery"));
+        string builds = Path.Combine(root, "object-framework-builds"); Copy(universal, Path.Combine(builds, "Universal"));
         string data = Path.Combine(root, "object-framework-corpsec"); using var library = new Library(data); string profileBefore = library.Fingerprint(library.Active);
         var project = CorpSec.ScanFolder(library.Root, builds).Projects.Single(p => p.PluginGuid == "hvizeu.nivalis.furnishings");
-        check(project.BuildChoices.Select(c => c.Edition).Order().SequenceEqual(new[] { "recovery", "standalone" }) && project.BuildEdition.Length == 0, "Object Framework discovery presents its standalone and recovery editions without silently changing products");
-        project = CorpSec.SelectBuild(project, "recovery"); project.Author = "Hvizeu"; project.Description = "Runtime framework for custom objects."; project.Website = "https://example.invalid/object-framework"; project.SupportContact = "Object Framework support page"; CorpSec.Save(project);
+        check(project.BuildChoices.Select(c => c.Edition).SequenceEqual(new[] { "universal" }) && project.BuildEdition == "universal", "Object Framework discovery presents one universal build");
+        project.Author = "Hvizeu"; project.Description = "Runtime framework for custom objects."; project.Website = "https://example.invalid/object-framework"; project.SupportContact = "Object Framework support page"; CorpSec.Save(project);
         var analysis = CorpSec.Analyze(library.Root, project);
         check(analysis.RecoveryReady && project.SupportSource == "luz-maintained" && project.Owner == "framework" && project.Capabilities.Select(c => c.Name).Order().SequenceEqual(new[] { "behaviours", "catalogue", "module" }), "Object Framework automatically reuses its maintained framework owner and module, catalogue and behaviours capabilities");
 
@@ -28,13 +28,13 @@ public static class ObjectFrameworkCorpSecChecks
         var descriptor = SafeFiles.Read<ModSupportDescriptor>(Directory.GetFiles(project.Workspace, "mod-support.json", SearchOption.AllDirectories).Single());
         check(descriptor.Owner == "framework" && descriptor.Provenance == "luz-maintained" && descriptor.Capabilities.Select(c => c.Name).Order().SequenceEqual(new[] { "behaviours", "catalogue", "module" }), "Object Framework generated support retains its established owner and maintained provenance");
 
-        string next = Path.Combine(builds, "Recovery-next"); Copy(recovery, next); File.SetLastWriteTimeUtc(Path.Combine(next, "NivalisFurnishings.dll"), DateTime.UtcNow.AddMinutes(1));
+        string next = Path.Combine(builds, "Universal-next"); Copy(universal, next); File.SetLastWriteTimeUtc(Path.Combine(next, "NivalisFurnishings.dll"), DateTime.UtcNow.AddMinutes(1));
         project = CorpSec.RefreshFolders(library.Root).Single(p => p.PluginGuid == "hvizeu.nivalis.furnishings");
-        check(project.BuildEdition == "recovery" && project.Author == "Hvizeu" && project.SupportContact == "Object Framework support page" && Path.GetFullPath(project.Input) == Path.GetFullPath(next), "Object Framework refresh follows the next recovery build while retaining reviewed author settings");
+        check(project.BuildEdition == "universal" && project.Author == "Hvizeu" && project.SupportContact == "Object Framework support page" && Path.GetFullPath(project.Input) == Path.GetFullPath(next), "Object Framework refresh follows the next universal build while retaining reviewed author settings");
 
-        project = CorpSec.SelectBuild(project, "standalone"); var normal = CorpSec.Generate(library.Root, project, includeRecovery: false); var normalPackage = CorpSec.Package(library.Root, project, output, "nexus", includeRecovery: false).Single();
+        var normal = CorpSec.Generate(library.Root, project, includeRecovery: false); var normalPackage = CorpSec.Package(library.Root, project, output, "nexus", includeRecovery: false).Single();
         using (var archive = ZipFile.OpenRead(normalPackage.Archive))
-            check(normal.PackagePassed && !normal.RecoveryPassed && archive.Entries.Any(e => e.FullName.EndsWith("/NivalisFurnishings.Core.dll", StringComparison.Ordinal)) && !archive.Entries.Any(e => e.FullName.EndsWith("/LUZ/mod-support.json", StringComparison.Ordinal)), "Object Framework standalone edition exports normally without an incomplete recovery declaration");
+            check(normal.PackagePassed && !normal.RecoveryPassed && archive.Entries.Any(e => e.FullName.EndsWith("/NivalisFurnishings.Core.dll", StringComparison.Ordinal)) && !archive.Entries.Any(e => e.FullName.EndsWith("/LUZ/mod-support.json", StringComparison.Ordinal)), "Object Framework universal build can export an ordinary package without a generated recovery descriptor");
 
         string restoreSource = File.ReadAllText(Path.Combine(sourceRoot, "Loader", "ContinuityRestore.cs"));
         check(restoreSource.Contains("CompleteRestore(\"framework\")", StringComparison.Ordinal) && restoreSource.Contains("FailRestore(\"framework\"", StringComparison.Ordinal), "Object Framework restoration acknowledgement and failure reporting retain the framework owner");

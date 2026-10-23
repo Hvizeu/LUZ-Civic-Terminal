@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.7.7 - NEXUS UPLOAD
+LUZ CIVIC TERMINAL 0.7.8 - NEXUS UPLOAD
 
 Use the existing LUZ Civic Terminal listing.
 This is a desktop application. Choose manual-download installation guidance.
@@ -10,28 +10,28 @@ Upload the four platform ZIPs from the LUZ deployment folder as separate files.
 Do not re-ZIP them or upload the private QA/status records.
 
 Main Windows file
-  Filename: LUZ-Civic-Terminal-0.7.7-win-x64.zip
-  Display name: LUZ Civic Terminal 0.7.7 - Windows x64
+  Filename: LUZ-Civic-Terminal-0.7.8-win-x64.zip
+  Display name: LUZ Civic Terminal 0.7.8 - Windows x64
   Description: Mod management and CorpSec author tools. Includes the installer,
   .NET, bundled Mod Continuity and step-by-step guides. Extract outside the
   game and run Install LUZ.exe.
 
 Optional Linux file
-  Filename: LUZ-Civic-Terminal-0.7.7-linux-x64.zip
-  Display name: LUZ Civic Terminal 0.7.7 - Linux x64 (experimental)
+  Filename: LUZ-Civic-Terminal-0.7.8-linux-x64.zip
+  Display name: LUZ Civic Terminal 0.7.8 - Linux x64 (experimental)
   Description: Graphical glibc desktop build. Requires X11/XWayland and xdg-open.
   Includes installation and author guides. Protected game sessions require
   native Windows.
 
 Optional Intel Mac file
-  Filename: LUZ-Civic-Terminal-0.7.7-osx-x64.zip
-  Display name: LUZ Civic Terminal 0.7.7 - macOS Intel (experimental)
+  Filename: LUZ-Civic-Terminal-0.7.8-osx-x64.zip
+  Display name: LUZ Civic Terminal 0.7.8 - macOS Intel (experimental)
   Description: macOS 15 or newer. Follow Prepare macOS.command and
   Install LUZ.command. Not notarized. Protected game sessions require Windows.
 
 Optional Apple Silicon file
-  Filename: LUZ-Civic-Terminal-0.7.7-osx-arm64.zip
-  Display name: LUZ Civic Terminal 0.7.7 - macOS Apple Silicon (experimental)
+  Filename: LUZ-Civic-Terminal-0.7.8-osx-arm64.zip
+  Display name: LUZ Civic Terminal 0.7.8 - macOS Apple Silicon (experimental)
   Description: macOS 15 or newer on M-series hardware. Follow the included
   preparation and installer helpers. Not notarized. Protected game sessions
   require Windows.
@@ -41,7 +41,7 @@ the release package. Players need only the ZIP for their platform.
 
 PAGE UPDATE
 
-1. Set the version to 0.7.7.
+1. Set the version to 0.7.8.
 2. Paste DESCRIPTION.bbcode.txt into the existing page's BBCode description.
    Keep the endorsement image and the clickable Ko-fi banner directly below it.
    Keep any existing gallery images and required credits.

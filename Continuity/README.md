@@ -1,6 +1,6 @@
 # Mod Continuity
 
-This reference matches LUZ 0.7.7 and Continuity API/runtime 0.2.1. For ordinary profiles and backups, see the [player guide](../PLAYER-GUIDE.md). For author setup, see the [CorpSec walkthrough](../CORPSEC-GUIDE.md).
+This reference matches LUZ 0.7.8 and Continuity API/runtime 0.2.1. For ordinary profiles and backups, see the [player guide](../PLAYER-GUIDE.md). For author setup, see the [CorpSec walkthrough](../CORPSEC-GUIDE.md).
 
 LUZ includes the compatibility runtime, API and supported-build catalog in its desktop release. GitHub releases update them with the launcher. No separate mod-site download is needed.
 
@@ -59,6 +59,6 @@ Run `python tools/build_continuity.py` before building or packaging the desktop 
 
 `python tools/package.py --rid all` includes that payload in every desktop package. The GitHub workflow builds matching version tags and publishes them as stable GitHub releases; manual and pull-request builds are also available. The launcher updater requires the platform ZIP and GitHub SHA-256 digest; pushing source alone does not update installed applications.
 
-Source integration in the maintained mods uses `-p:LuzContinuity=true`. Default builds retain their standalone behavior. Migration output directories are separate from existing public and owner outputs. The Update #6 migration identities are Better Time 2.3.6, Unofficial Patch 0.5.5, Nivalis Expanded 0.3.12, City Life 1.2.9, Object Framework 0.4.1 and Furniture Lab 0.2.1. Expanded requires Unofficial Patch `>=0.5.5 <0.6.0` and the Continuity runtime. Its capability waits for the Unofficial Patch module and inventory-transaction capability; Unofficial Patch remains the owner of existing manager, Culinary Inspiration, restaurant-review, recovery and native inventory transactions.
+Maintained mods embed the Continuity API marker and optional host dependency in their normal release build. The same ZIP works by manual extraction without LUZ and through LUZ with protected support. Update #6 uses Better Time 2.2.15, Unofficial Patch 0.4.12, Nivalis Expanded 0.2.21, City Life 1.1.32, Object Framework 0.3.15 and Furniture Lab 0.1.10. Expanded requires Unofficial Patch `>=0.4.12 <0.5.0`; its protected capability waits for the Unofficial Patch module and inventory-transaction capability. Unofficial Patch remains the owner of manager, Culinary Inspiration, restaurant-review, recovery and native inventory transactions.
 
 Protected game sessions initially require native Windows. Wine/Proton protected sessions are unsupported. Existing game launch and mod-management features remain available on the other launcher platforms.

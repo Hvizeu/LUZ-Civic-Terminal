@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.8
+
+- Accept one universal mod package in ordinary profiles while activating its embedded Continuity contract when the LUZ protected runtime is present.
+- Keep missing Continuity runtime files nonfatal for ordinary profiles; protected sessions still require the verified runtime, catalog and exact payload qualification.
+- Added package and compatibility regressions for manual installation, LUZ import, optional-host absence and protected-host activation.
+
 ## 0.7.7
 
 - Added the exact native and metadata identity for Nivalis Nights Steam build 26118043 while retaining build 25984046 for existing recovery timelines.

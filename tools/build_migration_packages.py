@@ -29,7 +29,7 @@ def prepare(output, baseline, selected_products=None):
     definitions = [
         ('Better Time', 'NivalisBetterTime-2.2.14-Nexus.zip', 'NivalisSlowDays', '2.2.14', '2.3.6', SOURCE / 'NivalisSlowDays/src-v2/bin/Continuity/net6.0/NivalisSlowDays.dll'),
         ('Unofficial Patch', 'NivalisUnofficialPatch-0.4.11-Nexus.zip', 'NivalisUnofficialPatch', '0.4.11', '0.5.5', SOURCE / 'NivalisUnofficialPatch/src/bin/ContinuityPublic/net6.0/NivalisUnofficialPatch.dll'),
-        ('City Life', 'NivalisCityLife-1.2.11-Continuity-OwnerQA.zip', 'NivalisCityLife', '1.2.11', '1.2.11', SOURCE / 'NivalisCityLife/analysis/update6-1129-20261022/build/continuity/NivalisCityLife.dll'),
+        ('City Life', 'NivalisCityLife-1.2.11-LUZ-Continuity-Nexus.zip', 'NivalisCityLife', '1.2.11', '1.2.11', SOURCE / 'NivalisCityLife/analysis/update6-1129-20261022/build/continuity/NivalisCityLife.dll'),
         ('Object Framework', 'Nivalis-Object-Framework-Runtime-0.3.14.zip', 'NivalisFurnishings', '0.3.14', '0.4.1', SOURCE / 'NivalisFurnishings/Loader/bin/ContinuityUpdate6/net6.0/NivalisFurnishings.dll'),
         ('Furniture Lab', 'Nivalis-Furniture-Lab-0.1.9.zip', 'NivalisFurnitureLab', '0.1.9', '0.2.1', SOURCE / 'NivalisFurnitureLab/src/bin/ContinuityUpdate6/net6.0/NivalisFurnitureLab.dll')]
     records = []
@@ -69,7 +69,7 @@ def prepare(output, baseline, selected_products=None):
         allowed = (frozenset({'API/Example/BetterTimeApiExample.csproj', 'API/Example/ExamplePlugin.cs'})
                    if name == 'Better Time' else frozenset())
         validate_release_payload(files, allowed_development_files=allowed)
-        suffix = '-LUZ-Migration-OwnerQA.zip' if name == 'City Life' else '-LUZ-Migration.zip'
+        suffix = '-LUZ-Migration.zip'
         destination = output / (name.replace(' ', '-') + '-' + version + suffix)
         stage = destination.with_suffix('.partial')
         with zipfile.ZipFile(stage, 'w', zipfile.ZIP_DEFLATED) as archive:
@@ -85,7 +85,7 @@ def prepare(output, baseline, selected_products=None):
     # a payload baseline. Construct its package from an explicit public allowlist.
     # Unofficial Patch remains a separate package and owns the existing companions.
     if selected is None or 'Nivalis Expanded' in selected:
-        name, version = 'Nivalis Expanded', '0.3.15'
+        name, version = 'Nivalis Expanded', '0.3.20'
         dll = SOURCE / 'NivalisExpanded/src/bin/ContinuityPublic/net6.0/NivalisExpanded.dll'
         prefix = 'BepInEx/plugins/NivalisExpanded/'
         manifest = {
@@ -113,7 +113,7 @@ def prepare(output, baseline, selected_products=None):
         if owned != ['NivalisExpanded.dll']:
             raise RuntimeError('Expanded migration package contains an unexpected binary')
         validate_release_payload(files)
-        destination = output / 'Nivalis-Expanded-0.3.15-LUZ-Migration.zip'
+        destination = output / 'Nivalis-Expanded-0.3.20-LUZ-Migration.zip'
         stage = destination.with_suffix('.partial')
         with zipfile.ZipFile(stage, 'w', zipfile.ZIP_DEFLATED) as archive:
             for path, data in files.items(): archive.writestr(path, data)
@@ -135,12 +135,14 @@ def prepare(output, baseline, selected_products=None):
                 if checksum.is_symlink() or checksum.resolve().parent != output.resolve():
                     raise RuntimeError('Refusing redirected superseded Expanded checksum: ' + str(checksum))
                 checksum.unlink()
-        records.append(dict(Product=name, Version=version, Archive=destination.name, Sha256=digest,
+        records.append(dict(Product='Expanded', Version=version, Archive=destination.name, Sha256=digest,
                             SourceDllSha256=hashlib.sha256(dll.read_bytes()).hexdigest(), Optional=True))
     package_records = records
     package_index = output / 'PACKAGES.json'
     if selected is not None and package_index.is_file():
         existing = json.loads(package_index.read_text(encoding='utf8'))
+        if 'Nivalis Expanded' in selected:
+            existing = [record for record in existing if record.get('Product') != 'Nivalis Expanded']
         replacements = {record['Product']: record for record in records}
         package_records = [replacements.pop(record.get('Product'), record) for record in existing]
         package_records.extend(replacements.values())

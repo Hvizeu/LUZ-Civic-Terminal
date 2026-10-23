@@ -20,7 +20,7 @@ if (args.Length == 2 && args[0] == "--check-adapters")
     }
     return;
 }
-if (args.Length < 3) throw new ArgumentException("Supply report.json, the pinned BepInEx core directory, then built migration DLLs.");
+if (args.Length < 3) throw new ArgumentException("Supply report.json, the pinned BepInEx core directory, then built universal DLLs.");
 using var resolver = new DefaultAssemblyResolver(); resolver.AddSearchDirectory(Path.GetFullPath(args[1]));
 var reports = new List<object>();
 IEnumerable<TypeDefinition> Types(IEnumerable<TypeDefinition> types) => types.SelectMany(t => new[] { t }.Concat(Types(t.NestedTypes)));
@@ -40,8 +40,8 @@ foreach (string path in args.Skip(2))
     var mediated = methods.SelectMany(m => m.Body.Instructions).Select(i => i.Operand).OfType<MethodReference>().Where(m => m.DeclaringType.Name == "ContinuityClient").GroupBy(m => m.Name).ToDictionary(g => g.Key, g => g.Count());
     var plugins = Types(assembly.MainModule.Types).Where(t => t.CustomAttributes.Any(a => a.AttributeType.Name == "BepInPlugin")).ToArray();
     bool dependency = plugins.All(t => t.CustomAttributes.Any(a => a.AttributeType.Name == "BepInDependency" && a.ConstructorArguments.Count > 0 && a.ConstructorArguments[0].Value as string == "hvizeu.luz.continuity"));
-    if (metadata.GetValueOrDefault("Nivalis.Continuity.Api") != "1" || !dependency) throw new InvalidDataException("Migration API or required bootstrap dependency is missing: " + assembly.Name.Name);
-    reports.Add(new { Assembly = assembly.Name.Name, Version = assembly.Name.Version.ToString(3), Api = 1, RequiredBootstrap = dependency, MediatedCalls = mediated, DirectNativeReferences = direct, UnsafeOwners = unsafeOwners, RequiresExactBuild = direct.Length != 0 || unsafeOwners.Length != 0, NativeHash = metadata.GetValueOrDefault("Nivalis.NativeBuild"), MetadataHash = metadata.GetValueOrDefault("Nivalis.MetadataBuild") });
+    if (metadata.GetValueOrDefault("Nivalis.Continuity.Api") != "1" || !dependency) throw new InvalidDataException("Embedded Continuity API or optional host dependency is missing: " + assembly.Name.Name);
+    reports.Add(new { Assembly = assembly.Name.Name, Version = assembly.Name.Version.ToString(3), Api = 1, OptionalHostDependency = dependency, MediatedCalls = mediated, DirectNativeReferences = direct, UnsafeOwners = unsafeOwners, RequiresExactBuild = direct.Length != 0 || unsafeOwners.Length != 0, NativeHash = metadata.GetValueOrDefault("Nivalis.NativeBuild"), MetadataHash = metadata.GetValueOrDefault("Nivalis.MetadataBuild") });
 }
 File.WriteAllText(args[0], JsonSerializer.Serialize(new { Schema = 1, Modules = reports, NativeExecutionTested = false }, new JsonSerializerOptions { WriteIndented = true }));
-Console.WriteLine("Coverage written for " + reports.Count + " migration modules. Residual native dependencies retain exact-build requirements.");
+Console.WriteLine("Coverage written for " + reports.Count + " universal modules. Residual native dependencies retain exact-build requirements.");

@@ -27,11 +27,18 @@ internal static class CompatibilityRecoveryChecks
             var missing = new MethodReference("set_isUpdating", caller.MainModule.TypeSystem.Void, target); missing.Parameters.Add(new(caller.MainModule.TypeSystem.Boolean));
             var owner = new TypeDefinition("Fixture", "Caller", TypeAttributes.Public | TypeAttributes.Class, caller.MainModule.TypeSystem.Object); caller.MainModule.Types.Add(owner);
             var invoke = new MethodDefinition("Invoke", MethodAttributes.Public | MethodAttributes.Static, caller.MainModule.TypeSystem.Void); owner.Methods.Add(invoke);
-            invoke.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_0)); invoke.Body.Instructions.Add(Instruction.Create(OpCodes.Call, missing)); invoke.Body.Instructions.Add(Instruction.Create(OpCodes.Ret)); caller.Write(plugin);
+            invoke.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_0)); invoke.Body.Instructions.Add(Instruction.Create(OpCodes.Call, missing)); invoke.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+            var constructor = typeof(System.Reflection.AssemblyMetadataAttribute).GetConstructor([typeof(string), typeof(string)]) ?? throw new MissingMethodException();
+            var continuity = new CustomAttribute(caller.MainModule.ImportReference(constructor));
+            continuity.ConstructorArguments.Add(new(caller.MainModule.TypeSystem.String, "Nivalis.Continuity.Api"));
+            continuity.ConstructorArguments.Add(new(caller.MainModule.TypeSystem.String, "1"));
+            caller.CustomAttributes.Add(continuity);
+            caller.Write(plugin);
         }
         var snapshot = new CompatibilitySnapshot(game, "fixture", false, new(StringComparer.OrdinalIgnoreCase) { ["plugins/Caller.dll"] = plugin });
         var report = Compatibility.InspectSnapshot(snapshot);
         check(report.Status == CompatibilityStatus.Incompatible && report.Findings.Any(f => f.Code == "MissingMember" && f.Expected.Contains("set_isUpdating")), "actual removed setter is rejected before invocation");
+        check(!report.Findings.Any(f => f.Code == "ContinuityBootstrapMissing"), "embedded optional Continuity support does not require the LUZ runtime in an ordinary profile");
         check(report.Findings.Any(f => f.Code == "BindingsUnverified"), "missing binding provenance remains unverified");
         var acknowledgment = Compatibility.Acknowledge(report); Compatibility.Authorize(report, acknowledgment);
         reject(() => Compatibility.Authorize(report, acknowledgment), "override is single use");

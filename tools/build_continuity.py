@@ -61,7 +61,7 @@ def build(loader=None):
         temp = Path(temp)
         if loader is None:
             archive = temp / 'loader.zip'
-            request = urllib.request.Request(LOADER_URL, headers={'User-Agent': 'LUZ-Civic-Terminal-Build/0.7.7 (+https://github.com/Hvizeu/LUZ-Civic-Terminal)'})
+            request = urllib.request.Request(LOADER_URL, headers={'User-Agent': 'LUZ-Civic-Terminal-Build/0.7.8 (+https://github.com/Hvizeu/LUZ-Civic-Terminal)'})
             with urllib.request.urlopen(request, timeout=60) as response, archive.open('wb') as output:
                 total = 0
                 while block := response.read(1024 * 1024):
