@@ -68,6 +68,10 @@ public sealed partial class MainWindow
         Check(maintenanceActions.Length > 0 && maintenanceActions.All(b => b.Content != null), "Authored Maintenance actions have visible content");
         foreach(string action in new[]{"Check LUZ updates","Diagnose game update","Refresh game bindings"})
             Check(body.GetVisualDescendants().OfType<Button>().Any(b=>AutomationProperties.GetName(b)==action),action+" is available in Maintenance");
+        Check(OperatingSystem.IsWindows()
+            ? body.GetVisualDescendants().OfType<TextBlock>().Any(label => label.Text?.Contains("no setup is required", StringComparison.OrdinalIgnoreCase) == true)
+            : body.GetVisualDescendants().OfType<TextBlock>().Any(label => label.Text?.Contains("Windows only", StringComparison.OrdinalIgnoreCase) == true),
+            "Vortex integration exposes the supported-host setup state");
         PreviewPage("Maintenance-recovery-both"); Dispatcher.UIThread.RunJobs();
         Check(!applyButton.IsEnabled && !playButton.IsEnabled && profileLabel.Text!.Contains("Profile and BepInEx"), "Both journals show specific recovery status and block unsafe actions");
         foreach (string action in new[] { "Recover profile deployment", "Recover BepInEx installation" })

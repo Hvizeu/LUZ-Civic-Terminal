@@ -55,6 +55,7 @@ try
     if (args.Contains("--object-framework")) ObjectFrameworkCorpSecChecks.Run(root, Check);
     else Console.WriteLine("NOT RUN: optional Object Framework workspace check (use --object-framework with both built editions). Independent CorpSec fixtures ran above.");
     await NxmChecks.Run(root, Check, Reject);
+    VortexBridgeChecks.Run(root, Check, Reject);
     foreach (var bad in new[] { "../outside", "foo/../../outside", "C:/outside", "foo:bar", "con.dll", "x/../y", "x. /y", "foo./x" }) Reject(() => FileSafety.Under(root, bad), "reject path " + bad);
     var traversal = Zip("traversal", ("../escape.txt", "bad")); Reject(() => FileSafety.Extract(traversal, Path.Combine(root, "extract")), "reject ZIP traversal");
     var duplicate = Zip("duplicates", ("plugins/A.txt", "a"), ("plugins/a.txt", "b")); Reject(() => FileSafety.Extract(duplicate, Path.Combine(root, "duplicate-extract")), "reject case duplicate ZIP paths");

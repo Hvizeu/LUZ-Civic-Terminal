@@ -15,6 +15,8 @@ public static class LocalImport
     public static void ValidateActivation(string message)
     {
         if (message.StartsWith(Prefix, StringComparison.Ordinal)) _ = Validate(message);
+        else if (message.StartsWith(VortexBridge.SetupPrefix, StringComparison.Ordinal)) _ = VortexBridge.ValidateSetupMessage(message);
+        else if (message.StartsWith(VortexBridge.Prefix, StringComparison.Ordinal)) _ = VortexBridge.ValidateMessage(message);
         else if (message.Length > 0) _ = NxmLink.Parse(message);
     }
 }

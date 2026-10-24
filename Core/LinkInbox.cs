@@ -27,8 +27,8 @@ public sealed class LinkInbox : IDisposable
                 await pipe.WriteAsync(new byte[] { 1 }, timeout.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested) { break; }
-            catch (Exception ex) when (ex is IOException or OperationCanceledException or InvalidDataException or DecoderFallbackException) { error("A Nexus link could not be received. Retry the browser download."); }
-            catch (Exception) { error("The Nexus link receiver stopped. Restart the terminal to receive browser downloads."); break; }
+            catch (Exception ex) when (ex is IOException or OperationCanceledException or InvalidDataException or DecoderFallbackException) { error("An activation request could not be received. Retry it from Vortex or your browser."); }
+            catch (Exception) { error("The activation receiver stopped. Restart the terminal before retrying Vortex or browser downloads."); break; }
         }
     }
     private static async Task<string> Read(Stream stream, CancellationToken ct)

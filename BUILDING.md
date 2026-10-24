@@ -6,6 +6,8 @@ Requires .NET SDK 10 and Python 3.11 or newer. Game binaries and game sources ar
 python tools/build_continuity.py
 dotnet build Desktop/Desktop.csproj -c Release
 dotnet run --project Tests/Tests.csproj -c Release
+npm --prefix VortexExtension test
+npm --prefix VortexExtension run package
 python tools/package.py --rid win-x64
 ```
 
@@ -28,7 +30,7 @@ CLI exit code `0` means the requested operation passed; `2` means analysis or de
 
 Generate again from final build outputs so descriptor hashes match every shipped plugin, adapter and payload. Thunderstore dependency mappings use `plugin GUID | Author-Package-Version`; unresolved required mappings stop that preset. Desktop and CLI writes use the same authoring lease.
 
-Other package targets are `linux-x64`, `osx-x64`, `osx-arm64` and `all`. Packaging runs the offline fixtures and headless UI checks, creates self-contained ZIPs, retains third-party notices and validates the release payload. Every ZIP includes the player guide, CorpSec walkthrough, continuity reference, quick start, release notes, changelog and this command reference. Run macOS packaging on macOS for a locally signed bundle; cross-built packages include a preparation helper. No packages are notarized.
+Other package targets are `linux-x64`, `osx-x64`, `osx-arm64` and `all`. Packaging runs the offline fixtures, Vortex extension fixtures and headless UI checks, creates self-contained ZIPs, retains third-party notices and validates the release payload. Windows packaging also creates the separately versioned canonical `game-nivalisnights-VERSION.zip`. Every LUZ ZIP includes the player guide, CorpSec walkthrough, continuity reference, quick start, release notes, changelog and this command reference. Run macOS packaging on macOS for a locally signed bundle; cross-built packages include a preparation helper. No packages are notarized.
 
 The default fixtures build from this repository alone, including independent stateless, companion-file and custom-adapter examples. An additional workspace integration check uses real Object Framework outputs:
 

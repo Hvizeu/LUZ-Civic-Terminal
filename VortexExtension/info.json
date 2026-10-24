@@ -1,0 +1,9 @@
+{
+  "id": "game-nivalisnights",
+  "gameId": 10401,
+  "name": "Nivalis Nights Support",
+  "author": "Sebastian Maute, Hvizeu",
+  "version": "0.5.0",
+  "description": "Installs and configures Nexus-downloaded LUZ packages automatically, then hands Vortex-managed Nivalis Nights mods to LUZ for profiles and safe deployment.",
+  "logo": "gameart.png"
+}

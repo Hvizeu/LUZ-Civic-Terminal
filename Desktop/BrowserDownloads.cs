@@ -10,8 +10,22 @@ public sealed partial class MainWindow
     private readonly Queue<string> incomingProjects = new();
     public void ReceiveLink(string address)
     {
+        if (address.StartsWith(VortexBridge.SetupPrefix, StringComparison.Ordinal))
+        {
+            VortexSetupResult result = VortexBridge.Configure(library, VortexBridge.ValidateSetupMessage(address),
+                Environment.ProcessPath ?? throw new IOException("The LUZ executable path is unavailable."));
+            status.Text = result.Message;
+            if (page == "Maintenance") RefreshPage();
+            return;
+        }
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
+        if (address.StartsWith(VortexBridge.Prefix, StringComparison.Ordinal))
+        {
+            try { ReceiveVortex(address); }
+            catch (Exception ex) { Error(ex); }
+            return;
+        }
         if (address.StartsWith(LocalImport.Prefix, StringComparison.Ordinal))
         {
             try { var path = LocalImport.Validate(address); if (incomingProjects.Count >= 20) throw new InvalidOperationException("Finish the queued project imports first."); if (!incomingProjects.Contains(path)) incomingProjects.Enqueue(path); _ = ProcessLinks(); }
@@ -29,6 +43,11 @@ public sealed partial class MainWindow
         processingLinks = true;
         try
         {
+            while (incomingVortex.Count > 0 && operation == null)
+            {
+                VortexRequest request = incomingVortex.Dequeue();
+                await ProcessVortex(request);
+            }
             while (incomingProjects.Count > 0 && operation == null)
             {
                 string path = incomingProjects.Peek();

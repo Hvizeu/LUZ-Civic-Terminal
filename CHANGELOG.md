@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.8.2
+
+- Added a versioned identity marker to the Windows package so the canonical Nivalis Nights Vortex extension can distinguish LUZ from ordinary mod archives.
+- Installing LUZ through Nexus Mod Manager Download now pairs it immediately and registers it as the primary Nivalis Nights tool.
+- Switched first-run fallback installation to the LUZ Nexus Main File through Vortex's signed-in account, with no LUZ API key.
+- Kept user-selected Nexus installation, automatic Nexus installation and later LUZ updates on one idempotent connection path.
+
+## 0.8.1
+
+- Replaced the separate bridge-extension workflow with an update to the canonical Nivalis Nights Vortex extension.
+- Vortex now discovers Steam, creates the isolated deployment root, installs or finds LUZ, pairs it headlessly, and registers LUZ as the primary tool.
+- First-time setup no longer requires opening LUZ Maintenance, selecting an exchange folder, removing a competing extension, or installing a second extension.
+- Routine updates are now install/update in Vortex, then Play. Play synchronizes and applies through LUZ but never launches Nivalis.
+- Existing direct Vortex deployments require one explicit Purge Mods migration; no existing game deployment is removed silently.
+
+## 0.8.0
+
+- Added the Windows Nivalis Nights — LUZ Bridge extension for Vortex 2.9.0 or newer.
+- Vortex Play now exports completed per-mod staging contents to an isolated, hashed snapshot and starts or activates LUZ with the request. It does not launch Nivalis.
+- Added transactional batch synchronization with persistent Vortex bindings, revision records and deliberate per-profile exclusions.
+- New Vortex packages enter the captured profile enabled. Updates preserve order, enabled state, pins and notes. Pinned versions are reported and retained.
+- Vortex removal or disablement no longer removes the LUZ copy; its update source becomes unavailable.
+- Added persistent Queued, Processing, NeedsAttention, Applied, NoChanges, Cancelled, Failed and RecoveryRequired results so a receipt is never reported as an applied profile.
+- Automatic Apply now uses the existing compatibility, deployment and recovery transactions. First deployment, unrelated pending edits, new compatibility findings, a running game and recovery journals stop automatic Apply.
+- Repeated requests reconnect to their result, and identical snapshots do not create duplicate entries, deployments or restore points.
+- Added exchange traversal, link, size, identity and hash validation plus fixtures for interruption-safe package boundaries and profile rollback.
+
 ## 0.7.8
 
 - Accept one universal mod package in ordinary profiles while activating its embedded Continuity contract when the LUZ protected runtime is present.

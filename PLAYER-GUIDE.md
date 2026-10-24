@@ -1,6 +1,6 @@
 # Player guide
 
-This guide matches LUZ 0.7.8. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
+This guide matches LUZ 0.8.2. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
 
 ## 1. Connect your game and existing mods
 
@@ -33,7 +33,7 @@ If you move Nivalis with Steam later, select the new location in Maintenance and
 
 Import adds a package to LUZ's library/profile. Apply replaces deployed plugins and patchers with the selected profile's enabled contents. A DLL alone can be missing assets or support files from its original ZIP.
 
-LUZ 0.7.8 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. The Update #6 universal package is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.12 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
+LUZ 0.8.2 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. The Update #6 universal package is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.12 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
 
 Lower rows in the deployment order win shared-file conflicts. Drag the dotted handles or use **Move up** and **Move down**. Auto-sort follows declared dependencies; BepInEx controls plugin startup order.
 
@@ -63,6 +63,23 @@ When a page offers **Mod Manager Download**, LUZ can receive its NXM link. Regis
 If another manager handles your other games, keep it as the default and use **Paste download link** or manual ZIP import in LUZ. Pasting a link does not change the handler. LUZ cannot add a missing Mod Manager Download button to a Nexus page.
 
 On Windows, **Maintenance > Browser downloads > Remove LUZ as NXM manager** removes LUZ's registration while preserving mods and profiles. Choose a replacement through **Open Windows Default apps**, or use the replacement manager's registration procedure. The extracted installer also provides registration removal.
+
+### Automatic Vortex integration on Windows
+
+The canonical **Nivalis Nights Support** extension requires Vortex 2.9.0 or newer. It owns the existing `nivalisnights` game identity and includes the LUZ handoff; there is no competing bridge extension. Vortex must have this support before it can recognize the LUZ archive as an application instead of an ordinary mod.
+
+1. Choose **Manage** for Nivalis Nights so Vortex obtains the canonical extension and finds Steam.
+2. On the LUZ Nexus page, choose **Mod Manager Download**, then install the downloaded file in Vortex.
+3. Expected: Vortex recognizes the official LUZ package, installs it in its isolated tool area, pairs it to the detected game and makes it primary. No LUZ folder selection or Maintenance connection is required.
+4. Manage Nexus mod downloads and updates in Vortex.
+5. Press Play in Vortex. Expected: Vortex publishes a complete exchange snapshot, starts or activates LUZ with that request, and does not launch Nivalis.
+6. Read the LUZ result. **Applied** means the captured profile passed compatibility checks and the normal deployment transaction. **NeedsAttention** means LUZ synchronized what it could but needs profile, compatibility or package review. **RecoveryRequired** retains the existing recovery journal.
+
+If the older extension left a direct Vortex deployment in the game folder, use **Purge Mods** once when prompted and choose Manage again. This is the only migration-only step; existing package staging is retained.
+
+The extension sends every installed Vortex package, including packages disabled in a Vortex profile. LUZ's switches control gameplay. New supported packages enter the selected LUZ profile enabled. Existing order, disabled states, pins and notes stay intact. A pinned update is reported but not selected. Removing or disabling a package in Vortex leaves its imported LUZ package and profile entry in place; LUZ marks the update source unavailable.
+
+LUZ does not auto-apply a first deployment, a profile with unrelated pending edits, a new compatibility warning, a running game or an outstanding recovery. Review those cases in LUZ. Repeating an unchanged snapshot does not create another profile entry, deployment or restore point. **Disconnect** stops future synchronization and keeps imported packages and profiles.
 
 ## 6. Read a compatibility warning
 

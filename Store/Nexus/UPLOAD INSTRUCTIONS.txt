@@ -1,54 +1,65 @@
-LUZ CIVIC TERMINAL 0.7.8 - NEXUS UPLOAD
+LUZ CIVIC TERMINAL 0.8.2 - NEXUS UPLOAD
 
 Use the existing LUZ Civic Terminal listing.
-This is a desktop application. Choose manual-download installation guidance.
-The application is extracted outside the Nivalis game directory.
+Keep the listing on the Nivalis Nights Nexus domain so its NXM downloads use
+the canonical `nivalisnights` identity. Enable Mod Manager Download for the
+Windows Main File. The canonical game extension installs that file into its
+isolated Vortex tool area; it is never deployed into the game directory.
 
 FILES
 
-Upload the four platform ZIPs from the LUZ deployment folder as separate files.
+Upload the four platform ZIPs from the LUZ deployment folder as separate files. Submit the canonical Vortex extension package through the Vortex extension workflow; it replaces version 0.3.4 of `game-nivalisnights`.
 Do not re-ZIP them or upload the private QA/status records.
 
 Main Windows file
-  Filename: LUZ-Civic-Terminal-0.7.8-win-x64.zip
-  Display name: LUZ Civic Terminal 0.7.8 - Windows x64
-  Description: Mod management and CorpSec author tools. Includes the installer,
-  .NET, bundled Mod Continuity and step-by-step guides. Extract outside the
-  game and run Install LUZ.exe.
+  Filename: LUZ-Civic-Terminal-0.8.2-win-x64.zip
+  Display name: LUZ Civic Terminal 0.8.2 - Windows x64
+  Description: Main Vortex-enabled Windows package. With canonical Nivalis
+  Nights Support active, Mod Manager Download installs, pairs and registers
+  LUZ automatically. Manual users may extract it outside the game and run
+  Install LUZ.exe.
 
 Optional Linux file
-  Filename: LUZ-Civic-Terminal-0.7.8-linux-x64.zip
-  Display name: LUZ Civic Terminal 0.7.8 - Linux x64 (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.2-linux-x64.zip
+  Display name: LUZ Civic Terminal 0.8.2 - Linux x64 (experimental)
   Description: Graphical glibc desktop build. Requires X11/XWayland and xdg-open.
   Includes installation and author guides. Protected game sessions require
   native Windows.
 
 Optional Intel Mac file
-  Filename: LUZ-Civic-Terminal-0.7.8-osx-x64.zip
-  Display name: LUZ Civic Terminal 0.7.8 - macOS Intel (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.2-osx-x64.zip
+  Display name: LUZ Civic Terminal 0.8.2 - macOS Intel (experimental)
   Description: macOS 15 or newer. Follow Prepare macOS.command and
   Install LUZ.command. Not notarized. Protected game sessions require Windows.
 
 Optional Apple Silicon file
-  Filename: LUZ-Civic-Terminal-0.7.8-osx-arm64.zip
-  Display name: LUZ Civic Terminal 0.7.8 - macOS Apple Silicon (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.2-osx-arm64.zip
+  Display name: LUZ Civic Terminal 0.8.2 - macOS Apple Silicon (experimental)
   Description: macOS 15 or newer on M-series hardware. Follow the included
   preparation and installer helpers. Not notarized. Protected game sessions
   require Windows.
+
+Canonical Vortex extension update
+  Filename: game-nivalisnights-0.5.0.zip
+  Display name: Nivalis Nights Support 0.5.0
+  Description: Windows game support for Vortex 2.9.0 or newer. It recognizes
+  the Nexus LUZ package, installs and pairs it automatically, and keeps LUZ in
+  charge of profiles and game deployment.
 
 Every ZIP has a .sha256 sidecar. Use it to verify the selected upload matches
 the release package. Players need only the ZIP for their platform.
 
 PAGE UPDATE
 
-1. Set the version to 0.7.8.
+1. Set the LUZ version to 0.8.2.
 2. Paste DESCRIPTION.bbcode.txt into the existing page's BBCode description.
    Keep the endorsement image and the clickable Ko-fi banner directly below it.
    Keep any existing gallery images and required credits.
 3. Paste CHANGELOG.txt into the new version's changelog.
 4. Use SUMMARY.txt for the short description.
-5. Confirm Windows is the main download and the other platforms are clearly
-   labelled experimental.
+5. Confirm Windows is the Main File with Mod Manager Download enabled, the
+   bridge is labelled Windows/Vortex, and the other platforms are clearly
+   labelled experimental and manual-only.
 6. Check the rendered page: cyan player features, gold author tools, green
    save features and purple maintenance features should have large headings.
 7. Check that the page's current requirements distinguish ordinary mod

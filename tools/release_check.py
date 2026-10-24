@@ -1,5 +1,5 @@
 """Check project payloads and inspect compressed .NET bundle entries before release."""
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import io
 import json
 import re
@@ -18,8 +18,22 @@ def check(name, data, owned=True):
     if zipfile.is_zipfile(io.BytesIO(data)):
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             if archive.testzip() is not None: raise ValueError('Invalid archive: ' + name)
+            entries = {item.filename: item for item in archive.infolist() if not item.is_dir()}
+            manifests = [entry for entry in entries if PurePosixPath(entry).name == 'LUZ Civic Terminal.deps.json']
+            allowed = set()
+            if manifests:
+                if len(manifests) != 1: raise ValueError('Expected one application dependency manifest in ' + name)
+                manifest = PurePosixPath(manifests[0]); deps = json.loads(archive.read(entries[manifests[0]]))
+                for target in deps['targets'].values():
+                    for identity, assets in target.items():
+                        if deps['libraries'][identity]['type'] not in {'package', 'runtimepack'}: continue
+                        for section in ('runtime', 'native', 'resources', 'runtimeTargets'):
+                            for asset in assets.get(section, {}): allowed.add((manifest.parent / PurePosixPath(asset).name).as_posix())
             for item in archive.infolist():
-                if not item.is_dir(): check(name + '/' + item.filename, archive.read(item), owned)
+                if not item.is_dir():
+                    inner = PurePosixPath(item.filename)
+                    third_party = 'Notices' in inner.parts or inner.as_posix() in allowed
+                    check(name + '/' + item.filename, archive.read(item), owned and not third_party)
         return
     if owned:
         for text in (name, data.decode('utf8', 'ignore'), data.decode('utf-16-le', 'ignore'), data[1:].decode('utf-16-le', 'ignore')):

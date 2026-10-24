@@ -1,15 +1,13 @@
-# LUZ Civic Terminal 0.7.8
+# LUZ Civic Terminal 0.8.2
 
-Changes since 0.7.7:
+LUZ can now be installed directly from its Nivalis Nights Nexus page with **Mod Manager Download**. Once the canonical **Nivalis Nights Support** extension is active, Vortex recognizes the official Windows package, installs it as an isolated tool, connects it to the correct Steam installation, and makes LUZ the primary tool without a Maintenance setup flow.
 
-- Accepts the same universal mod ZIP for manual installation and LUZ import.
-- Activates a mod's embedded Continuity contract only when the protected runtime is present. Ordinary profiles no longer reject a universal mod because that optional runtime is absent.
-- Keeps protected sessions strict: the runtime, catalog, native build identity and exact mod payload must still match before protected play.
+The extension still finds an existing installation or asks Vortex to obtain the current Windows Main File from Nexus when LUZ is missing. Vortex uses its signed-in Nexus account; no LUZ API key is required. The user-selected and automatic-download paths converge on the same idempotent pairing process.
 
-## Installation
+Routine use is simply: install or update a mod in Vortex, then press **Play**. Vortex exports the completed installer-selected packages; LUZ synchronizes the selected profile, applies it through the existing safeguards when safe, and stays open at its launcher. Vortex Play never launches Nivalis.
 
-Download the ZIP for your platform and extract the whole archive outside the game folder. Run its installer. .NET is included. Existing users on LUZ 0.4.0 or newer can use Maintenance > LUZ updates; 0.3.x requires a manual installation. Profiles and author settings remain in LUZ's separate data folder.
+New supported packages enter the selected LUZ profile enabled. Existing order, disabled state, pins, and notes remain intact. Removing a package from Vortex leaves its imported LUZ copy in place and marks the update source unavailable.
 
-Windows is the main desktop build. Linux and macOS builds are experimental; macOS packages are not notarized. Protected game sessions require native Windows, catalogued Nivalis Nights build 26118043 or retained recovery identity 25984046, BepInEx 6.0.0-be.788 and compatible mods. Ordinary mod management works without protected saves.
+Users migrating from the earlier direct-deployment extension may need to use **Purge Mods** once before managing the game again. This migration is explicit so neither tool silently removes an existing installation.
 
-[Source and guides](https://github.com/Hvizeu/LUZ-Civic-Terminal) | [Support my work](https://ko-fi.com/henriquevizeu)
+The integration requires Windows, Vortex 2.9.0 or newer, Nivalis Nights managed through the canonical extension, and LUZ 0.8.2 or newer. Linux and macOS retain their existing manual and profile workflows.

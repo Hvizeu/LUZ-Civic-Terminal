@@ -16,3 +16,6 @@ __pycache__/
 AGENTS.md
 
 Continuity/Payload/
+VortexExtension/dist/
+VortexExtension/release/
+VortexExtension/node_modules/

@@ -41,17 +41,24 @@ public sealed class App : Application
                     if (LinkInbox.Forward(root, initialLink, 5000).GetAwaiter().GetResult()) { desktop.Shutdown(); return; }
                     throw new IOException("Another LUZ window may be open. Close older versions normally, then reopen this version. Retry the Nexus download if you opened a link.");
                 }
+                string vortexWarning = "";
+                try { VortexBridge.RefreshDescriptor(library, Environment.ProcessPath ?? ""); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { vortexWarning = "Vortex integration needs attention: " + ex.Message; }
                 main = new MainWindow(library); desktop.MainWindow = main;
                 inbox = new LinkInbox(root, address => Dispatcher.UIThread.Post(() => main.ReceiveLink(address)), message => Dispatcher.UIThread.Post(() => main.ReceiveLinkError(message)));
-                main.Opened += (_, _) => { main.ReceiveLink(initialLink); while (activations.TryDequeue(out string? address)) main.ReceiveLink(address); };
+                main.Opened += (_, _) => { if (vortexWarning.Length > 0) main.ReceiveLinkError(vortexWarning); main.ReceiveLink(initialLink); while (activations.TryDequeue(out string? address)) main.ReceiveLink(address); };
             }
             catch (Exception ex)
             {
                 desktop.MainWindow = new StartupRecoveryWindow(HostPlatform.DataRoot(), ex, () => {
                     var previous = desktop.MainWindow;
                     library = new Library(HostPlatform.DataRoot());
+                    string vortexWarning = "";
+                    try { VortexBridge.RefreshDescriptor(library, Environment.ProcessPath ?? ""); }
+                    catch (Exception warning) when (warning is IOException or UnauthorizedAccessException or InvalidDataException) { vortexWarning = "Vortex integration needs attention: " + warning.Message; }
                     main = new MainWindow(library); desktop.MainWindow = main;
                     inbox = new LinkInbox(library.Root, address => Dispatcher.UIThread.Post(() => main.ReceiveLink(address)), message => Dispatcher.UIThread.Post(() => main.ReceiveLinkError(message)));
+                    if (vortexWarning.Length > 0) main.Opened += (_, _) => main.ReceiveLinkError(vortexWarning);
                     main.Show(); previous?.Close();
                 });
             }
@@ -62,6 +69,27 @@ public sealed class App : Application
     {
         if (args.SequenceEqual(new[] { "--compatibility-worker" })) return CompatibilityWorker.RunChild();
         if (args.Length >= 2 && args[0] == "--corpsec") return CorpSecCommand.Run(args, HostPlatform.DataRoot());
+        if (args.Length == 2 && args[0] == "--vortex-setup")
+        {
+            try
+            {
+                string message = VortexBridge.SetupMessage(args[1]);
+                string root = HostPlatform.DataRoot();
+                if (LinkInbox.Forward(root, message, 250).GetAwaiter().GetResult()) return 0;
+                try
+                {
+                    using var setupLibrary = new Library(root);
+                    VortexSetupResult result = VortexBridge.Configure(setupLibrary, args[1], Environment.ProcessPath ?? throw new IOException("The LUZ executable path is unavailable."));
+                    return result.Outcome is VortexSyncOutcome.Applied or VortexSyncOutcome.NoChanges ? 0 : 2;
+                }
+                catch (IOException)
+                {
+                    if (LinkInbox.Forward(root, message, 5000).GetAwaiter().GetResult()) return 0;
+                    throw;
+                }
+            }
+            catch { return 1; }
+        }
         if (args.Length == 2 && args[0] == "--update-restart") {
             try {
                 if (!int.TryParse(args[1], out int previousPid)) throw new InvalidDataException("Invalid LUZ update restart request.");
@@ -83,11 +111,11 @@ public sealed class App : Application
             return AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont().StartWithClassicDesktopLifetime(args);
         try
         {
-            initialLink = args.Length == 0 ? "" : args.Length == 1 ? args[0] : args.Length == 2 && args[0] == "--nxm" ? args[1] : args.Length == 2 && args[0] == "--import" ? LocalImport.Message(args[1]) : throw new InvalidDataException("Use --import followed by a project ZIP, or --nxm followed by a Nexus link.");
+            initialLink = args.Length == 0 ? "" : args.Length == 1 ? args[0] : args.Length == 2 && args[0] == "--nxm" ? args[1] : args.Length == 2 && args[0] == "--import" ? LocalImport.Message(args[1]) : args.Length == 2 && args[0] == "--vortex-sync" ? VortexBridge.Message(args[1]) : throw new InvalidDataException("Use --import followed by a project ZIP, --nxm followed by a Nexus link, or --vortex-sync followed by a bridge manifest.");
             LocalImport.ValidateActivation(initialLink);
             if (LinkInbox.Forward(HostPlatform.DataRoot(), initialLink, 100).GetAwaiter().GetResult()) return 0;
         }
-        catch (Exception ex) { startupError = ex is InvalidDataException ? ex.Message : "The Nexus link could not be opened. Start LUZ normally and paste the link in Maintenance."; }
+        catch (Exception ex) { startupError = ex is InvalidDataException ? ex.Message : "The activation request could not be opened. Start LUZ normally and retry it from Maintenance."; }
         return AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont().StartWithClassicDesktopLifetime(args);
     }
 #if PREVIEW_TOOL

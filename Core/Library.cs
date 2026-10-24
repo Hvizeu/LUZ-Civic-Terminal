@@ -20,6 +20,12 @@ public sealed class Library : IDisposable
             State = RegistryRecovery.Read(Root, allowFirstRun: true);
             State.PreviousGameFolders ??= [];
             State.CompatibilityDecisions ??= [];
+            foreach (var profile in State.Profiles)
+            {
+                profile.Vortex ??= new();
+                profile.Vortex.Bindings ??= [];
+                profile.Vortex.Exclusions ??= [];
+            }
             bool migrate = State.Schema == 1;
             if (migrate) State.Schema = 2;
             if (State.Schema != 2 || State.Profiles.Count == 0) throw new InvalidDataException("Unsupported or empty registry. Restore registry.json from a backup.");
@@ -39,6 +45,12 @@ public sealed class Library : IDisposable
         string path = Path.Combine(Root, "registry.json");
         if (File.Exists(path)) File.Copy(path, path + ".previous", true);
         JsonFiles.Write(path, State);
+    }
+    internal void Commit(TerminalState next)
+    {
+        TerminalState previous = State; State = next;
+        try { Save(); }
+        catch { State = previous; throw; }
     }
     public Profile CreateProfile(string name, bool duplicate)
     {
@@ -72,11 +84,11 @@ public sealed class Library : IDisposable
             if (Path.GetExtension(file).Equals(".zip", StringComparison.OrdinalIgnoreCase)) FileSafety.Extract(file, raw);
             else if (Path.GetExtension(file).Equals(".dll", StringComparison.OrdinalIgnoreCase)) File.Copy(file, Path.Combine(raw, Path.GetFileName(file)));
             else throw new InvalidDataException("Import a ZIP or a BepInEx DLL.");
-            return ImportTree(raw, source, hash, Path.GetFileNameWithoutExtension(file));
+            return ImportTree(raw, source, hash, Path.GetFileNameWithoutExtension(file), true);
         }
         finally { FileSafety.DeleteOwned(Root, stage); }
     }
-    private ModPackage ImportTree(string raw, CatalogMod? source, string hash, string fallback)
+    internal ModPackage ImportTree(string raw, CatalogMod? source, string hash, string fallback, bool attach)
     {
         var all = Directory.GetFiles(raw, "*", SearchOption.AllDirectories);
         var package = new ModPackage { Id = hash[..32], Sha256 = hash, Name = source?.Name ?? fallback, Version = source?.Version ?? "0.0.0",
@@ -148,12 +160,12 @@ public sealed class Library : IDisposable
             var icon = all.FirstOrDefault(f => Path.GetFileName(f).Equals("icon.png", StringComparison.OrdinalIgnoreCase));
             if (icon != null && new FileInfo(icon).Length <= 5_242_880) { File.Copy(icon, Path.Combine(staged, "icon.png")); package.Icon = "icon.png"; }
             JsonFiles.Write(Path.Combine(staged, "package.json"), package);
-            PublishImport(package, staged);
+            PublishImport(package, staged, attach);
             return package;
         }
         finally { FileSafety.DeleteOwned(Root, staged); }
     }
-    private void PublishImport(ModPackage package, string staged)
+    private void PublishImport(ModPackage package, string staged, bool attach)
     {
         string target = PackageRoot(package.Id);
         FileSafety.NoLinks(target);
@@ -174,12 +186,15 @@ public sealed class Library : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             Directory.Move(staged, target);
             published = true;
-            State.Packages.Add(package);
-            AddToProfile(package);
+            if (attach)
+            {
+                State.Packages.Add(package);
+                AddToProfile(package);
+            }
         }
         catch (Exception operation)
         {
-            State.Packages.Remove(package);
+            if (attach) State.Packages.Remove(package);
             try
             {
                 if (published) FileSafety.DeleteOwned(Root, target);

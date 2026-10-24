@@ -127,7 +127,8 @@ public sealed class Deployment(Library library)
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(operation).Throw();
                 throw;
             }
-            library.State.AppliedProfileId = library.Active.Id; library.State.AppliedFingerprint = library.Fingerprint(library.Active); library.Save();
+            library.State.AppliedProfileId = library.Active.Id; library.State.AppliedFingerprint = library.Fingerprint(library.Active);
+            library.Active.Vortex.PendingBaseFingerprint = ""; library.Active.Vortex.PendingApplyFingerprint = ""; library.Save();
             JsonFiles.Write(Path.Combine(library.Root, "applied-files.json"), new AppliedFiles(library.State.AppliedFingerprint,
                 library.Active.Mods.Where(m => m.Enabled).SelectMany(m => library.State.Packages.Single(p => p.Id == m.PackageId).Files).Distinct(StringComparer.OrdinalIgnoreCase).ToList()));
             File.Delete(Path.Combine(library.Root, "pending.json")); return backup;

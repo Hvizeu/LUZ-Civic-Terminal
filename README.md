@@ -2,7 +2,7 @@
 
 LUZ manages Nivalis Nights mods, profiles, BepInEx setup and protected save timelines. Its **CorpSec Terminal** workspace helps mod authors turn their build folders into release packages with optional LUZ recovery support.
 
-**Current release: 0.7.8.** Download one platform ZIP from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Windows x64 is the main desktop build. Linux x64, macOS Intel and Apple Silicon builds are experimental.
+**Current candidate: 0.8.2.** On Windows, the LUZ Nexus page's **Mod Manager Download** sends the package to Vortex; the canonical Nivalis Nights extension installs, pairs and registers it automatically. Manual platform ZIPs remain available from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Linux x64, macOS Intel and Apple Silicon builds are experimental.
 
 ## Start here
 
@@ -20,8 +20,9 @@ All four desktop ZIPs include these guides. LUZ includes .NET; users do not need
 ## Civic Terminal for players
 
 - **Profiles and settings:** import mod ZIPs, DLLs or an existing installation; enable, disable, search, filter and reorder mods; copy profiles and keep their settings.
-- **Dependency checks:** inspect declared requirements and conflicts, sort dependencies and preview the files that Apply will deploy. LUZ 0.7.8 reads Nivalis Expanded's compiled requirement `hvizeu.nivalis.unofficialpatch >=0.4.12 <0.5.0` for Nexus and local imports; missing, disabled, out-of-range or duplicate copies remain blocking.
+- **Dependency checks:** inspect declared requirements and conflicts, sort dependencies and preview the files that Apply will deploy. LUZ 0.8.2 reads Nivalis Expanded's compiled requirement `hvizeu.nivalis.unofficialpatch >=0.4.12 <0.5.0` for Nexus and local imports; missing, disabled, out-of-range or duplicate copies remain blocking.
 - **Downloads and updates:** browse Thunderstore, check mod updates, pin versions and import manual Nexus downloads. Nexus lookup and permitted direct downloads use your own API key.
+- **One-click Nexus/Vortex setup on Windows:** manage Nivalis Nights in Vortex once, then choose **Mod Manager Download** on the LUZ Nexus page. The canonical extension recognizes the versioned LUZ package marker, installs LUZ as an isolated tool, pairs it and makes it primary automatically. After that, update a mod and press Vortex Play; LUZ synchronizes, applies when safe, and stays open without launching Nivalis.
 - **BepInEx setup:** install the recommended Windows x64 IL2CPP loader from its official server, check upstream builds and restore loader backups.
 - **Compatibility guidance:** check compiled references before Apply and Play. Warnings explain the affected mod, the uncertainty and the next action. An accepted warning is remembered only for the same inspected action and setup.
 - **Recovery and diagnostics:** restore profile or loader backups, recover interrupted operations, diagnose game-update errors and refresh stale generated bindings.

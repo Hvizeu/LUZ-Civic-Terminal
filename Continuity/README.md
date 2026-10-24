@@ -1,6 +1,6 @@
 # Mod Continuity
 
-This reference matches LUZ 0.7.8 and Continuity API/runtime 0.2.1. For ordinary profiles and backups, see the [player guide](../PLAYER-GUIDE.md). For author setup, see the [CorpSec walkthrough](../CORPSEC-GUIDE.md).
+This reference matches LUZ 0.8.2 and Continuity API/runtime 0.2.1. For ordinary profiles and backups, see the [player guide](../PLAYER-GUIDE.md). For author setup, see the [CorpSec walkthrough](../CORPSEC-GUIDE.md).
 
 LUZ includes the compatibility runtime, API and supported-build catalog in its desktop release. GitHub releases update them with the launcher. No separate mod-site download is needed.
 

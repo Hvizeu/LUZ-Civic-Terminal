@@ -18,9 +18,87 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = ET.parse(ROOT / 'Desktop/Desktop.csproj').findtext('.//Version')
 APP = 'LUZ Civic Terminal'
 RIDS = ('win-x64', 'linux-x64', 'osx-x64', 'osx-arm64')
+EDITIONS = {'win-x64': 'Windows x64', 'linux-x64': 'Linux x64', 'osx-x64': 'macOS Intel', 'osx-arm64': 'macOS Apple Silicon'}
 
 def run(*args):
     subprocess.run([str(a) for a in args], cwd=ROOT, check=True, env={**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'})
+
+def deployment_root():
+    return ROOT.parents[1] / 'Deployments/LUZ Civic Terminal' if ROOT.parent.name == 'Projects' else ROOT / 'dist'
+
+def retain_one(dist, current, pattern):
+    root = dist.resolve()
+    for old in dist.glob(pattern):
+        if old.name == current.name or old.resolve().parent != root or old.is_symlink(): continue
+        old.unlink()
+
+def package_vortex_extension():
+    extension = ROOT / 'VortexExtension'
+    metadata = json.loads((extension / 'package.json').read_text(encoding='utf8'))
+    extension_version = metadata['version']
+    run('npm.cmd' if os.name == 'nt' else 'npm', '--prefix', extension, 'run', 'package')
+    run(sys.executable, ROOT / 'tools/release_check.py', extension / 'dist')
+    source = extension / 'release' / ('game-nivalisnights-' + extension_version + '.zip')
+    if not source.is_file(): raise RuntimeError('Vortex extension package was not created')
+    dist = deployment_root(); dist.mkdir(parents=True, exist_ok=True)
+    destination = dist / source.name
+    with tempfile.TemporaryDirectory(prefix='.luz-vortex-export-', dir=dist) as pending:
+        candidate = Path(pending) / source.name
+        shutil.copy2(source, candidate)
+        run(sys.executable, ROOT / 'tools/release_check.py', Path(pending))
+        with candidate.open('rb') as stream: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        checksum = candidate.with_name(candidate.name + '.sha256')
+        checksum.write_text(digest + '  ' + destination.name + '\n', encoding='utf8')
+        os.replace(candidate, destination)
+        os.replace(checksum, destination.with_name(destination.name + '.sha256'))
+    retain_one(dist, destination, 'game-nivalisnights-*.zip')
+    retain_one(dist, destination.with_name(destination.name + '.sha256'), 'game-nivalisnights-*.zip.sha256')
+    retain_one(dist, destination, 'game-nivalisnights-luz-bridge-*.zip')
+    retain_one(dist, destination.with_name(destination.name + '.sha256'), 'game-nivalisnights-luz-bridge-*.zip.sha256')
+    print('Packaged:', destination, '\nSHA256:', digest, flush=True)
+
+def package_record(path, product, edition):
+    with path.open('rb') as stream: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+    with zipfile.ZipFile(path) as archive: files = len([entry for entry in archive.infolist() if not entry.is_dir()])
+    return {'product': product, 'version': VERSION, 'edition': edition, 'private': False,
+            'file': 'LUZ Civic Terminal/' + path.name, 'sha256': digest, 'files': files, 'bytes': path.stat().st_size}
+
+def write_deployment_handoff():
+    dist = deployment_root()
+    records = [package_record(dist / ('LUZ-Civic-Terminal-' + VERSION + '-' + rid + '.zip'), APP, EDITIONS[rid]) for rid in RIDS]
+    extension_version = json.loads((ROOT / 'VortexExtension/package.json').read_text(encoding='utf8'))['version']
+    bridge = dist / ('game-nivalisnights-' + extension_version + '.zip')
+    records.append(package_record(bridge, 'Nivalis Nights Support for Vortex', 'Vortex 2.9+ on Windows'))
+    records[-1]['version'] = extension_version
+    (dist / 'PACKAGE RECORD.json').write_text(json.dumps(records, indent=2) + '\n', encoding='utf8')
+    status = {'version': VERSION, 'published': False, 'gameBuild': 26118043, 'automatedValidation': 'passed',
+              'nativeVortexAcceptance': False, 'gameplayAcceptance': False, 'packages': records, 'releaseUrl': None}
+    (dist / 'PACKAGE STATUS.json').write_text(json.dumps(status, indent=2) + '\n', encoding='utf8')
+    for name in ('README.md', 'QUICK START.txt', 'PLAYER-GUIDE.md', 'CORPSEC-GUIDE.md', 'BUILDING.md', 'CHANGELOG.md', 'RELEASE-NOTES.md'):
+        shutil.copy2(ROOT / name, dist / name)
+    (dist / 'START HERE.md').write_text(
+        '# LUZ Civic Terminal ' + VERSION + '\n\nThe four platform packages and the Windows Vortex bridge in this folder are the current locally validated candidates. '
+        'They have not been published. Windows x64 is the main desktop build; Linux and macOS remain experimental.\n\n'
+        'Install the canonical Nivalis Nights extension in Vortex and choose Manage. It installs or finds LUZ and connects automatically. Use the adjacent package record for exact hashes.\n', encoding='utf8')
+    (dist / 'OWNER QA.md').write_text(
+        '# LUZ Civic Terminal ' + VERSION + ' owner acceptance\n\n'
+        '1. Update a known mod in Vortex and press Play. Expected: LUZ opens, applies the update, and remains at its launcher.\n'
+        '2. Repeat with a disabled mod and a pinned mod. Expected: disabled remains disabled; pinned remains unchanged and is reported.\n'
+        '3. Install a new supported mod. Expected: it enters the selected LUZ profile enabled and applies.\n'
+        '4. Repeat Play without changes. Expected: no duplicate entry, deployment, or restore point.\n'
+        '5. Remove the Vortex copy of an imported mod. Expected: LUZ retains it and marks its update source unavailable.\n'
+        '6. Launch from LUZ normally. Expected: selected mods, configuration, and protected-save behavior remain intact.\n', encoding='utf8')
+    nexus = dist / 'Nexus'; nexus.mkdir(exist_ok=True)
+    for source in (ROOT / 'Store/Nexus').iterdir():
+        if source.is_file(): shutil.copy2(source, nexus / source.name)
+    shutil.copy2(ROOT / 'CHANGELOG.md', nexus / 'CHANGELOG.md')
+    shutil.copy2(ROOT / 'README.md', nexus / 'DESCRIPTION.md')
+    shutil.copy2(ROOT / 'README.md', nexus / 'README.md')
+    shutil.copy2(ROOT / 'Store/Nexus/UPLOAD INSTRUCTIONS.txt', nexus / 'UPLOAD.txt')
+    checksums = ''.join(record['sha256'] + '  ' + Path(record['file']).name + '\n' for record in records)
+    (nexus / 'SHA256SUMS.txt').write_text(checksums, encoding='utf8')
+    (nexus / 'CHECKSUMS.sha256').write_text(checksums, encoding='utf8')
+    (dist / 'UPLOAD.txt').write_text((ROOT / 'Store/Nexus/UPLOAD INSTRUCTIONS.txt').read_text(encoding='utf8'), encoding='utf8')
 
 def notices(publish):
     destination = publish / 'Notices'
@@ -93,7 +171,7 @@ def package(rid):
     manifest = json.loads((payload / 'payload.json').read_text())
     if set(manifest) != {'Luz.Continuity.Runtime.dll', 'Luz.Continuity.dll', 'catalog.json', 'maintained-support.json'} or any(digest(payload / name) != value for name, value in manifest.items()):
         raise RuntimeError('Continuity bundle is incomplete or changed; build it before packaging')
-    dist = ROOT.parents[1] / 'Deployments/LUZ Civic Terminal' if ROOT.parent.name == 'Projects' else ROOT / 'dist'
+    dist = deployment_root()
     dist.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='luz-package-') as temp:
         staging = Path(temp)
@@ -108,6 +186,10 @@ def package(rid):
         for name in ('README.md', 'QUICK START.txt', 'PLAYER-GUIDE.md', 'CORPSEC-GUIDE.md',
                      'BUILDING.md', 'CHANGELOG.md', 'RELEASE-NOTES.md'):
             shutil.copy2(ROOT / name, folder / name)
+        if rid == 'win-x64':
+            (folder / 'luz-vortex-package.json').write_text(json.dumps({
+                'schema': 1, 'product': APP, 'gameId': 'nivalisnights', 'version': VERSION, 'platform': rid
+            }, indent=2) + '\n', encoding='utf8')
         (folder / 'Continuity').mkdir(exist_ok=True)
         shutil.copy2(ROOT / 'Continuity/README.md', folder / 'Continuity/README.md')
         if not rid.startswith('osx-'):
@@ -138,11 +220,17 @@ def package(rid):
         with tempfile.TemporaryDirectory(prefix='.luz-export-', dir=dist) as pending:
             candidate = Path(pending) / archive.name
             archive_folder(staging, folder, candidate)
+            if rid == 'win-x64':
+                with zipfile.ZipFile(candidate) as packaged:
+                    marker = folder.name + '/luz-vortex-package.json'
+                    if marker not in packaged.namelist(): raise RuntimeError('Windows package is missing its Vortex identity marker')
             with candidate.open('rb') as stream: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
             checksum = candidate.with_name(candidate.name + '.sha256')
             checksum.write_text(digest + '  ' + archive.name + '\n', encoding='utf8')
             os.replace(candidate, archive)
             os.replace(checksum, archive.with_name(archive.name + '.sha256'))
+        retain_one(dist, archive, 'LUZ-Civic-Terminal-*-' + rid + '.zip')
+        retain_one(dist, archive.with_name(archive.name + '.sha256'), 'LUZ-Civic-Terminal-*-' + rid + '.zip.sha256')
         print('Packaged:', archive, '\nSHA256:', digest, flush=True)
 
 if __name__ == '__main__':
@@ -155,4 +243,6 @@ if __name__ == '__main__':
     build(arguments.loader)
     from validate import validate
     validate(arguments.object_framework)
+    if arguments.rid in ('win-x64', 'all'): package_vortex_extension()
     for target in RIDS if arguments.rid == 'all' else (arguments.rid,): package(target)
+    if arguments.rid == 'all': write_deployment_handoff()

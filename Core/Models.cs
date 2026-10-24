@@ -32,6 +32,33 @@ public sealed class Profile
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "Everyday";
     public List<ModEntry> Mods { get; set; } = [];
+    public VortexProfileState Vortex { get; set; } = new();
+}
+public sealed class VortexBinding
+{
+    public string BridgeId { get; set; } = "";
+    public string PackageId { get; set; } = "";
+    public string SourceModId { get; set; } = "";
+    public string SourceFileId { get; set; } = "";
+    public string Variant { get; set; } = "";
+    public string ContentSha256 { get; set; } = "";
+    public string Version { get; set; } = "";
+    public bool Available { get; set; } = true;
+}
+public sealed class VortexProfileState
+{
+    public string LastRevision { get; set; } = "";
+    public string PendingBaseFingerprint { get; set; } = "";
+    public string PendingApplyFingerprint { get; set; } = "";
+    public List<VortexBinding> Bindings { get; set; } = [];
+    public List<string> Exclusions { get; set; } = [];
+}
+public sealed class VortexConnection
+{
+    public string Id { get; set; } = "";
+    public string ExchangeRoot { get; set; } = "";
+    public string GameFolder { get; set; } = "";
+    public DateTime ConnectedUtc { get; set; }
 }
 public sealed class CompatibilityDecision
 {
@@ -53,6 +80,7 @@ public sealed class TerminalState
     public List<Profile> Profiles { get; set; } = [new()];
     public List<ModPackage> Packages { get; set; } = [];
     public List<CompatibilityDecision> CompatibilityDecisions { get; set; } = [];
+    public VortexConnection? Vortex { get; set; }
 }
 public sealed record Issue(string Severity, string Message, string Code = "Deployment", bool CanOverride = false);
 public sealed record CatalogMod(string Id, string Name, string Version, string Description, string PageUrl, string IconUrl, string DownloadUrl, string[] Dependencies, string Source, long FileId = 0);

@@ -1,5 +1,8 @@
-LUZ Civic Terminal 0.7.8
+LUZ Civic Terminal 0.8.2
 
-- Accepts the same universal mod ZIP for manual installation and LUZ import.
-- Activates embedded Continuity support when the protected runtime is present without blocking ordinary profiles when it is absent.
-- Keeps protected sessions bound to the verified runtime, catalog, native build and exact mod payload.
+- Makes the Windows Main File installable through Nexus Mod Manager Download.
+- The canonical Nivalis Nights Support extension recognizes the LUZ package, pairs it headlessly, and registers it as the primary tool.
+- Removes the Maintenance connection step, exchange-folder choice, competing extension, and separate bridge installation.
+- Keeps routine updates to install or update in Vortex, then Play.
+- Preserves LUZ profile ownership, pins, disabled states, compatibility checks, deployment, and recovery.
+- Requires one explicit Purge Mods migration only when an older direct Vortex deployment is still present.

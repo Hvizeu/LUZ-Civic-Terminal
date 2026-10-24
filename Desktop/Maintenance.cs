@@ -38,6 +38,7 @@ public sealed partial class MainWindow
             required.Children.Add(QuietButton("Export recovery diagnostics", Diagnostics));
         }
         var section = Group("LUZ UPDATES"); section.Children.Add(LauncherUpdatesPanel());
+        section = Group("VORTEX INTEGRATION"); section.Children.Add(VortexIntegrationPanel());
         section = Group("GAME LOCATION");
         section.Children.Add(Label(library.State.GameFolder.Length > 0 ? library.State.GameFolder : "No game folder selected", 15));
         var location = Row(); location.Children.Add(Button("Detect Steam install", () => _ = DetectGame())); location.Children.Add(QuietButton("Choose game folder", () => _ = ChooseGame()));

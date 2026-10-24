@@ -117,7 +117,7 @@ public sealed partial class MainWindow : Window
         try { await action(operation.Token); status.Text = OperationRecovery.CompletionMessage(library); }
         catch (OperationCanceledException) { status.Text = "Cancelled. Any completed library imports remain available; game files were not partially deployed."; }
         catch (Exception ex) { Error(ex); }
-        finally { operation.Dispose(); operation = null; body.IsEnabled = true; ((Control)shell.Children[0]).IsEnabled = true; cancel.IsVisible = false; RefreshProfiles(); RefreshPage(); if (!processingLinks && incomingLinks.Count > 0) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = ProcessLinks()); }
+        finally { operation.Dispose(); operation = null; body.IsEnabled = true; ((Control)shell.Children[0]).IsEnabled = true; cancel.IsVisible = false; RefreshProfiles(); RefreshPage(); if (!processingLinks && (incomingVortex.Count > 0 || incomingProjects.Count > 0 || incomingLinks.Count > 0)) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = ProcessLinks()); }
     }
     private void Error(Exception ex) { lastError = ex.ToString(); status.Text = ex.Message; if (!preview) _ = Notice("Action could not finish", ex.Message); }
     private void RefreshProfiles() { refreshing = true; profiles.ItemsSource = null; profiles.ItemsSource = library.State.Profiles; profiles.SelectedItem = library.Active; refreshing = false; }
@@ -219,7 +219,7 @@ public sealed partial class MainWindow : Window
             ("Set source link", async () => { var url = await Prompt("Mod page URL", p.PageUrl); if (url != null) { SetSourceLink(p, url); library.Save(); RefreshMods(); } }),
             ("Edit notes", async () => { var note = await Prompt("Private profile note", entry.Note); if (note != null) { entry.Note = note; library.Save(); ShowDetails(); } }),
             ("Choose icon", async () => { var file = (await OpenFiles("Choose icon", false, "*.png", "*.jpg", "*.jpeg")).FirstOrDefault(); if (file != null) { if (new FileInfo(file).Length > 5_242_880) throw new InvalidDataException("Choose an image smaller than 5 MB."); string filename = "custom-icon" + Path.GetExtension(file).ToLowerInvariant(); File.Copy(file, FileSafety.Under(library.PackageRoot(p.Id), filename), true); p.Icon = filename; library.Save(); RefreshMods(); } }),
-            ("Remove from profile", async () => { if (await Confirm("Remove this mod from the profile? Its files stay in the library. The game changes only after Apply.")) { library.Active.Mods.Remove(entry); library.Save(); selectedId = null; RefreshMods(); } })));
+            ("Remove from profile", async () => { if (await Confirm("Remove this mod from the profile? Its files stay in the library. The game changes only after Apply.")) { VortexBridge.Exclude(library, entry.PackageId); library.Active.Mods.Remove(entry); library.Save(); selectedId = null; RefreshMods(); } })));
         if (entry.Note.Length > 0) details.Children.Add(Label(entry.Note, 13, TerminalTheme.Muted));
         details.Children.Add(Label(p.Files.Count + " package files", 12, TerminalTheme.Muted, margin: new Thickness(0, 12, 0, 0)));
     }
