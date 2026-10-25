@@ -19,6 +19,11 @@ string Zip(string name, params (string Name, string Text)[] files)
 }
 try
 {
+    if (args.Length == 2 && args[0] == "--vortex-replay")
+    {
+        VortexSnapshotReplay.Run(root, args[1], Check);
+        Console.WriteLine($"{passed} real-snapshot replay checks passed."); return;
+    }
     if (args.SequenceEqual(new[] { "--vortex-only" }))
     {
         PackagePreparationChecks.Run(root, Check, Reject); VortexBridgeChecks.Run(root, Check, Reject);

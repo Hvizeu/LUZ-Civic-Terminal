@@ -43,7 +43,7 @@ test("discovers Nivalis, pairs LUZ automatically, and replaces Play without game
   };
   class UserCanceled extends Error {}
   const vortexApi = {
-    actions: { setModType: () => ({ type: "type" }), setPrimaryTool: () => ({ type: "primary" }), setModAttribute: () => ({ type: "attribute" }) },
+    actions: { setModType: () => ({ type: "type" }), addDiscoveredTool: () => ({ type: "tool" }), setPrimaryTool: () => ({ type: "primary" }), setModAttribute: () => ({ type: "attribute" }) },
     selectors,
     util: { UserCanceled, GameStoreHelper: { findByAppId: async () => ({ gamePath: state.game }) } }
   };
@@ -66,16 +66,25 @@ test("discovers Nivalis, pairs LUZ automatically, and replaces Play without game
   Module._load = originalLoad;
 
   let game, startHook;
-  const modTypes = [], installers = [];
+  const modTypes = [], installers = [], readyCallbacks = [];
+  let runtimeReady = false;
   const context = {
     registerGame(value) { game = value; },
     registerStartHook(priority, id, callback) { startHook = { priority, id, callback }; },
     registerModType(...args) { modTypes.push(args); },
     registerInstaller(...args) { installers.push(args); },
-    once() {},
-    api: { getState: () => state, events: { emit() {} }, store: { dispatch() {} }, showDialog: async () => ({ action: "Connect LUZ" }), sendNotification() {}, dismissNotification() {}, showErrorNotification() {}, log() {} }
+    once(callback) { readyCallbacks.push(callback); },
+    api: new Proxy({ getState: () => state, events: { emit() {} }, store: { dispatch() {} }, showDialog: async () => ({ action: "Connect LUZ" }), sendNotification() {}, dismissNotification() {}, showErrorNotification() {}, log() {}, onAsync() {}, events: { emit() {}, on() {} } }, {
+      get(target, property) {
+        if (!runtimeReady) throw new Error("extension uses api in init function");
+        return Reflect.get(target, property);
+      }
+    })
   };
   assert.equal(extension.init(context), true);
+  runtimeReady = true;
+  for (const callback of readyCallbacks) callback();
+  assert.equal(game.logo, "gameart.png");
   assert.equal(game.id, "nivalisnights");
   assert.equal(game.name, "Nivalis Nights");
   assert.equal(game.mergeMods({ id: "separate-package" }), "separate-package");
@@ -240,6 +249,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   const vortexApi = {
     actions: {
       setModType: (...args) => ({ type: "type", args }),
+      addDiscoveredTool: (...args) => ({ type: "tool", args }),
       setPrimaryTool: (...args) => ({ type: "primary", args })
     },
     selectors: { installPathForGame: () => state.staging },
@@ -247,6 +257,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   };
   const originalLoad = Module._load;
   Module._load = function(request, parent, isMain) { return request === "vortex-api" ? vortexApi : originalLoad.call(this, request, parent, isMain); };
+  await fsp.writeFile(path.join(installed, "LUZ Vortex.exe"), "handoff fixture");
   let setupOutcome = "Applied", setupVersion = "0.8.5", connectionExecutable = executable;
   const originalExecFile = childProcess.execFile;
   childProcess.execFile = function(program, args, options, callback) {
@@ -255,7 +266,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
     fs.mkdirSync(path.join(exchange, "setup-results"), { recursive: true });
     fs.mkdirSync(vortexRoot, { recursive: true });
     fs.writeFileSync(path.join(exchange, "setup-results", `${request.RequestId}.json`), JSON.stringify({ Outcome: setupOutcome, Message: setupOutcome === "Failed" ? "setup failed" : "connected" }));
-    fs.writeFileSync(path.join(exchange, "connection.json"), JSON.stringify({ SnapshotSchemas: [1, 2], SetupComplete: true, HandoffExecutable: path.join(path.dirname(executable), "LUZ Vortex.exe"), Schema: 1, ConnectionId: "b".repeat(32), GameId: "nivalisnights", GameFolder: state.game, ExchangeRoot: exchange, VortexRoot: vortexRoot, Executable: connectionExecutable, Version: setupVersion }));
+    fs.writeFileSync(path.join(exchange, "connection.json"), JSON.stringify({ SnapshotSchemas: [1, 2], SetupComplete: true, HandoffExecutable: path.join(path.dirname(connectionExecutable), "LUZ Vortex.exe"), Schema: 1, ConnectionId: "b".repeat(32), GameId: "nivalisnights", GameFolder: state.game, ExchangeRoot: exchange, VortexRoot: vortexRoot, Executable: connectionExecutable, Version: setupVersion }));
     callback(null, "", "");
     return { kill() {} };
   };
@@ -278,12 +289,13 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   };
   extension.init(context);
   assert.equal(await didInstall("nivalisnights", "download-id", "luz-from-nexus"), true);
-  assert.deepEqual(dispatched.map((action) => action.type), ["type", "primary"]);
+  assert.deepEqual(dispatched.map((action) => action.type), ["type", "tool", "primary"]);
   assert.equal(notifications.at(-1).title, "LUZ connected");
   assert.equal(JSON.parse(await fsp.readFile(path.join(exchange, "connection.json"), "utf8")).Executable, executable);
   const alreadyRunning = path.join(root, "existing", "LUZ Civic Terminal.exe");
   await fsp.mkdir(path.dirname(alreadyRunning), { recursive: true });
   await fsp.writeFile(alreadyRunning, "existing LUZ process fixture");
+  await fsp.writeFile(path.join(path.dirname(alreadyRunning), "LUZ Vortex.exe"), "handoff fixture");
   await fsp.rm(path.join(exchange, "connection.json"), { force: true });
   connectionExecutable = alreadyRunning;
   dispatched.length = 0; notifications.length = 0;
@@ -309,6 +321,14 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   assert.equal(dispatched.some((action) => action.type === "primary"), false);
   assert.equal(notifications.some((item) => item.title === "LUZ connected"), false);
   assert.match(String(reportedErrors.at(-1)?.error), /requires 0\.8\.5/);
+  await fsp.rm(path.join(exchange, "connection.json"), { force: true });
+  await fsp.rm(path.join(installed, "LUZ Vortex.exe"));
+  setupVersion = "0.8.5";
+  dispatched.length = 0; notifications.length = 0; reportedErrors.length = 0;
+  await didInstall("nivalisnights", "download-id", "luz-from-nexus");
+  assert.deepEqual(dispatched.map(action => action.type), ["type"], "Missing handoff never becomes the primary tool");
+  assert.equal(notifications.length, 0);
+  assert.equal(reportedErrors.at(-1)?.error.code, "ENOENT");
 });
 
 
@@ -317,4 +337,19 @@ test("enabled game-extension conflicts and pending installers stop the bridge", 
   assert.throws(() => helpers.assertNoConflicts({app:{extensions:{"game-nivalisnights":{enabled:true}}}}), /Another Nivalis/);
   assert.doesNotThrow(() => helpers.assertNoConflicts({app:{extensions:{"game-nivalisnights":{enabled:false}, "game-nivalisnights-luz":{enabled:true}}}}));
   assert.throws(() => helpers.inventoryFingerprint({persistent:{mods:{nivalisnights:{one:{id:"one",state:"installing"}}}}}), /still installing/);
+});
+
+
+test("conflict detection uses enabled extension metadata when Vortex keys entries by generated ID", async t => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "luz-extension-state-"));
+  t.after(() => fsp.rm(root, { recursive: true, force: true }));
+  const old = path.join(root, "Nivalis Nights Vortex Extension downloaded name"), own = path.join(root, "game-nivalisnights-luz");
+  await fsp.mkdir(old); await fsp.mkdir(own);
+  await fsp.writeFile(path.join(old, "info.json"), JSON.stringify({ name: "Nivalis Nights", gameId: 10401, version: "0.3.4" }));
+  await fsp.writeFile(path.join(own, "info.json"), JSON.stringify({ id: "game-nivalisnights-luz", gameId: 10401, version: "0.6.1" }));
+  const extensions = { generatedOldId: { path: old, enabled: false }, generatedOwnId: { path: own, enabled: true } };
+  const helpers = require("../src/index")._test;
+  assert.doesNotThrow(() => helpers.assertNoConflicts({ app: { extensions } }));
+  extensions.generatedOldId.enabled = true;
+  assert.throws(() => helpers.assertNoConflicts({ app: { extensions } }), /Another Nivalis Nights/);
 });

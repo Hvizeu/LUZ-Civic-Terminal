@@ -135,6 +135,7 @@ public static class VortexBridge
         string root = FileSafety.ResolveFolder(exchangeRoot ?? DefaultExchangeRoot());
         string path = ValidateSetupMessage(SetupPrefix + requestPath, root);
         VortexSetupRequest request = JsonFiles.Read<VortexSetupRequest>(path);
+        _ = SetupResultPath(root, request.RequestId);
         var result = new VortexSetupResult { RequestId = request.RequestId, Outcome = VortexSyncOutcome.Failed };
         VortexSetupResult Finish(VortexSetupResult value) => persistResult ? SaveSetupResult(value, root) : value;
         try
@@ -173,7 +174,7 @@ public static class VortexBridge
             }
 
             Directory.CreateDirectory(root);
-            FileSafety.NoLinks(root);
+            FileSafety.NoLinks(root, recursive: false);
             var connection = new VortexConnection { Id = Guid.NewGuid().ToString("N"), ExchangeRoot = root, GameFolder = game, ConnectedUtc = DateTime.UtcNow };
             WriteDescriptor(connection, executable, library.Root);
             TerminalState next = Clone(library.State);
@@ -227,16 +228,23 @@ public static class VortexBridge
 
     public static VortexSetupResult? ReadSetupResult(string requestId, string? exchangeRoot = null)
     {
-        if (!Hex32.IsMatch(requestId)) throw new InvalidDataException("Invalid Vortex setup request identity.");
-        string path = FileSafety.Under(exchangeRoot ?? DefaultExchangeRoot(), "setup-results/" + requestId + ".json");
+        string path = SetupResultPath(exchangeRoot ?? DefaultExchangeRoot(), requestId);
         return File.Exists(path) ? JsonFiles.Read<VortexSetupResult>(path) : null;
+    }
+
+    private static string SetupResultPath(string root, string requestId)
+    {
+        if (!Hex32.IsMatch(requestId)) throw new InvalidDataException("Invalid Vortex setup request identity.");
+        string path = FileSafety.Under(root, "setup-results/" + requestId + ".json");
+        FileSafety.NoLinks(path);
+        return path;
     }
 
     private static VortexSetupResult SaveSetupResult(VortexSetupResult result, string root)
     {
-        if (!Hex32.IsMatch(result.RequestId)) throw new InvalidDataException("Invalid Vortex setup request identity.");
         result.CompletedUtc = DateTime.UtcNow;
-        JsonFiles.Write(FileSafety.Under(root, "setup-results/" + result.RequestId + ".json"), result);
+        string path = SetupResultPath(root, result.RequestId);
+        JsonFiles.Write(path, result);
         return result;
     }
 
@@ -248,7 +256,7 @@ public static class VortexBridge
         // Vortex checks its enabled-extension state before invoking connection setup.
         string root = FileSafety.ResolveFolder(exchangeRoot ?? DefaultExchangeRoot());
         RejectOverlap(root, library.Root, "LUZ library"); RejectOverlap(root, library.State.GameFolder, "game folder");
-        Directory.CreateDirectory(root); FileSafety.NoLinks(root);
+        Directory.CreateDirectory(root); FileSafety.NoLinks(root, recursive: false);
         var connection = new VortexConnection { Id = Guid.NewGuid().ToString("N"), ExchangeRoot = root, GameFolder = FileSafety.ResolveFolder(library.State.GameFolder), ConnectedUtc = DateTime.UtcNow };
         WriteDescriptor(connection, executable, library.Root);
         TerminalState next = Clone(library.State); next.Vortex = connection;
@@ -620,7 +628,9 @@ public static class VortexBridge
         VortexConnection connection = library.State.Vortex ?? throw new InvalidOperationException("Let Vortex complete automatic LUZ setup before saving synchronization results.");
         if (!Hex32.IsMatch(result.RequestId)) throw new InvalidDataException("Invalid Vortex request identity.");
         result.CompletedUtc = DateTime.UtcNow;
-        JsonFiles.Write(FileSafety.Under(connection.ExchangeRoot, "results/" + result.RequestId + ".json"), result);
+        string path = FileSafety.Under(connection.ExchangeRoot, "results/" + result.RequestId + ".json");
+        FileSafety.NoLinks(path);
+        JsonFiles.Write(path, result);
     }
 
     public static VortexSyncResult? ReadResult(Library library, string requestId)
@@ -628,6 +638,7 @@ public static class VortexBridge
         VortexConnection connection = library.State.Vortex ?? throw new InvalidOperationException("Let Vortex complete automatic LUZ setup before reading synchronization results.");
         if (!Hex32.IsMatch(requestId)) throw new InvalidDataException("Invalid Vortex request identity.");
         string path = FileSafety.Under(connection.ExchangeRoot, "results/" + requestId + ".json");
+        FileSafety.NoLinks(path);
         return File.Exists(path) ? JsonFiles.Read<VortexSyncResult>(path) : null;
     }
 
@@ -639,7 +650,9 @@ public static class VortexBridge
         if (!snapshot.ConnectionId.Equals(connection.Id, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("This Vortex snapshot belongs to another LUZ connection.");
         if (!FileSafety.ResolveFolder(connection.GameFolder).Equals(FileSafety.ResolveFolder(library.State.GameFolder), HostPlatform.PathComparison)) throw new InvalidDataException("The configured Vortex connection belongs to a different Nivalis installation. Disconnect and reconnect it from Maintenance.");
         if (!Hex32.IsMatch(connection.Id)) throw new InvalidDataException("The configured Vortex connection identity is invalid. Disconnect and reconnect it.");
-        string root = FileSafety.ResolveFolder(connection.ExchangeRoot), manifest = Path.GetFullPath(manifestPath); FileSafety.NoLinks(root); FileSafety.NoLinks(manifest);
+        // Vortex owns linked deployment content beside the immutable snapshots we consume.
+        string root = FileSafety.ResolveFolder(connection.ExchangeRoot), manifest = Path.GetFullPath(manifestPath);
+        FileSafety.NoLinks(root, recursive: false); FileSafety.NoLinks(manifest);
         if (!manifest.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, HostPlatform.PathComparison)) throw new InvalidDataException("The Vortex snapshot is outside the configured exchange folder.");
         if (!FileSafety.ResolveFolder(snapshot.GameFolder).Equals(FileSafety.ResolveFolder(connection.GameFolder), HostPlatform.PathComparison)) throw new InvalidDataException("Vortex and LUZ selected different Nivalis installations.");
         if (snapshot.Packages.Count > 2000 || snapshot.Packages.Select(p => p.BridgeId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != snapshot.Packages.Count) throw new InvalidDataException("The Vortex snapshot has too many or duplicate package identities.");
@@ -735,11 +748,13 @@ public static class VortexBridge
     private static void WriteDescriptor(VortexConnection connection, string executable, string libraryRoot)
     {
         if (!Hex32.IsMatch(connection.Id)) throw new InvalidDataException("Invalid Vortex connection identity.");
-        Directory.CreateDirectory(connection.ExchangeRoot); FileSafety.NoLinks(connection.ExchangeRoot);
+        FileSafety.NoLinks(connection.ExchangeRoot, recursive: false); Directory.CreateDirectory(connection.ExchangeRoot);
         string vortexRoot = FileSafety.Under(connection.ExchangeRoot, "vortex-game");
-        Directory.CreateDirectory(vortexRoot); FileSafety.NoLinks(vortexRoot);
-        Directory.CreateDirectory(FileSafety.Under(vortexRoot, "deployed"));
-        File.WriteAllText(FileSafety.Under(vortexRoot, "luz-bridge-game.json"), JsonSerializer.Serialize(new
+        FileSafety.NoLinks(vortexRoot, recursive: false); Directory.CreateDirectory(vortexRoot);
+        string deployed = FileSafety.Under(vortexRoot, "deployed"), marker = FileSafety.Under(vortexRoot, "luz-bridge-game.json");
+        FileSafety.NoLinks(deployed, recursive: false); Directory.CreateDirectory(deployed);
+        FileSafety.NoLinks(marker);
+        File.WriteAllText(marker, JsonSerializer.Serialize(new
         {
             Schema = 1,
             ConnectionId = connection.Id,
@@ -750,7 +765,9 @@ public static class VortexBridge
             LibraryRoot = libraryRoot, ExchangeRoot = connection.ExchangeRoot, VortexRoot = vortexRoot, Executable = Path.GetFullPath(executable),
             HandoffExecutable = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(executable))!, "LUZ Vortex.exe"), SetupComplete = LoaderPresent(connection.GameFolder),
             Version = typeof(VortexBridge).Assembly.GetName().Version?.ToString(3) ?? "0.0.0", UpdatedUtc = DateTime.UtcNow };
-        JsonFiles.Write(FileSafety.Under(connection.ExchangeRoot, "connection.json"), descriptor);
+        string descriptorPath = FileSafety.Under(connection.ExchangeRoot, "connection.json");
+        FileSafety.NoLinks(descriptorPath);
+        JsonFiles.Write(descriptorPath, descriptor);
     }
     private static VortexPackageResult Item(VortexSnapshotPackage package, string action, string detail) => new() { BridgeId = package.BridgeId, Name = package.Name, Action = action, Detail = detail };
     private static void RejectOverlap(string left, string right, string label)

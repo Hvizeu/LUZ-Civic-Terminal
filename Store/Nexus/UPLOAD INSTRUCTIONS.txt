@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.8.5 - NEXUS UPLOAD
+LUZ CIVIC TERMINAL 0.8.6 - NEXUS UPLOAD
 
 Use the existing LUZ Civic Terminal listing.
 Keep the listing on the Nivalis Nights Nexus domain so its NXM downloads use
@@ -8,41 +8,41 @@ isolated Vortex tool area; it is never deployed into the game directory.
 
 FILES
 
-Upload the four platform ZIPs from the LUZ deployment folder as separate files. The independent extension is game-nivalisnights-luz-0.6.0.zip, with game ID 10401 and extension identity game-nivalisnights-luz. It is a separate Vortex Extensions listing/package, not an update to another author's extension. Retain its LICENSE and third-party notices.
+Upload the four platform ZIPs from the LUZ deployment folder as separate files. The independent extension is game-nivalisnights-luz-0.6.2.zip, with game ID 10401 and extension identity game-nivalisnights-luz. It is a separate Vortex Extensions listing/package, not an update to another author's extension. Retain its LICENSE and third-party notices.
 Do not re-ZIP them or upload the private QA/status records.
 
 Main Windows file
-  Filename: LUZ-Civic-Terminal-0.8.5-win-x64.zip
-  Display name: LUZ Civic Terminal 0.8.5 - Windows x64
+  Filename: LUZ-Civic-Terminal-0.8.6-win-x64.zip
+  Display name: LUZ Civic Terminal 0.8.6 - Windows x64
   Description: Main Vortex-enabled Windows package. With LUZ for Nivalis
   Nights active, Mod Manager Download installs, pairs and registers
   LUZ automatically. Manual users may extract it outside the game and run
   Install LUZ.exe.
 
 Optional Linux file
-  Filename: LUZ-Civic-Terminal-0.8.5-linux-x64.zip
-  Display name: LUZ Civic Terminal 0.8.5 - Linux x64 (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.6-linux-x64.zip
+  Display name: LUZ Civic Terminal 0.8.6 - Linux x64 (experimental)
   Description: Graphical glibc desktop build. Requires X11/XWayland and xdg-open.
   Includes installation and author guides. Protected game sessions require
   native Windows.
 
 Optional Intel Mac file
-  Filename: LUZ-Civic-Terminal-0.8.5-osx-x64.zip
-  Display name: LUZ Civic Terminal 0.8.5 - macOS Intel (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.6-osx-x64.zip
+  Display name: LUZ Civic Terminal 0.8.6 - macOS Intel (experimental)
   Description: macOS 15 or newer. Follow Prepare macOS.command and
   Install LUZ.command. Not notarized. Protected game sessions require Windows.
 
 Optional Apple Silicon file
-  Filename: LUZ-Civic-Terminal-0.8.5-osx-arm64.zip
-  Display name: LUZ Civic Terminal 0.8.5 - macOS Apple Silicon (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.6-osx-arm64.zip
+  Display name: LUZ Civic Terminal 0.8.6 - macOS Apple Silicon (experimental)
   Description: macOS 15 or newer on M-series hardware. Follow the included
   preparation and installer helpers. Not notarized. Protected game sessions
   require Windows.
 
 Independent Vortex extension
-  Filename: game-nivalisnights-luz-0.6.0.zip
-  Display name: LUZ for Nivalis Nights 0.6.0
-  Version field: 0.6.0
+  Filename: game-nivalisnights-luz-0.6.2.zip
+  Display name: LUZ for Nivalis Nights 0.6.2
+  Version field: 0.6.2
   Nexus game: Modding Tools (site)
   Category: Vortex Extensions
   File category: Main Files (exactly one Main File)
@@ -55,7 +55,7 @@ the release package. Players need only the ZIP for their platform.
 
 PAGE UPDATE
 
-1. Set the LUZ version to 0.8.5.
+1. Set the LUZ version to 0.8.6.
 2. Paste DESCRIPTION.bbcode.txt into the existing page's BBCode description.
    Keep the endorsement image and the clickable Ko-fi banner directly below it.
    Keep any existing gallery images and required credits.

@@ -23,6 +23,25 @@ internal static class VortexBridgeChecks
         string setupExchange = Path.Combine(root, "automatic-setup-exchange");
         string setupFolder = Path.Combine(setupExchange, "setup");
         Directory.CreateDirectory(setupFolder);
+        string badExchange = Path.Combine(root, "linked-setup-exchange"), externalSetupResults = Path.Combine(root, "external-setup-results");
+        Directory.CreateDirectory(Path.Combine(badExchange, "setup")); Directory.CreateDirectory(externalSetupResults);
+        string badResults = Path.Combine(badExchange, "setup-results");
+        LinkedRootChecks.Link(badResults, externalSetupResults);
+        try
+        {
+            using var unsafeSetup = new Library(Path.Combine(root, "linked-setup-library"));
+            unsafeSetup.Save();
+            string requestId = Guid.NewGuid().ToString("N"), requestFile = Path.Combine(badExchange, "setup", requestId + ".json");
+            JsonFiles.Write(requestFile, new VortexSetupRequest { Schema = 1, RequestId = requestId, GameId = "nivalisnights", GameFolder = game, Reviewed = true, CreatedUtc = DateTime.UtcNow });
+            var handler = new PendingLoaderHandler(); using var sources = new Sources(handler);
+            byte[] before = File.ReadAllBytes(Path.Combine(unsafeSetup.Root, "registry.json"));
+            reject(() => VortexBridge.ConfigureAndPrepare(unsafeSetup, requestFile, Environment.ProcessPath!, sources,
+                new CancellationToken(true), badExchange).GetAwaiter().GetResult(), "linked setup output is rejected by the real setup entry point");
+            check(unsafeSetup.State.Vortex == null && before.SequenceEqual(File.ReadAllBytes(Path.Combine(unsafeSetup.Root, "registry.json")))
+                && !handler.Started.Task.IsCompleted && !Directory.EnumerateFileSystemEntries(externalSetupResults).Any(),
+                "unsafe setup output is rejected before connection commit or loader preparation");
+        }
+        finally { Directory.Delete(badResults); }
         using (var automaticSetup = new Library(Path.Combine(root, "automatic-setup-library")))
         {
             string setupRequestId = Guid.NewGuid().ToString("N");
@@ -75,11 +94,43 @@ internal static class VortexBridgeChecks
             "Vortex connection descriptor uses an isolated virtual game and deployment root");
 
         var first = Snapshot(exchange, game, library.State.Vortex!.Id, "mod-one", "1.0.0", "one", '1');
-        VortexSyncResult result = VortexBridge.Synchronize(library, first.Manifest);
-        check(result.Outcome == VortexSyncOutcome.Processing && result.Packages.Any(p => p.Action == "Added"), "Vortex first import prepares one profile transaction");
+        string deployedLink = Path.Combine(descriptor.VortexRoot, "deployed", "Vortex-owned-link");
+        LinkedRootChecks.Link(deployedLink, game);
+        VortexSyncResult result;
+        try
+        {
+            result = VortexBridge.Synchronize(library, first.Manifest);
+            check(result.Outcome == VortexSyncOutcome.Processing && result.Packages.Any(p => p.Action == "Added"), "Vortex first import prepares one profile transaction");
+            VortexBridge.RefreshDescriptor(library, Environment.ProcessPath!);
+            check(Directory.Exists(deployedLink), "Vortex deployment links do not block imports or descriptor refresh and remain untouched");
+        }
+        finally { Directory.Delete(deployedLink); }
         ModEntry entry = library.Active.Mods.Single();
         check(entry.Enabled && library.Active.Vortex.Bindings.Single().PackageId == entry.PackageId, "new Vortex mod enters the selected profile enabled and bound");
         string firstPackage = entry.PackageId;
+        string importedFingerprint = library.Fingerprint(library.Active);
+        string payload = FileSafety.Under(exchange, first.Snapshot.Packages.Single().Payload);
+        string originalPayload = Path.Combine(root, "linked-payload-source");
+        Directory.Move(payload, originalPayload); LinkedRootChecks.Link(payload, originalPayload);
+        try
+        {
+            result = VortexBridge.Synchronize(library, first.Manifest);
+            check(result.Outcome == VortexSyncOutcome.NeedsAttention && library.Fingerprint(library.Active) == importedFingerprint,
+                "links inside snapshot payloads are still rejected without changing the profile");
+        }
+        finally { Directory.Delete(payload); Directory.Move(originalPayload, payload); }
+        string manifestAlias = Path.Combine(exchange, "snapshots", "linked-manifest-parent");
+        LinkedRootChecks.Link(manifestAlias, Path.GetDirectoryName(first.Manifest)!);
+        try { reject(() => VortexBridge.Synchronize(library, Path.Combine(manifestAlias, "snapshot.json")), "linked snapshot manifest ancestors are still rejected"); }
+        finally { Directory.Delete(manifestAlias); }
+        string results = Path.Combine(exchange, "results"), externalResults = Path.Combine(root, "linked-results-target");
+        Directory.CreateDirectory(externalResults); LinkedRootChecks.Link(results, externalResults);
+        try
+        {
+            reject(() => VortexBridge.SaveResult(library, result), "synchronization results cannot be written through a linked control directory");
+            check(!Directory.EnumerateFileSystemEntries(externalResults).Any(), "a rejected linked result path leaves its external target intact");
+        }
+        finally { Directory.Delete(results); }
 
         entry.Enabled = false;
         entry.Note = "keep this";

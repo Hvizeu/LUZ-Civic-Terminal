@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.6
+
+- Fix Vortex synchronization failing on linked files in Vortex's separate deployment area.
+- Preserve strict snapshot and control-path validation, and allow connection refresh with an existing Vortex deployment.
+
 ## 0.8.5
 
 - Adds the independently maintained LUZ for Nivalis Nights Vortex extension, with one-time pairing and official IL2CPP loader preparation.

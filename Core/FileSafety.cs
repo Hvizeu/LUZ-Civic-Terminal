@@ -43,7 +43,7 @@ public static class FileSafety
         if (!result.StartsWith(basePath, HostPlatform.PathComparison)) throw new InvalidDataException("Path escapes its folder.");
         return result;
     }
-    public static void NoLinks(string root)
+    public static void NoLinks(string root, bool recursive = true)
     {
         var info = new DirectoryInfo(root);
         for (var parent = info; parent != null; parent = parent.Parent)
@@ -57,7 +57,7 @@ public static class FileSafety
         catch (DirectoryNotFoundException) { return; }
         catch (UnauthorizedAccessException ex) { throw new UnauthorizedAccessException("LUZ cannot inspect " + root + ". Original error: " + ex.Message, ex); }
         if (rootAttributes.HasFlag(FileAttributes.ReparsePoint)) throw new IOException("Linked files or folders cannot be managed: " + root);
-        if (!rootAttributes.HasFlag(FileAttributes.Directory)) return;
+        if (!recursive || !rootAttributes.HasFlag(FileAttributes.Directory)) return;
         try
         {
             foreach (var entry in Directory.EnumerateFileSystemEntries(root))

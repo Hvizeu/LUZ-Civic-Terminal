@@ -1,0 +1,59 @@
+[size=6][b]LUZ for Nivalis Nights[/b][/size]
+
+Download and update your Nivalis Nights mods through Vortex, then use LUZ to manage profiles and apply them to the game.
+
+Install or update a mod in Vortex and press [b]Play[/b]. LUZ opens, synchronizes the selected profile and applies it when its normal checks allow. [b]Vortex Play opens LUZ. Launch Nivalis from LUZ when you are ready.[/b]
+
+[url=https://www.nexusmods.com/nivalisnights/mods/81]Get LUZ Civic Terminal on Nexus[/url]
+[url=https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest]LUZ 0.8.6 application downloads on GitHub[/url]
+[url=https://github.com/Hvizeu/LUZ-Civic-Terminal]Source code[/url]
+
+[size=5][b]Requirements[/b][/size]
+[list]
+[*]Windows and an installed Steam copy of Nivalis Nights.
+[*]Vortex 2.9.0 or newer.
+[*]LUZ Civic Terminal 0.8.6 or newer. Setup can find an installed copy or ask Vortex to download the compatible Windows package from Nexus.
+[/list]
+
+[size=5][b]First-time setup[/b][/size]
+[list=1]
+[*]Download this extension ZIP manually. Open [b]Home > Extensions[/b] in Vortex, drop the ZIP onto the page, enable it and restart when prompted.
+[*]Manage Nivalis Nights in Vortex.
+[*]Accept the one-time [b]Connect LUZ[/b] review. If BepInEx is missing, LUZ downloads and prepares the latest official Windows x64 IL2CPP build.
+[*]Install a supported mod in Vortex, then press [b]Play[/b].
+[*]Review the selected profile and complete the first [b]Apply[/b] in LUZ. Later updates apply automatically when the profile is ready and the compatibility checks allow it.
+[/list]
+
+[b]Browse Extensions[/b] lists one extension per game, so this independent alternative may not appear there. Install the ZIP from this page.
+
+Nexus login, downloads and installer choices stay in Vortex. Keep Vortex as your NXM download manager. [b]You do not need to supply a Nexus API key to LUZ for this workflow.[/b]
+
+[size=5][b]Profiles and updates[/b][/size]
+
+LUZ controls enabled mods, deployment order, pinned versions, configuration, compatibility checks and recovery.
+[list]
+[*]New supported mods enter the selected LUZ profile enabled.
+[*]Existing disabled mods stay disabled. Pinned versions stay selected, with the available update reported.
+[*]Removing a mod from Vortex keeps its imported LUZ copy and marks its update feed unavailable.
+[*]Removing an imported mod in LUZ excludes it from that profile's feed, so synchronization does not add it back.
+[/list]
+
+[b]Vortex's enabled switches do not control gameplay in this integration.[/b] All installed packages are available to LUZ, including packages disabled in Vortex. Choose what you want enabled in LUZ.
+
+[size=5][b]Switching from another Nivalis extension[/b][/size]
+
+With the game closed, use [b]Purge Mods[/b] while the previous extension is still active. Disable the previous game-support extension, enable this one and restart Vortex. Only one Nivalis game-support extension should be active.
+
+Review legacy loader bundles, standalone tools and unsupported packages in LUZ Maintenance. They require their own setup or an explicit exclusion from the profile's update feed.
+
+[size=5][b]Supported packages[/b][/size]
+
+The bridge preserves Vortex's selected installer output and passes it through LUZ's content checks. Supported content includes BepInEx plugins, patchers, configuration and their companion files. Wrapped folders and configuration-only packages are supported. MelonLoader packages require the appropriate BepInEx 6 IL2CPP version of the mod.
+
+A running game, interrupted operation, unrelated unapplied profile changes or a new compatibility warning can require review before Apply. Protected saves have their own loader, game-build and mod-support requirements; installing the newest loader does not establish protected-session compatibility.
+
+[size=5][b]Credits and support[/b][/size]
+
+Maintained by Hvizeu. Package recognition was informed by Sebastian Maute's Nivalis Nights Vortex extension. Required licenses and third-party notices are included.
+
+For a problem report, include the mod name, LUZ and Vortex versions, the action you took and the exact error. LUZ's [b]Maintenance > Export diagnostics[/b] can help identify the failed step.

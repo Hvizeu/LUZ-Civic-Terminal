@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const fsp = fs.promises;
 const path = require("path");
+const PromiseBB = require("bluebird");
 const { actions, selectors, util } = require("vortex-api");
 const { GAME_ID, buildSnapshot, readConnection, safeIdentity } = require("./snapshot");
 
@@ -73,7 +74,7 @@ async function findActualGame() {
 
 async function ensureVirtualRoot() {
   const root = virtualRoot();
-  await fsp.mkdir(path.join(root, "deployed"), { recursive: true });
+  await Promise.all(["deployed", "tools/LUZ"].map(area => fsp.mkdir(path.join(root, area), { recursive: true })));
   await fsp.writeFile(path.join(root, BRIDGE_MARKER), JSON.stringify({ Schema: 1, GameId: GAME_ID }, null, 2));
   return root;
 }
@@ -173,6 +174,26 @@ function run(executable, args) {
     (error) => error ? reject(error) : resolve()));
 }
 
+async function discoverLuz(context) {
+  const executable = await findSystemLuz() || managedLuzPath(context.api);
+  if (!executable) return "";
+  await fsp.access(path.join(path.dirname(executable), HANDOFF_EXE));
+  return path.dirname(executable);
+}
+
+async function registerLuzTool(context, descriptor) {
+  const handoff = path.join(path.dirname(descriptor.Executable), HANDOFF_EXE);
+  if (!descriptor.HandoffExecutable || !samePath(descriptor.HandoffExecutable, handoff))
+    throw new Error("The connected LUZ installation has no matching Vortex handoff launcher. Update LUZ before continuing.");
+  await fsp.access(handoff);
+  context.api.store.dispatch(actions.addDiscoveredTool(GAME_ID, "luz-civic-terminal", {
+    id: "luz-civic-terminal", path: handoff, name: "LUZ Civic Terminal", hidden: false, custom: false,
+    requiredFiles: [HANDOFF_EXE], defaultPrimary: true, exclusive: false, parameters: [],
+    workingDirectory: path.dirname(handoff)
+  }, false));
+  context.api.store.dispatch(actions.setPrimaryTool(GAME_ID, "luz-civic-terminal"));
+}
+
 async function configureLuz(executable, gameFolder, reviewed = false) {
   const requestId = crypto.randomBytes(16).toString("hex");
   const folder = path.join(exchangeRoot(), "setup");
@@ -257,9 +278,16 @@ function queueExport(task) {
 
 function assertNoConflicts(state) {
   const conflicts = Object.entries(state.app?.extensions || {}).filter(([key, entry]) => {
-    const id = entry.infoJsonId || key;
-    return entry.enabled !== false && !entry.remove && id !== EXTENSION_ID
-      && (["game-nivalisnights", "game-nivalisnights-luz-bridge"].includes(id) || entry.gameId === 10401 || entry.gameId === GAME_ID);
+    if (entry.enabled === false || entry.remove) return false;
+    let id = entry.infoJsonId || key, gameId = entry.gameId;
+    if (entry.path) {
+      const metadata = path.join(entry.path, "info.json");
+      if (fs.existsSync(metadata)) {
+        const info = JSON.parse(fs.readFileSync(metadata, "utf8").replace(/^\uFEFF/, ""));
+        id = info.id || id; gameId = info.gameId ?? gameId;
+      }
+    }
+    return id !== EXTENSION_ID && (["game-nivalisnights", "game-nivalisnights-luz-bridge"].includes(id) || gameId === 10401 || gameId === GAME_ID);
   });
   if (conflicts.length) throw new Error("Another Nivalis Nights extension is enabled. If it owns a direct deployment, use its Purge Mods action first. Then disable that extension, enable LUZ for Nivalis Nights and restart Vortex. Packages and LUZ profiles are retained.");
 }
@@ -356,8 +384,8 @@ async function setup(context, discovery) {
   const game = actualGameFolder || await findActualGame();
   if (await directDeploymentEvidence(game)) throw new Error("This installation still contains a previous direct Vortex deployment. Use Purge Mods once, then Manage Nivalis Nights again. LUZ will preserve the installed mod packages.");
   const executable = await ensureLuz(context);
-  await queueSetup(() => ensureLuzConnection(executable, game, context));
-  context.api.store.dispatch(actions.setPrimaryTool(GAME_ID, "luz-civic-terminal"));
+  const descriptor = await queueSetup(() => ensureLuzConnection(executable, game, context));
+  await registerLuzTool(context, descriptor);
 }
 
 function toolArchiveRoot(files) {
@@ -403,22 +431,21 @@ async function configureInstalledLuz(context, gameId, modId) {
   if (!executable) return false;
   context.api.store.dispatch(actions.setModType(GAME_ID, modId, LUZ_TOOL_TYPE));
   const game = actualGameFolder || await findActualGame();
-  await queueSetup(() => ensureLuzConnection(executable, game, context));
-  context.api.store.dispatch(actions.setPrimaryTool(GAME_ID, "luz-civic-terminal"));
+  const descriptor = await queueSetup(() => ensureLuzConnection(executable, game, context));
+  await registerLuzTool(context, descriptor);
   context.api.sendNotification({ id: `${GAME_ID}-luz-ready`, type: "success", title: "LUZ connected",
     message: "LUZ and its loader are connected. Install or update mods, then press Play to synchronize and review the first Apply." });
   return true;
 }
 
 function init(context) {
-  try { assertNoConflicts(context.api.getState()); }
-  catch (error) { context.once(() => context.api.showErrorNotification("LUZ extension conflict", error)); return false; }
   context.registerGame({
     id: GAME_ID,
     name: "Nivalis Nights",
+    logo: "gameart.png",
     mergeMods: (mod) => safeIdentity(mod?.id || mod?.installationPath),
     requiresCleanup: true,
-    queryPath: async () => { await findActualGame(); return ensureVirtualRoot(); },
+    queryPath: async () => { assertNoConflicts(context.api.getState()); await findActualGame(); return ensureVirtualRoot(); },
     executable: () => BRIDGE_MARKER,
     requiredFiles: [BRIDGE_MARKER],
     queryModPath: () => exchangeDestination(context.api, "deployed"),
@@ -427,7 +454,7 @@ function init(context) {
     details: { steamAppId: +STEAM_APP_ID, nexusPageId: GAME_ID },
     supportedTools: [{
       id: "luz-civic-terminal", name: "LUZ Civic Terminal", shortName: "LUZ",
-      queryPath: async () => path.dirname(await ensureLuz(context)), executable: () => HANDOFF_EXE,
+      queryPath: () => discoverLuz(context), executable: () => HANDOFF_EXE,
       requiredFiles: [HANDOFF_EXE], relative: false, exclusive: false, defaultPrimary: true
     }]
   });
@@ -449,6 +476,9 @@ function init(context) {
     ] }));
 
   context.once(() => {
+    try { assertNoConflicts(context.api.getState()); }
+    catch (error) { context.api.showErrorNotification("LUZ extension conflict", error); return; }
+    context.api.log?.("info", `Automatic LUZ integration registered for ${GAME_ID}; minimum Vortex ${MIN_VORTEX}, minimum LUZ ${MIN_LUZ}`);
     for (const event of ["did-install-mod", "did-remove-mod", "did-remove-mods"]) context.api.events.on(event, gameId => { if (gameId === GAME_ID) inventoryEpoch++; });
     context.api.onAsync("will-install-mod", async gameId => { if (gameId === GAME_ID) inventoryEpoch++; });
     context.api.onAsync("will-deploy", async profileId => {
@@ -473,7 +503,8 @@ function init(context) {
         context.api.showErrorNotification?.("LUZ was installed but automatic setup failed", error)));
   });
 
-  context.registerStartHook(5, "nivalisnights-luz-synchronize", async (runRequest) => {
+  // Vortex's start chain uses Bluebird's filtered catch handlers on the returned promise.
+  context.registerStartHook(5, "nivalisnights-luz-synchronize", (runRequest) => PromiseBB.try(async () => {
     const state = context.api.getState();
     if (selectors.activeProfile(state)?.gameId !== GAME_ID) return runRequest;
     const discovery = selectors.discoveryByGame(state, GAME_ID);
@@ -496,9 +527,8 @@ function init(context) {
       context.api.showErrorNotification?.("Nivalis Nights could not hand off to LUZ", error);
       throw new util.UserCanceled(`LUZ stopped Play: ${error.message || error}`);
     }
-  });
+  }));
 
-  context.api.log?.("info", `Automatic LUZ integration registered for ${GAME_ID}; minimum Vortex ${MIN_VORTEX}, minimum LUZ ${MIN_LUZ}`);
   return true;
 }
 

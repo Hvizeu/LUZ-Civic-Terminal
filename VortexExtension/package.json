@@ -1,6 +1,6 @@
 {
   "name": "game-nivalisnights-luz",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "description": "LUZ for Nivalis Nights: Vortex downloads and installer selections with LUZ profiles, loader setup and safe deployment.",
   "author": "Hvizeu",
   "license": "EUPL-1.2",
@@ -12,10 +12,12 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "build": "node scripts/build.mjs",
-    "package": "npm run test && npm run build && node scripts/package.mjs"
+    "package": "npm run test && npm run build && node scripts/package.mjs",
+    "test:host": "node scripts/check-host.mjs"
   },
   "devDependencies": {
-    "@nexusmods/vortex-api": "2.9.0"
+    "@nexusmods/vortex-api": "2.9.0",
+    "bluebird": "3.7.2"
   },
   "config": {
     "game": "Nivalis Nights",
