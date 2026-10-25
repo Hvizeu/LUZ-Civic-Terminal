@@ -1,12 +1,14 @@
 {
-  "name": "game-nivalisnights",
-  "version": "0.5.0",
-  "description": "Canonical Vortex game support with automatic LUZ profile and deployment integration",
-  "author": "Sebastian Maute, Hvizeu",
+  "name": "game-nivalisnights-luz",
+  "version": "0.6.0",
+  "description": "LUZ for Nivalis Nights: Vortex downloads and installer selections with LUZ profiles, loader setup and safe deployment.",
+  "author": "Hvizeu",
   "license": "EUPL-1.2",
   "private": true,
   "main": "index.js",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test test/*.test.js",
     "build": "node scripts/build.mjs",

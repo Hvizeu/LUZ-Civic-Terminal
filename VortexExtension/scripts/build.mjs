@@ -8,5 +8,5 @@ await fs.rm(output, { recursive: true, force: true });
 await fs.mkdir(output, { recursive: true });
 for (const file of ["index.js", "snapshot.js"])
   await fs.copyFile(path.join(root, "src", file), path.join(output, file));
-for (const file of ["info.json", "README.md", "LICENSE", "gameart.png"])
+for (const file of ["info.json", "README.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "gameart.png"])
   await fs.copyFile(path.join(root, file), path.join(output, file));

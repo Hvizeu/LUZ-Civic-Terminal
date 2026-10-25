@@ -24,6 +24,9 @@ public sealed class VortexSnapshotPackage
     public string SourceFileId { get; set; } = "";
     public string Variant { get; set; } = "";
     public string PageUrl { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public string Layout { get; set; } = "";
+    public string ReplacesBridgeId { get; set; } = "";
     public string Payload { get; set; } = "";
     public string ContentSha256 { get; set; } = "";
     public List<VortexSnapshotFile> Files { get; set; } = [];
@@ -52,6 +55,7 @@ public sealed class VortexSyncResult
     public string RequestId { get; set; } = "";
     public string Revision { get; set; } = "";
     public string ProfileId { get; set; } = "";
+    public string RetryOf { get; set; } = "";
     public string BaseFingerprint { get; set; } = "";
     public string ResultingFingerprint { get; set; } = "";
     public VortexSyncOutcome Outcome { get; set; }
@@ -68,6 +72,10 @@ public sealed class VortexConnectionDescriptor
     public string ExchangeRoot { get; set; } = "";
     public string VortexRoot { get; set; } = "";
     public string Executable { get; set; } = "";
+    public string HandoffExecutable { get; set; } = "";
+    public bool SetupComplete { get; set; }
+    public int[] SnapshotSchemas { get; set; } = [1, 2];
+    public string LibraryRoot { get; set; } = "";
     public string Version { get; set; } = "";
     public DateTime UpdatedUtc { get; set; }
 }
@@ -77,6 +85,7 @@ public sealed class VortexSetupRequest
     public string RequestId { get; set; } = "";
     public string GameId { get; set; } = "";
     public string GameFolder { get; set; } = "";
+    public bool Reviewed { get; set; }
     public DateTime CreatedUtc { get; set; }
 }
 public sealed class VortexSetupResult
@@ -121,12 +130,13 @@ public static class VortexBridge
         return full;
     }
 
-    public static VortexSetupResult Configure(Library library, string requestPath, string executable, string? exchangeRoot = null)
+    public static VortexSetupResult Configure(Library library, string requestPath, string executable, string? exchangeRoot = null, bool persistResult = true)
     {
         string root = FileSafety.ResolveFolder(exchangeRoot ?? DefaultExchangeRoot());
         string path = ValidateSetupMessage(SetupPrefix + requestPath, root);
         VortexSetupRequest request = JsonFiles.Read<VortexSetupRequest>(path);
         var result = new VortexSetupResult { RequestId = request.RequestId, Outcome = VortexSyncOutcome.Failed };
+        VortexSetupResult Finish(VortexSetupResult value) => persistResult ? SaveSetupResult(value, root) : value;
         try
         {
             if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Vortex integration is available on Windows only.");
@@ -145,7 +155,7 @@ public static class VortexBridge
             {
                 result.Outcome = VortexSyncOutcome.NeedsAttention;
                 result.Message = "LUZ is connected to a different Nivalis installation. Open LUZ and review the game location once; no profile or game files were changed.";
-                return SaveSetupResult(result, root);
+                return Finish(result);
             }
             if (library.State.Vortex is { } existing)
             {
@@ -154,18 +164,18 @@ public static class VortexBridge
                 {
                     result.Outcome = VortexSyncOutcome.NeedsAttention;
                     result.Message = "LUZ already has a different Vortex connection. Open Maintenance and disconnect that connection before retrying Play in Vortex.";
-                    return SaveSetupResult(result, root);
+                    return Finish(result);
                 }
-                WriteDescriptor(existing, executable);
+                WriteDescriptor(existing, executable, library.Root);
                 result.Outcome = VortexSyncOutcome.NoChanges;
                 result.Message = "Vortex and LUZ are already connected.";
-                return SaveSetupResult(result, root);
+                return Finish(result);
             }
 
             Directory.CreateDirectory(root);
             FileSafety.NoLinks(root);
             var connection = new VortexConnection { Id = Guid.NewGuid().ToString("N"), ExchangeRoot = root, GameFolder = game, ConnectedUtc = DateTime.UtcNow };
-            WriteDescriptor(connection, executable);
+            WriteDescriptor(connection, executable, library.Root);
             TerminalState next = Clone(library.State);
             next.GameFolder = game;
             next.Vortex = connection;
@@ -178,15 +188,42 @@ public static class VortexBridge
             }
             result.Outcome = VortexSyncOutcome.Applied;
             result.Message = "Vortex connected to LUZ. Future updates need only Vortex Play.";
-            return SaveSetupResult(result, root);
+            return Finish(result);
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
             result.Outcome = VortexSyncOutcome.Failed;
             result.Message = "Automatic Vortex setup failed: " + ex.Message;
-            return SaveSetupResult(result, root);
+            return Finish(result);
         }
     }
+
+    public static async Task<VortexSetupResult> ConfigureAndPrepare(Library library, string requestPath, string executable, Sources sources, CancellationToken cancellation = default, string? exchangeRoot = null)
+    {
+        string root = exchangeRoot ?? DefaultExchangeRoot();
+        var request = JsonFiles.Read<VortexSetupRequest>(ValidateSetupMessage(SetupPrefix + requestPath, root));
+        if (!request.Reviewed && library.State.Vortex == null)
+            return SaveSetupResult(new() { RequestId = request.RequestId, Outcome = VortexSyncOutcome.NeedsAttention, Message = "Review the one-time LUZ setup in Vortex before connecting." }, root);
+        VortexSetupResult result = Configure(library, requestPath, executable, root, persistResult: false);
+        if (result.Outcome is not (VortexSyncOutcome.Applied or VortexSyncOutcome.NoChanges)) return SaveSetupResult(result, root);
+        try
+        {
+            if (!LoaderPresent(library.State.GameFolder))
+            {
+                if (!request.Reviewed) throw new InvalidOperationException("Review setup in Vortex to install the latest official Windows x64 IL2CPP loader.");
+                await LoaderInstaller.InstallLatest(library, sources, cancellation).ConfigureAwait(false);
+            }
+            RefreshDescriptor(library, executable);
+            result.Message = "Vortex is connected and the loader is available. Mods have not been synchronized or applied.";
+        }
+        catch (Exception error) when (error is IOException or InvalidOperationException or UnauthorizedAccessException or HttpRequestException or OperationCanceledException)
+        {
+            result.Outcome = OperationRecovery.Inspect(library).Count > 0 ? VortexSyncOutcome.RecoveryRequired : VortexSyncOutcome.NeedsAttention;
+            result.Message = "Connected; loader setup needs attention: " + error.Message;
+        }
+        return SaveSetupResult(result, root);
+    }
+    private static bool LoaderPresent(string game) => File.Exists(Path.Combine(game, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")) && File.Exists(Path.Combine(game, "winhttp.dll"));
 
     public static VortexSetupResult? ReadSetupResult(string requestId, string? exchangeRoot = null)
     {
@@ -208,13 +245,12 @@ public static class VortexBridge
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("The Vortex bridge is currently available on Windows only.");
         GameFiles.Validate(library.State.GameFolder);
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable)) throw new InvalidDataException("LUZ cannot advertise a missing application executable to Vortex.");
-        if (checkConflicts && ConflictingExtensions() is { Count: > 0 } conflicts)
-            throw new InvalidOperationException("Remove the obsolete separate LUZ Bridge extension before using canonical Nivalis Nights support: " + string.Join(", ", conflicts));
+        // Vortex checks its enabled-extension state before invoking connection setup.
         string root = FileSafety.ResolveFolder(exchangeRoot ?? DefaultExchangeRoot());
         RejectOverlap(root, library.Root, "LUZ library"); RejectOverlap(root, library.State.GameFolder, "game folder");
         Directory.CreateDirectory(root); FileSafety.NoLinks(root);
         var connection = new VortexConnection { Id = Guid.NewGuid().ToString("N"), ExchangeRoot = root, GameFolder = FileSafety.ResolveFolder(library.State.GameFolder), ConnectedUtc = DateTime.UtcNow };
-        WriteDescriptor(connection, executable);
+        WriteDescriptor(connection, executable, library.Root);
         TerminalState next = Clone(library.State); next.Vortex = connection;
         try { library.Commit(next); }
         catch (Exception operation)
@@ -241,7 +277,7 @@ public static class VortexBridge
     {
         if (library.State.Vortex is not { } connection || !OperatingSystem.IsWindows()) return;
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable)) return;
-        WriteDescriptor(connection, executable);
+        WriteDescriptor(connection, executable, library.Root);
     }
 
     public static void Exclude(Library library, string packageId)
@@ -254,29 +290,13 @@ public static class VortexBridge
         }
     }
 
-    public static IReadOnlyList<string> ConflictingExtensions(string? pluginsRoot = null)
+    public static void ExcludeSource(Library library, string bridgeId)
     {
-        if (!OperatingSystem.IsWindows()) return [];
-        string root = pluginsRoot ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Vortex", "plugins");
-        if (!Directory.Exists(root)) return [];
-        var conflicts = new List<string>();
-        foreach (string folder in Directory.GetDirectories(root))
-        foreach (string filename in new[] { "info.json", "package.json" })
-        {
-            string file = Path.Combine(folder, filename);
-            if (!File.Exists(file) || new FileInfo(file).Length > 1_048_576) continue;
-            try
-            {
-                using var document = JsonDocument.Parse(File.ReadAllText(file));
-                string id = document.RootElement.TryGetProperty("id", out var idValue) ? idValue.GetString() ?? "" : "";
-                string name = document.RootElement.TryGetProperty("name", out var nameValue) ? nameValue.GetString() ?? "" : "";
-                if (id.Equals("game-nivalisnights-luz-bridge", StringComparison.OrdinalIgnoreCase)
-                    || name.Equals("game-nivalisnights-luz-bridge", StringComparison.OrdinalIgnoreCase))
-                    conflicts.Add(Path.GetFileName(folder));
-            }
-            catch (JsonException) { }
-        }
-        return conflicts.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (!Identity.IsMatch(bridgeId)) throw new InvalidDataException("Invalid Vortex package identity.");
+        TerminalState next = Clone(library.State);
+        Profile profile = next.Profiles.Single(p => p.Id == library.Active.Id);
+        if (!profile.Vortex.Exclusions.Contains(bridgeId, StringComparer.OrdinalIgnoreCase)) profile.Vortex.Exclusions.Add(bridgeId);
+        library.Commit(next);
     }
 
     public static VortexSyncResult Synchronize(Library library, string manifestPath, CancellationToken cancellation = default)
@@ -288,7 +308,19 @@ public static class VortexBridge
         string baseFingerprint = library.Fingerprint(current);
         var result = new VortexSyncResult { RequestId = snapshot.RequestId, Revision = snapshot.Revision, ProfileId = current.Id,
             BaseFingerprint = baseFingerprint, Outcome = VortexSyncOutcome.Processing };
-        if (current.Vortex.LastRevision.Equals(snapshot.Revision, StringComparison.OrdinalIgnoreCase) && SnapshotSatisfied(current, snapshot))
+        foreach (var incoming in snapshot.Packages)
+        {
+            try { ValidatePackageRecord(incoming); ValidatePayload(connection, incoming, cancellation); }
+            catch (Exception error) when (error is InvalidDataException or IOException or UnauthorizedAccessException)
+            {
+                result.Packages.Add(Item(incoming, "Blocked", error.Message));
+                result.Outcome = VortexSyncOutcome.NeedsAttention; result.ResultingFingerprint = baseFingerprint;
+                result.Message = "Snapshot validation failed. The LUZ profile was not changed."; result.CompletedUtc = DateTime.UtcNow; return result;
+            }
+        }
+
+        if (current.Vortex.LastRevision.Equals(snapshot.Revision, StringComparison.OrdinalIgnoreCase) && SnapshotSatisfied(current, snapshot)
+            && current.Vortex.Bindings.All(b => library.State.Packages.FirstOrDefault(p => p.Id == b.PackageId)?.PreparationVersion == PackagePreparation.Version))
         {
             result.Outcome = VortexSyncOutcome.NoChanges; result.ResultingFingerprint = baseFingerprint; result.Message = "This Vortex snapshot was already synchronized."; result.CompletedUtc = DateTime.UtcNow; return result;
         }
@@ -309,6 +341,7 @@ public static class VortexBridge
             if (binding == null && incoming.SourceModId.Length > 0)
             {
                 VortexBinding[] predecessors = current.Vortex.Bindings.Where(b => !incomingIds.Contains(b.BridgeId)
+                    && (incoming.ReplacesBridgeId.Length == 0 || b.BridgeId.Equals(incoming.ReplacesBridgeId, StringComparison.OrdinalIgnoreCase))
                     && b.SourceModId.Equals(incoming.SourceModId, StringComparison.OrdinalIgnoreCase)
                     && (b.Variant.Length == 0 || incoming.Variant.Length == 0 || b.Variant.Equals(incoming.Variant, StringComparison.OrdinalIgnoreCase))).ToArray();
                 int successors = snapshot.Packages.Count(p => p.SourceModId.Equals(incoming.SourceModId, StringComparison.OrdinalIgnoreCase)
@@ -331,9 +364,9 @@ public static class VortexBridge
             }
             if (existingEntry?.Pinned == true && !binding!.ContentSha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase))
             {
-                pinned.Add(incoming.BridgeId); result.Packages.Add(Item(incoming, "Pinned", "The selected LUZ version remains pinned.")); continue;
+                pinned.Add(incoming.BridgeId); result.Packages.Add(Item(incoming, "Pinned", "The selected LUZ version remains pinned. Available Vortex version: " + incoming.Version + ".")); continue;
             }
-            if (existingPackage != null && !binding!.ContentSha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase))
+            if (existingPackage != null && incoming.Version != "0.0.0" && !binding!.ContentSha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase))
             {
                 int comparison = ModPlanner.CompareVersions(incoming.Version, existingPackage.Version);
                 if (comparison < 0 || comparison == 0 && !incoming.Version.Equals("0.0.0", StringComparison.OrdinalIgnoreCase))
@@ -341,7 +374,7 @@ public static class VortexBridge
                     blocked.Add(Item(incoming, "Blocked", comparison < 0 ? "Vortex offered an older version." : "The same version has different package contents. Review the variant.")); continue;
                 }
             }
-            if (binding != null && binding.ContentSha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase) && existingPackage != null)
+            if (binding != null && binding.ContentSha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase) && existingPackage != null && existingPackage.PreparationVersion == PackagePreparation.Version)
             {
                 prepared[incoming.BridgeId] = existingPackage; result.Packages.Add(Item(incoming, "Unchanged", "Package content matches the bound LUZ version.")); continue;
             }
@@ -405,6 +438,23 @@ public static class VortexBridge
                 result.Outcome = VortexSyncOutcome.NeedsAttention; result.ResultingFingerprint = baseFingerprint;
                 result.Message = "A Vortex package has an ambiguous LUZ identity. The LUZ profile was not changed."; result.CompletedUtc = DateTime.UtcNow; return result;
             }
+            bool retainedPinned = false;
+            if (entry != null && entry.PackageId != package.Id)
+            {
+                ModPackage selected = next.Packages.Single(p => p.Id == entry.PackageId);
+                if (entry.Pinned)
+                {
+                    package = selected; retainedPinned = true;
+                    result.Packages.RemoveAll(p => p.BridgeId == incoming.BridgeId);
+                    result.Packages.Add(Item(incoming, "Pinned", "Bound to the existing pinned LUZ version; the Vortex update was not selected."));
+                }
+                else if (package.Version != "0.0.0" && selected.Version != "0.0.0" && ModPlanner.CompareVersions(package.Version, selected.Version) < 0)
+                {
+                    result.Packages.Add(Item(incoming, "Blocked", "The prepared package would downgrade the selected LUZ version. Review it before replacing."));
+                    result.Outcome = VortexSyncOutcome.NeedsAttention; result.ResultingFingerprint = baseFingerprint;
+                    result.Message = "A downgrade requires review. The LUZ profile was not changed."; return result;
+                }
+            }
             if (entry == null)
             {
                 entry = new ModEntry { PackageId = package.Id, Enabled = true }; target.Mods.Add(entry);
@@ -417,9 +467,9 @@ public static class VortexBridge
             binding ??= new VortexBinding { BridgeId = incoming.BridgeId };
             if (!target.Vortex.Bindings.Contains(binding)) target.Vortex.Bindings.Add(binding);
             binding.PackageId = package.Id; binding.SourceModId = incoming.SourceModId; binding.SourceFileId = incoming.SourceFileId; binding.Variant = incoming.Variant;
-            binding.ContentSha256 = incoming.ContentSha256; binding.Version = incoming.Version; binding.Available = true;
+            binding.ContentSha256 = retainedPinned ? "" : incoming.ContentSha256; binding.Version = package.Version; binding.Available = true;
         }
-        target.Vortex.LastRevision = snapshot.Revision;
+        target.Vortex.LastRevision = snapshot.Revision; target.Vortex.LastRequestId = snapshot.RequestId; target.Vortex.LastManifestSha256 = FileSafety.Hash(manifestPath);
         string candidateFingerprint = library.Fingerprint(target);
         if (candidateFingerprint != baseFingerprint)
         {
@@ -436,10 +486,11 @@ public static class VortexBridge
         result.CompletedUtc = DateTime.UtcNow; return result;
     }
 
-    public static VortexSyncResult SynchronizeAndApply(Library library, string manifestPath, string capturedProfileId, CancellationToken cancellation = default)
+    public static VortexSyncResult SynchronizeAndApply(Library library, string manifestPath, string capturedProfileId, CancellationToken cancellation = default, string? capturedFingerprint = null)
     {
         VortexSnapshot snapshot = JsonFiles.Read<VortexSnapshot>(ValidateMessage(Prefix + manifestPath));
-        var result = new VortexSyncResult { RequestId = snapshot.RequestId, Revision = snapshot.Revision, ProfileId = capturedProfileId, Outcome = VortexSyncOutcome.Processing };
+        string admittedFingerprint = capturedFingerprint ?? library.Fingerprint(library.Active);
+        var result = new VortexSyncResult { RequestId = snapshot.RequestId, Revision = snapshot.Revision, ProfileId = capturedProfileId, BaseFingerprint = admittedFingerprint, ResultingFingerprint = admittedFingerprint, Outcome = VortexSyncOutcome.Processing };
         bool synchronized = false;
         try
         {
@@ -450,6 +501,28 @@ public static class VortexBridge
                 return result;
             }
             string before = library.Fingerprint(library.Active);
+            var bridgeState = library.Active.Vortex;
+            bool completedRequest = bridgeState.AppliedRequestId == snapshot.RequestId && bridgeState.AppliedRevision == snapshot.Revision
+                && bridgeState.AppliedBaseFingerprint == admittedFingerprint && bridgeState.AppliedFingerprint == before
+                && bridgeState.AppliedManifestSha256 == FileSafety.Hash(manifestPath)
+                && library.State.AppliedProfileId == capturedProfileId && library.State.AppliedFingerprint == before;
+            if (completedRequest && OperationRecovery.Inspect(library).Count == 0)
+            {
+                var connection = ValidateSnapshot(library, manifestPath, snapshot);
+                foreach (var package in snapshot.Packages) { ValidatePackageRecord(package); ValidatePayload(connection, package, cancellation); }
+                if (AppliedContentMatches(library))
+                {
+                    result.Outcome = VortexSyncOutcome.Applied; result.ResultingFingerprint = before;
+                    result.Message = "This exact Vortex request was already applied. Its completion result was restored without another deployment."; return result;
+                }
+                result.Outcome = VortexSyncOutcome.NeedsAttention; result.Message = "The request was applied previously, but installed content has changed. Review the profile before retrying."; return result;
+            }
+            bool resumesCapturedTransition = capturedFingerprint != null && library.Active.Vortex.LastRequestId == snapshot.RequestId && library.Active.Vortex.LastRevision == snapshot.Revision
+                && library.Active.Vortex.PendingBaseFingerprint == capturedFingerprint && library.Active.Vortex.PendingApplyFingerprint == before;
+            if (capturedFingerprint != null && capturedFingerprint != before && !resumesCapturedTransition)
+            {
+                result.Outcome = VortexSyncOutcome.NeedsAttention; result.Message = "The captured profile changed while this request was queued. Review it and submit a new Vortex request."; return result;
+            }
             bool alreadyApplied = library.State.AppliedProfileId == capturedProfileId && library.State.AppliedFingerprint == before;
             bool resumesBridgeApply = library.State.AppliedProfileId == capturedProfileId
                 && library.Active.Vortex.PendingBaseFingerprint == library.State.AppliedFingerprint
@@ -457,8 +530,18 @@ public static class VortexBridge
             bool wasApplied = alreadyApplied || resumesBridgeApply;
             bool hadRecovery = OperationRecovery.Inspect(library).Count > 0;
             result = Synchronize(library, manifestPath, cancellation);
+            result.BaseFingerprint = admittedFingerprint;
             synchronized = result.Outcome is VortexSyncOutcome.Processing or VortexSyncOutcome.NoChanges;
-            if (!synchronized || (result.Outcome == VortexSyncOutcome.NoChanges && !resumesBridgeApply)) return result;
+            if (!synchronized) return result;
+            if (result.Outcome == VortexSyncOutcome.NoChanges && alreadyApplied && !hadRecovery)
+            {
+                if (!AppliedContentMatches(library))
+                {
+                    result.Outcome = VortexSyncOutcome.NeedsAttention;
+                    result.Message = "The snapshot is synchronized, but installed mod files differ from the applied profile. Review and Apply in LUZ before launch.";
+                }
+                return result;
+            }
             if (library.Active.Id != capturedProfileId)
             {
                 result.Outcome = VortexSyncOutcome.NeedsAttention;
@@ -551,7 +634,7 @@ public static class VortexBridge
     private static VortexConnection ValidateSnapshot(Library library, string manifestPath, VortexSnapshot snapshot)
     {
         VortexConnection connection = library.State.Vortex ?? throw new InvalidOperationException("Manage Nivalis Nights in Vortex once so it can connect LUZ automatically.");
-        if (snapshot.Schema != 1 || snapshot.GameId != "nivalisnights") throw new InvalidDataException("Unsupported Vortex snapshot schema or game identity.");
+        if (snapshot.Schema is not (1 or 2) || snapshot.GameId != "nivalisnights") throw new InvalidDataException("Unsupported Vortex snapshot schema or game identity.");
         if (!Hex32.IsMatch(snapshot.RequestId) || !Hex64.IsMatch(snapshot.Revision) || !Hex32.IsMatch(snapshot.ConnectionId)) throw new InvalidDataException("Invalid Vortex snapshot identity.");
         if (!snapshot.ConnectionId.Equals(connection.Id, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("This Vortex snapshot belongs to another LUZ connection.");
         if (!FileSafety.ResolveFolder(connection.GameFolder).Equals(FileSafety.ResolveFolder(library.State.GameFolder), HostPlatform.PathComparison)) throw new InvalidDataException("The configured Vortex connection belongs to a different Nivalis installation. Disconnect and reconnect it from Maintenance.");
@@ -565,8 +648,18 @@ public static class VortexBridge
 
     private static ModPackage PreparePackage(Library library, VortexConnection connection, VortexSnapshotPackage incoming, CancellationToken cancellation)
     {
-        ModPackage? registered = library.State.Packages.SingleOrDefault(p => p.Sha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase));
+        ModPackage? registered = library.State.Packages.FirstOrDefault(p => p.Sha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase) && p.PreparationVersion == PackagePreparation.Version);
+        string payload = FileSafety.Under(connection.ExchangeRoot, incoming.Payload);
         if (registered != null) return registered;
+        ModPackage package = library.ImportTree(payload, null, incoming.ContentSha256, incoming.Name, false);
+        if (package.Version == "0.0.0" && incoming.Version.Length > 0) package.Version = incoming.Version;
+        if (package.PageUrl.Length == 0) package.PageUrl = incoming.PageUrl;
+        JsonFiles.Write(Path.Combine(library.PackageRoot(package.Id), "package.json"), package);
+        return package;
+    }
+
+    private static void ValidatePayload(VortexConnection connection, VortexSnapshotPackage incoming, CancellationToken cancellation)
+    {
         string payload = FileSafety.Under(connection.ExchangeRoot, incoming.Payload); FileSafety.NoLinks(payload);
         if (!Directory.Exists(payload)) throw new InvalidDataException("Vortex package payload is missing.");
         var expected = incoming.Files.ToDictionary(f => FileSafety.Under(payload, f.Path), HostPlatform.PathComparer);
@@ -579,18 +672,6 @@ public static class VortexBridge
             if (info.Length != pair.Value.Length || !FileSafety.Hash(pair.Key).Equals(pair.Value.Sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Vortex package changed after its manifest was published: " + pair.Value.Path);
         }
         if (total > 1_073_741_824 || !Aggregate(incoming.Files).Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Vortex package exceeds the 1 GB limit or has an invalid content digest.");
-        string packageRoot = library.PackageRoot(incoming.ContentSha256[..32]);
-        if (Directory.Exists(packageRoot))
-        {
-            ModPackage orphan = JsonFiles.Read<ModPackage>(Path.Combine(packageRoot, "package.json"));
-            if (orphan.Sha256.Equals(incoming.ContentSha256, StringComparison.OrdinalIgnoreCase)) return orphan;
-        }
-        ModPackage package = library.ImportTree(payload, null, incoming.ContentSha256, incoming.Name, false);
-        package.Name = incoming.Name.Length > 0 ? incoming.Name : package.Name;
-        if (incoming.Version.Length > 0) package.Version = incoming.Version;
-        package.Source = "Vortex"; package.SourceId = incoming.SourceModId; package.PageUrl = incoming.PageUrl;
-        JsonFiles.Write(Path.Combine(library.PackageRoot(package.Id), "package.json"), package);
-        return package;
     }
 
     private static ModEntry? Adopt(Profile target, List<ModPackage> packages, ModPackage package, VortexSnapshotPackage incoming, VortexSyncResult result)
@@ -601,7 +682,7 @@ public static class VortexBridge
             ModPackage existing = packages.Single(p => p.Id == entry.PackageId);
             string[] ids = existing.Plugins.Select(p => p.Guid).Order(StringComparer.OrdinalIgnoreCase).ToArray();
             return incoming.SourceModId.Length > 0 && existing.Source == "Nexus" && existing.SourceId.Equals(incoming.SourceModId, StringComparison.OrdinalIgnoreCase)
-                && pluginIds.SequenceEqual(ids, StringComparer.OrdinalIgnoreCase);
+                && pluginIds.Length > 0 && pluginIds.SequenceEqual(ids, StringComparer.OrdinalIgnoreCase);
         }).ToArray();
         if (candidates.Length > 1) throw new InvalidDataException("More than one LUZ entry could represent Vortex mod " + incoming.Name + ". Remove the ambiguity before retrying.");
         if (candidates.Length == 1)
@@ -612,10 +693,25 @@ public static class VortexBridge
         return null;
     }
 
+    private static bool AppliedContentMatches(Library library)
+    {
+        var expected = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in library.Active.Mods.Where(m => m.Enabled))
+        foreach (string file in library.State.Packages.Single(p => p.Id == entry.PackageId).Files.Where(f => !f.StartsWith("config/", StringComparison.OrdinalIgnoreCase)))
+            expected[file] = FileSafety.Under(library.PackageRoot(entry.PackageId), "payload/" + file);
+        foreach (var item in expected)
+        {
+            string installed = FileSafety.PortableDestination(library.State.GameFolder, "BepInEx/" + item.Key); FileSafety.NoLinks(installed);
+            if (!File.Exists(installed) || FileSafety.Hash(installed) != FileSafety.Hash(item.Value)) return false;
+        }
+        return true;
+    }
+
     private static void ValidatePackageRecord(VortexSnapshotPackage package)
     {
         if (!Identity.IsMatch(package.BridgeId) || package.Name.Length is < 1 or > 240 || package.Version.Length > 80 || package.SourceModId.Length > 80
             || package.SourceFileId.Length > 80 || package.Variant.Length > 160 || package.Payload.Length is < 1 or > 512 || package.Files.Count is < 1 or > 20000
+            || package.Kind.Length > 40 || package.Layout.Length > 100 || (package.ReplacesBridgeId.Length > 0 && !Identity.IsMatch(package.ReplacesBridgeId))
             || !Hex64.IsMatch(package.ContentSha256)) throw new InvalidDataException("Invalid Vortex package record.");
         if (package.Files.Select(f => f.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count() != package.Files.Count || package.Files.Any(f => !Hex64.IsMatch(f.Sha256) || f.Length < 0 || f.Length > 536_870_912)) throw new InvalidDataException("Invalid or duplicate Vortex package file record.");
         if (package.PageUrl.Length > 0 && (!Uri.TryCreate(package.PageUrl, UriKind.Absolute, out Uri? page) || page.Scheme != "https" || page.UserInfo.Length > 0)) throw new InvalidDataException("Invalid Vortex package page address.");
@@ -636,7 +732,7 @@ public static class VortexBridge
             || profile.Vortex.Bindings.Any(binding => binding.BridgeId.Equals(package.BridgeId, StringComparison.OrdinalIgnoreCase)
                 && binding.ContentSha256.Equals(package.ContentSha256, StringComparison.OrdinalIgnoreCase)));
     }
-    private static void WriteDescriptor(VortexConnection connection, string executable)
+    private static void WriteDescriptor(VortexConnection connection, string executable, string libraryRoot)
     {
         if (!Hex32.IsMatch(connection.Id)) throw new InvalidDataException("Invalid Vortex connection identity.");
         Directory.CreateDirectory(connection.ExchangeRoot); FileSafety.NoLinks(connection.ExchangeRoot);
@@ -651,7 +747,8 @@ public static class VortexBridge
             GameFolder = connection.GameFolder
         }, JsonFiles.Options));
         var descriptor = new VortexConnectionDescriptor { ConnectionId = connection.Id, GameFolder = connection.GameFolder,
-            ExchangeRoot = connection.ExchangeRoot, VortexRoot = vortexRoot, Executable = Path.GetFullPath(executable),
+            LibraryRoot = libraryRoot, ExchangeRoot = connection.ExchangeRoot, VortexRoot = vortexRoot, Executable = Path.GetFullPath(executable),
+            HandoffExecutable = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(executable))!, "LUZ Vortex.exe"), SetupComplete = LoaderPresent(connection.GameFolder),
             Version = typeof(VortexBridge).Assembly.GetName().Version?.ToString(3) ?? "0.0.0", UpdatedUtc = DateTime.UtcNow };
         JsonFiles.Write(FileSafety.Under(connection.ExchangeRoot, "connection.json"), descriptor);
     }

@@ -20,7 +20,7 @@ internal static class ImportRecoveryChecks
         using (var library = new Library(Path.Combine(scope, "partial")))
         {
             library.Save();
-            string id = FileSafety.Hash(archive)[..32], orphan = library.PackageRoot(id);
+            string id = PackagePreparation.Identity(FileSafety.Hash(archive)), orphan = library.PackageRoot(id);
             Directory.CreateDirectory(Path.Combine(orphan, "payload/plugins/Example"));
             File.WriteAllText(Path.Combine(orphan, "package.json"), "broken metadata");
             File.WriteAllText(Path.Combine(orphan, "payload/plugins/Example/Example.dll"), "partial original");
@@ -35,14 +35,14 @@ internal static class ImportRecoveryChecks
             check(library.State.Packages.Count == 1 && library.Active.Mods.Count == 1 && !library.Active.Mods.Single().Enabled && library.Active.Mods.Single().Pinned, "Repeated recovered import preserves disabled and pinned settings without duplicates");
 
             string invalid = Archive("invalid", "BepInEx/core/loader.dll", "invalid loader input");
-            string invalidOrphan = library.PackageRoot(FileSafety.Hash(invalid)[..32]);
+            string invalidOrphan = library.PackageRoot(PackagePreparation.Identity(FileSafety.Hash(invalid)));
             Directory.CreateDirectory(invalidOrphan);
             File.WriteAllText(Path.Combine(invalidOrphan, "keep.txt"), "preserve invalid import original");
             reject(() => library.Import(invalid), "Invalid source cannot replace an orphan");
             check(File.ReadAllText(Path.Combine(invalidOrphan, "keep.txt")) == "preserve invalid import original" && Directory.GetDirectories(Path.Combine(library.Root, "import-recovery")).Length == 1, "Rejected source leaves orphan at its original location");
 
             string replacement = Archive("replacement", "plugins/Example/Example.dll", "updated native fixture");
-            string replacementOrphan = library.PackageRoot(FileSafety.Hash(replacement)[..32]);
+            string replacementOrphan = library.PackageRoot(PackagePreparation.Identity(FileSafety.Hash(replacement)));
             Directory.CreateDirectory(replacementOrphan);
             File.WriteAllText(Path.Combine(replacementOrphan, "keep.txt"), "original replacement folder");
             string before = File.ReadAllText(Path.Combine(library.Root, "registry.json"));

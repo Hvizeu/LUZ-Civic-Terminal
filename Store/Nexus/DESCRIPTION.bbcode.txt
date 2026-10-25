@@ -9,7 +9,7 @@
 
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. CorpSec Terminal gives mod authors a saved workspace for preparing their releases.
 
-[b]Version 0.8.2 | Windows x64 | Experimental Linux and macOS downloads[/b]
+[b]Version 0.8.5 | Windows x64 | Experimental Linux and macOS downloads[/b]
 
 [url=https://ko-fi.com/henriquevizeu]Support my work on Ko-fi[/url]
 [url=https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest]GitHub downloads and source[/url]
@@ -26,7 +26,7 @@ Import a complete ZIP, an individual DLL or the mods already installed in your g
 
 [size=5][color=#5DD9FF][b]DEPENDENCY CHECKS AND MOD ORDER[/b][/color][/size]
 
-See missing dependencies, incompatible versions, declared conflicts and overlapping files before applying. LUZ 0.8.2 reads Nivalis Expanded's compiled [b]hvizeu.nivalis.unofficialpatch >=0.4.12 <0.5.0[/b] dependency for Nexus and local imports. Missing, disabled, out-of-range or duplicate copies remain blocking, and unrelated package dependencies retain their strict package checks.
+See missing dependencies, incompatible versions, declared conflicts and overlapping files before applying. LUZ 0.8.5 reads Nivalis Expanded's compiled [b]hvizeu.nivalis.unofficialpatch >=0.4.12 <0.5.0[/b] dependency for Nexus and local imports. Missing, disabled, out-of-range or duplicate copies remain blocking, and unrelated package dependencies retain their strict package checks.
 
 Use [b]Auto-sort[/b], drag the handles or choose Move up/down. Lower rows win shared-file conflicts; BepInEx still controls plugin startup order.
 
@@ -42,7 +42,7 @@ Manual Nexus ZIP imports need no API key. Nexus lookup and permitted direct down
 
 [size=5][color=#5DD9FF][b]VORTEX DOWNLOADS, LUZ PROFILES[/b][/color][/size]
 
-On Windows, choose Manage for Nivalis Nights in Vortex 2.9.0 or newer, then use this page's [b]Mod Manager Download[/b]. The canonical [b]Nivalis Nights Support[/b] extension recognizes the Windows package, installs LUZ as an isolated tool, connects it to Steam and makes it primary automatically. Pressing Play exports the completed packages and opens LUZ. LUZ keeps profile switches, order, pins, compatibility checks, deployment and recovery. Vortex Play does not launch Nivalis.
+On Windows, choose Manage for Nivalis Nights in Vortex 2.9.0 or newer, then use this page's [b]Mod Manager Download[/b]. The independently installed [b]LUZ for Nivalis Nights[/b] extension recognizes the Windows package, installs LUZ as an isolated tool, connects it to Steam and makes it primary automatically. Pressing Play exports the completed packages and opens LUZ. LUZ keeps profile switches, order, pins, compatibility checks, deployment and recovery. Vortex Play does not launch Nivalis.
 
 New packages enter the selected LUZ profile enabled. Existing disabled and pinned selections stay unchanged. Removing a package from Vortex keeps its imported LUZ copy and stops its update feed.
 

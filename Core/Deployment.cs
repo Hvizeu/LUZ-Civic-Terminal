@@ -128,7 +128,14 @@ public sealed class Deployment(Library library)
                 throw;
             }
             library.State.AppliedProfileId = library.Active.Id; library.State.AppliedFingerprint = library.Fingerprint(library.Active);
-            library.Active.Vortex.PendingBaseFingerprint = ""; library.Active.Vortex.PendingApplyFingerprint = ""; library.Save();
+            var bridge = library.Active.Vortex;
+            bool bridgeCandidate = bridge.LastRequestId.Length > 0 && bridge.PendingApplyFingerprint == library.State.AppliedFingerprint;
+            bridge.AppliedRequestId = bridgeCandidate ? bridge.LastRequestId : "";
+            bridge.AppliedRevision = bridgeCandidate ? bridge.LastRevision : "";
+            bridge.AppliedManifestSha256 = bridgeCandidate ? bridge.LastManifestSha256 : "";
+            bridge.AppliedBaseFingerprint = bridgeCandidate ? bridge.PendingBaseFingerprint : "";
+            bridge.AppliedFingerprint = bridgeCandidate ? library.State.AppliedFingerprint : "";
+            bridge.PendingBaseFingerprint = ""; bridge.PendingApplyFingerprint = ""; library.Save();
             JsonFiles.Write(Path.Combine(library.Root, "applied-files.json"), new AppliedFiles(library.State.AppliedFingerprint,
                 library.Active.Mods.Where(m => m.Enabled).SelectMany(m => library.State.Packages.Single(p => p.Id == m.PackageId).Files).Distinct(StringComparer.OrdinalIgnoreCase).ToList()));
             File.Delete(Path.Combine(library.Root, "pending.json")); return backup;

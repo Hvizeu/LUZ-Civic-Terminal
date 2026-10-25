@@ -1,6 +1,6 @@
 # CorpSec Terminal: your first mod package
 
-This guide follows the LUZ 0.8.2 interface from a built mod to a finished ZIP. You do not need to edit JSON, contact LUZ's maintainer or arrange its support folder by hand.
+This guide follows the LUZ 0.8.4 interface from a built mod to a finished ZIP. You do not need to edit JSON, contact LUZ's maintainer or arrange its support folder by hand.
 
 CorpSec prepares support declarations and packages. It cannot infer every mod's saved-data rules or write custom recovery behavior for you. The steps below explain which choices are yours and what each result means.
 

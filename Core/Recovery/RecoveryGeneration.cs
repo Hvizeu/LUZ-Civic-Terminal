@@ -25,7 +25,15 @@ public sealed class RecoveryGeneration
     public Dictionary<string, List<int[]>> Goods { get; set; } = new();
     public Dictionary<string, string> Companions { get; set; } = new();
     public Dictionary<string, string> CompanionHashes { get; set; } = new();
-    public string Describe() => $"{SourceSlot} → {TargetSlot}\n{Workers.Count} retired worker identities; {Goods.Sum(p => p.Value.Count)} original inventory records.\nNative save and companions are preserved. Tables require a native relationship audit. State: {State}.";
+    public string Describe()
+    {
+        bool managerReset = Companions.Values.Contains("manager-reset");
+        string reset = managerReset
+            ? "\nThe repaired copy resets Unofficial Patch manager policies/accounting, Inspiration records and restaurant-review history."
+            : "";
+        string tables = managerReset ? "" : " Tables require a native relationship audit.";
+        return $"{SourceSlot} → {TargetSlot}\n{Workers.Count} retired worker identities; {Goods.Sum(p => p.Value.Count)} original inventory records.{reset}\nNative save and companions are preserved.{tables} State: {State}.";
+    }
     public void Validate()
     {
         if (Schema != 1 || Id == null || Id.Length != 32 || !Id.All(Uri.IsHexDigit) || !RecoveryFiles.IsHash(NativeHash) || Workers == null || Goods == null || Companions == null || CompanionHashes == null || PublishedSlot == null) throw new InvalidDataException("Unsupported recovery generation.");
@@ -37,9 +45,9 @@ public sealed class RecoveryGeneration
         if (State == "Complete" && (PublishedSlot.Length == 0 || !RecoveryFiles.IsHash(OutputHash))) throw new InvalidDataException("Completed recovery has no verified native publication.");
         foreach (var worker in Workers) if (worker.Key.Length != 32 || !worker.Key.StartsWith("a11e2026", StringComparison.Ordinal) || !Guid.TryParse(worker.Value, out _)) throw new InvalidDataException("Invalid retired worker identity.");
         foreach (var item in Goods) if (!Guid.TryParse(item.Key, out _) || item.Value == null || item.Value.Any(r => r == null || r.Length != 4)) throw new InvalidDataException("Invalid recovery inventory record.");
-        if (Companions.Count > 3 || CompanionHashes.Count != Companions.Count || OwnedCopies == null || OwnedCopies.Count > 8) throw new InvalidDataException("Invalid companion ownership set.");
+        if (Companions.Count > 4 || CompanionHashes.Count != Companions.Count || OwnedCopies == null || OwnedCopies.Count > 8) throw new InvalidDataException("Invalid companion ownership set.");
         foreach (var copy in OwnedCopies) RecoveryFiles.Relative(copy);
-        foreach (var companion in Companions) { RecoveryFiles.Relative(companion.Key); if (companion.Value is not ("hauling" or "manager" or "city") || !CompanionHashes.TryGetValue(companion.Key,out var hash) || !RecoveryFiles.IsHash(hash)) throw new InvalidDataException("Missing or invalid companion receipt."); }
+        foreach (var companion in Companions) { RecoveryFiles.Relative(companion.Key); if (companion.Value is not ("hauling" or "manager" or "manager-reset" or "manager-reset-backup" or "city") || !CompanionHashes.TryGetValue(companion.Key,out var hash) || !RecoveryFiles.IsHash(hash)) throw new InvalidDataException("Missing or invalid companion receipt."); }
     }
 }
 
@@ -105,9 +113,35 @@ public static class RecoveryFiles
             var data = JsonNode.Parse(File.ReadAllText(file))?.AsObject() ?? throw new InvalidDataException("Invalid companion.");
             int schema = (int?)(data["Schema"] ?? data["Version"]) ?? -1;
             if (pair.Value == "hauling" ? schema is < 1 or > 4 : pair.Value == "city" ? schema is < 1 or > 3 : schema is < 2 or > 4) throw new InvalidDataException("Unsupported companion schema: " + pair.Key);
-            if ((string?)data["Revision"] != revision) throw new InvalidDataException("Companion revision mismatch: " + pair.Key);
-            if(File.Exists(file+".required")&&(new FileInfo(file+".required").Length>256||!File.ReadAllText(file+".required").Trim().Equals(revision,StringComparison.OrdinalIgnoreCase)))throw new InvalidDataException("Required companion marker differs from the native generation: "+pair.Key);
-            result.Companions[pair.Key] = pair.Value; result.CompanionHashes[pair.Key] = Hash(file);
+            string companionRevision = (string?)data["Revision"] ?? "";
+            string owner = pair.Value;
+            if (companionRevision != revision)
+            {
+                if (pair.Value != "manager" || !IsHash(companionRevision)) throw new InvalidDataException("Companion revision mismatch: " + pair.Key);
+                if (File.Exists(file + ".required"))
+                {
+                    if (new FileInfo(file + ".required").Length > 256) throw new InvalidDataException("Manager companion requirement is too large: " + pair.Key);
+                    string requirement = File.ReadAllText(file + ".required").Trim();
+                    if (requirement.Equals("pending", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Manager companion publication was interrupted: " + pair.Key);
+                    if (!IsHash(requirement) || !requirement.Equals(companionRevision, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Manager companion requirement differs from its captured revision: " + pair.Key);
+                }
+                owner = "manager-reset";
+                string backup = file + ".bak";
+                if (File.Exists(backup))
+                {
+                    if (new FileInfo(backup).Length > 16 * 1024 * 1024) throw new InvalidDataException("Manager companion backup exceeds its size limit: " + pair.Key);
+                    var backupData = JsonNode.Parse(File.ReadAllText(backup))?.AsObject() ?? throw new InvalidDataException("Invalid manager companion backup: " + pair.Key);
+                    int backupSchema = (int?)(backupData["Schema"] ?? backupData["Version"]) ?? -1;
+                    string backupRevision = (string?)backupData["Revision"] ?? "";
+                    if (backupSchema is < 2 or > 4 || !IsHash(backupRevision)) throw new InvalidDataException("Unsupported or malformed manager companion backup: " + pair.Key);
+                    if (backupRevision == revision) throw new InvalidDataException("A matching manager companion backup exists; reset repair is not required: " + pair.Key);
+                    string backupRelative = pair.Key + ".bak";
+                    result.Companions[backupRelative] = "manager-reset-backup";
+                    result.CompanionHashes[backupRelative] = Hash(backup);
+                }
+            }
+            else if(File.Exists(file+".required")&&(new FileInfo(file+".required").Length>256||!File.ReadAllText(file+".required").Trim().Equals(revision,StringComparison.OrdinalIgnoreCase)))throw new InvalidDataException("Required companion marker differs from the native generation: "+pair.Key);
+            result.Companions[pair.Key] = owner; result.CompanionHashes[pair.Key] = Hash(file);
             if (pair.Value == "hauling") ExtractHauling(data, result);
         }
         foreach (string marker in RequiredMarkers(config))
@@ -199,7 +233,9 @@ public static class RecoveryFiles
     }
     public static string TargetCompanion(RecoveryGeneration value, string source)
     {
-        string owner = value.Companions[source]; if (owner == "hauling") throw new InvalidOperationException("Retired hauling state is archived, never resumed.");
+        string owner = value.Companions[source];
+        if (owner == "hauling") throw new InvalidOperationException("Retired hauling state is archived, never resumed.");
+        if (owner == "manager-reset-backup") throw new InvalidOperationException("A captured stale manager backup is evidence, never a publication target.");
         string key = Key(owner == "city" ? Path.GetFileNameWithoutExtension(value.TargetSlot).ToUpperInvariant() : value.TargetSlot);
         return source[..(source.LastIndexOf('/') + 1)] + key + ".json";
     }
@@ -230,7 +266,7 @@ public static class RecoveryFiles
             if (!CapturedPrefix(native,Path.Combine(folder,"source.sav"))) throw new IOException("Unpublished native destination differs from its verified captured source.");
             remove.Add(native);
         }
-        foreach (var source in request.Companions.Where(p => p.Value != "hauling"))
+        foreach (var source in request.Companions.Where(p => p.Value is not ("hauling" or "manager-reset-backup")))
         {
             string target = Under(config, TargetCompanion(request, source.Key));
             if (File.Exists(target))

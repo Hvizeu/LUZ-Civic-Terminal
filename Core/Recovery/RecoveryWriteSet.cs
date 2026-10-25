@@ -30,7 +30,7 @@ public sealed class RecoveryWriteSet
         if(schema>=2)keys.Add("config/NivalisUnofficialPatch/Recovery/"+generation.Id+"/commits/"+Path.GetFileName(ReceiptRelative(slot)));
         foreach(string extension in new[]{".sav",".png"})foreach(string suffix in new[]{"",".bak",".temp"})keys.Add("save/"+slot+extension+suffix);
         string original=generation.TargetSlot;generation.TargetSlot=slot;
-        try{foreach(var pair in generation.Companions.Where(p=>p.Value!="hauling")){string target=RecoveryFiles.TargetCompanion(generation,pair.Key);keys.Add("config/"+target);keys.Add("config/"+target+".required");if(schema>=2)keys.Add("config/"+target+".bak");}}
+        try{foreach(var pair in generation.Companions.Where(p=>p.Value is not ("hauling" or "manager-reset-backup"))){string target=RecoveryFiles.TargetCompanion(generation,pair.Key);keys.Add("config/"+target);keys.Add("config/"+target+".required");if(schema>=2)keys.Add("config/"+target+".bak");}}
         finally{generation.TargetSlot=original;}
         return keys;
     }

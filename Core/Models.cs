@@ -12,6 +12,8 @@ public sealed class ModPackage
     public string SourceId { get; set; } = "";
     public string PageUrl { get; set; } = "";
     public string Sha256 { get; set; } = "";
+    public int PreparationVersion { get; set; }
+    public List<string> ReferenceFiles { get; set; } = [];
     public List<string> Dependencies { get; set; } = [];
     public List<PluginInfo> Plugins { get; set; } = [];
     public List<PluginDependency> RequiredPlugins { get; set; } = [];
@@ -48,6 +50,13 @@ public sealed class VortexBinding
 public sealed class VortexProfileState
 {
     public string LastRevision { get; set; } = "";
+    public string LastRequestId { get; set; } = "";
+    public string LastManifestSha256 { get; set; } = "";
+    public string AppliedManifestSha256 { get; set; } = "";
+    public string AppliedRequestId { get; set; } = "";
+    public string AppliedRevision { get; set; } = "";
+    public string AppliedBaseFingerprint { get; set; } = "";
+    public string AppliedFingerprint { get; set; } = "";
     public string PendingBaseFingerprint { get; set; } = "";
     public string PendingApplyFingerprint { get; set; } = "";
     public List<VortexBinding> Bindings { get; set; } = [];
@@ -77,6 +86,8 @@ public sealed class TerminalState
     public string LaunchProgram { get; set; } = "";
     public List<string> LaunchArguments { get; set; } = [];
     public string LoaderVersion { get; set; } = "";
+    public string LoaderSourceUrl { get; set; } = "";
+    public string LoaderSha256 { get; set; } = "";
     public List<Profile> Profiles { get; set; } = [new()];
     public List<ModPackage> Packages { get; set; } = [];
     public List<CompatibilityDecision> CompatibilityDecisions { get; set; } = [];

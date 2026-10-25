@@ -117,7 +117,7 @@ public sealed partial class MainWindow : Window
         try { await action(operation.Token); status.Text = OperationRecovery.CompletionMessage(library); }
         catch (OperationCanceledException) { status.Text = "Cancelled. Any completed library imports remain available; game files were not partially deployed."; }
         catch (Exception ex) { Error(ex); }
-        finally { operation.Dispose(); operation = null; body.IsEnabled = true; ((Control)shell.Children[0]).IsEnabled = true; cancel.IsVisible = false; RefreshProfiles(); RefreshPage(); if (!processingLinks && (incomingVortex.Count > 0 || incomingProjects.Count > 0 || incomingLinks.Count > 0)) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = ProcessLinks()); }
+        finally { operation.Dispose(); operation = null; body.IsEnabled = true; ((Control)shell.Children[0]).IsEnabled = true; cancel.IsVisible = false; RefreshProfiles(); RefreshPage(); if (!processingLinks && (incomingVortexSetup.Count > 0 || incomingVortex.Count > 0 || incomingProjects.Count > 0 || incomingLinks.Count > 0)) Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = ProcessLinks()); }
     }
     private void Error(Exception ex) { lastError = ex.ToString(); status.Text = ex.Message; if (!preview) _ = Notice("Action could not finish", ex.Message); }
     private void RefreshProfiles() { refreshing = true; profiles.ItemsSource = null; profiles.ItemsSource = library.State.Profiles; profiles.SelectedItem = library.Active; refreshing = false; }

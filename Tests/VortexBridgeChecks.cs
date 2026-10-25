@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using Luz;
@@ -63,7 +64,7 @@ internal static class VortexBridgeChecks
         string plugins = Path.Combine(root, "vortex-plugins", "community");
         Directory.CreateDirectory(plugins);
         JsonFiles.Write(Path.Combine(plugins, "package.json"), new { name = "game-nivalisnights-luz-bridge" });
-        check(VortexBridge.ConflictingExtensions(Path.GetDirectoryName(plugins)).Single() == "community", "Vortex setup detects the obsolete competing bridge extension");
+        // Active-extension conflict behavior is covered against Vortex state in the extension suite.
         using var library = new Library(Path.Combine(root, "library"));
         library.State.GameFolder = game;
         library.Save();
@@ -157,13 +158,22 @@ internal static class VortexBridgeChecks
             result = VortexBridge.SynchronizeAndApply(automatic, autoFirst.Manifest, automatic.Active.Id);
             check(result.Outcome == VortexSyncOutcome.Applied && File.Exists(Path.Combine(autoGame, "BepInEx", "plugins", "Fixture", "value.txt")), "clean applied profile accepts Vortex synchronization through the normal deployment transaction");
             var interrupted = Snapshot(autoExchange, autoGame, automatic.State.Vortex!.Id, "auto-one", "1.1.0", "resume", 'd', managedDll: false);
+            string interruptedCapture = automatic.Fingerprint(automatic.Active);
             VortexBridge.Synchronize(automatic, interrupted.Manifest);
             check(automatic.State.AppliedFingerprint != automatic.Fingerprint(automatic.Active), "synchronized candidate remains visibly unapplied across an interrupted handoff");
-            result = VortexBridge.SynchronizeAndApply(automatic, interrupted.Manifest, automatic.Active.Id);
+            result = VortexBridge.SynchronizeAndApply(automatic, interrupted.Manifest, automatic.Active.Id, capturedFingerprint: interruptedCapture);
             check(result.Outcome == VortexSyncOutcome.Applied && File.ReadAllText(Path.Combine(autoGame, "BepInEx", "plugins", "Fixture", "value.txt")) == "resume", "repeated request resumes the exact interrupted bridge Apply instead of treating receipt as completion");
             int restorePoints = new Deployment(automatic).Backups().Count;
+            result = VortexBridge.SynchronizeAndApply(automatic, interrupted.Manifest, automatic.Active.Id, capturedFingerprint: interruptedCapture);
+            check(result.Outcome == VortexSyncOutcome.Applied && new Deployment(automatic).Backups().Count == restorePoints, "Lost completion receipt recovers the exact committed request without another deployment");
             result = VortexBridge.SynchronizeAndApply(automatic, interrupted.Manifest, automatic.Active.Id);
             check(result.Outcome == VortexSyncOutcome.NoChanges && new Deployment(automatic).Backups().Count == restorePoints, "same Vortex snapshot creates no unnecessary deployment or restore point");
+
+            string installedCompanion = Path.Combine(autoGame, "BepInEx/plugins/Fixture/value.txt");
+            File.WriteAllText(installedCompanion, "external change");
+            result = VortexBridge.SynchronizeAndApply(automatic, interrupted.Manifest, automatic.Active.Id);
+            check(result.Outcome == VortexSyncOutcome.NeedsAttention && File.ReadAllText(installedCompanion) == "external change", "Unchanged snapshot cannot report ready after an external deployment change or purge");
+            File.WriteAllText(installedCompanion, "resume");
 
             automatic.Active.Mods.Single().Enabled = false; automatic.Save();
             var dirtyBase = Snapshot(autoExchange, autoGame, automatic.State.Vortex!.Id, "auto-one", "2.0.0", "auto-two", '9', managedDll: false);
@@ -182,6 +192,49 @@ internal static class VortexBridgeChecks
             File.Delete(Path.Combine(automatic.Root, "pending.json"));
         }
 
+        using (var adoption = new Library(Path.Combine(root, "pinned-adoption")))
+        {
+            adoption.State.GameFolder = game; adoption.Save();
+            string manual = Path.Combine(root, "manual-pinned.zip");
+            using (var archive = System.IO.Compression.ZipFile.Open(manual, System.IO.Compression.ZipArchiveMode.Create))
+                archive.CreateEntryFromFile(typeof(TestPlugin).Assembly.Location, "BepInEx/plugins/Fixture/Fixture.dll");
+            var selected = adoption.Import(manual, new CatalogMod("42", "Manual pinned", "9.0.0", "", "", "", "", [], "Nexus"));
+            adoption.Active.Mods.Single().Pinned = true; adoption.Save();
+            string adoptionExchange = Path.Combine(root, "adoption-exchange");
+            VortexBridge.Connect(adoption, Environment.ProcessPath!, adoptionExchange, checkConflicts: false);
+            var offered = Snapshot(adoptionExchange, game, adoption.State.Vortex!.Id, "new-source", "1.0.0", "offered", 'e');
+            result = VortexBridge.Synchronize(adoption, offered.Manifest);
+            check(adoption.Active.Mods.Single().PackageId == selected.Id && adoption.Active.Mods.Single().Pinned && result.Packages.Any(p => p.Action == "Pinned"), "First-time adoption retains a manually imported pinned version");
+            string captured = adoption.Fingerprint(adoption.Active);
+            adoption.Active.Mods.Single().Enabled = false; adoption.Save();
+            result = VortexBridge.SynchronizeAndApply(adoption, offered.Manifest, adoption.Active.Id, capturedFingerprint: captured);
+            check(result.Outcome == VortexSyncOutcome.NeedsAttention && !adoption.Active.Mods.Single().Enabled, "Queued request rejects a changed captured fingerprint without selecting another profile");
+        }
+
+        using (var setupLibrary = new Library(Path.Combine(root, "pending-loader-library")))
+        using (var handler = new PendingLoaderHandler())
+        using (var sources = new Sources(handler))
+        {
+            string missingGame = Path.Combine(root, "missing-loader-game"); Directory.CreateDirectory(missingGame);
+            File.WriteAllText(Path.Combine(missingGame, "Nivalis Nights.exe"), "fixture; never execute");
+            File.WriteAllText(Path.Combine(missingGame, "GameAssembly.dll"), "fixture");
+            string setupRoot = Path.Combine(root, "pending-loader-exchange"), requestId = Guid.NewGuid().ToString("N");
+            string requestPath = Path.Combine(setupRoot, "setup", requestId + ".json");
+            JsonFiles.Write(requestPath, new VortexSetupRequest { Schema = 1, RequestId = requestId, GameId = "nivalisnights", GameFolder = missingGame, Reviewed = true, CreatedUtc = DateTime.UtcNow });
+            var pending = VortexBridge.ConfigureAndPrepare(setupLibrary, requestPath, Environment.ProcessPath!, sources, exchangeRoot: setupRoot);
+            handler.Started.Task.GetAwaiter().GetResult();
+            check(VortexBridge.ReadSetupResult(requestId, setupRoot) == null, "Setup cannot publish terminal success while loader preparation is pending");
+            handler.Response.SetResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable));
+            var failed = pending.GetAwaiter().GetResult();
+            check(failed.Outcome == VortexSyncOutcome.NeedsAttention && failed.Message.Contains("503")
+                && VortexBridge.ReadSetupResult(requestId, setupRoot)?.Outcome == VortexSyncOutcome.NeedsAttention, "Loader network failure persists the first cause instead of connection success");
+        }
+
+        var cancellationSnapshot = Snapshot(exchange, game, library.State.Vortex!.Id, "cancelled", "1.0.0", "cancel", 'f');
+        string cancellationCapture = library.Fingerprint(library.Active);
+        result = VortexBridge.SynchronizeAndApply(library, cancellationSnapshot.Manifest, library.Active.Id, new CancellationToken(true), cancellationCapture);
+        check(result.Outcome == VortexSyncOutcome.Cancelled && result.BaseFingerprint == cancellationCapture
+            && VortexBridge.ReadResult(library, result.RequestId)?.BaseFingerprint == cancellationCapture, "Cancelled request retains its admitted fingerprint for a valid retry");
         VortexBridge.Disconnect(library);
         check(library.State.Vortex == null && !File.Exists(Path.Combine(exchange, "connection.json")) && library.Active.Mods.Count == 0, "disconnect stops synchronization without changing profile contents");
     }
@@ -227,4 +280,14 @@ internal static class VortexBridgeChecks
             text.Append(file.Path.Replace('\\', '/')).Append('\0').Append(file.Length).Append('\0').Append(file.Sha256.ToLowerInvariant()).Append('\n');
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()))).ToLowerInvariant();
     }
+    private sealed class PendingLoaderHandler : System.Net.Http.HttpMessageHandler
+    {
+        internal readonly TaskCompletionSource<bool> Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal readonly TaskCompletionSource<System.Net.Http.HttpResponseMessage> Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, CancellationToken cancellation)
+        {
+            Started.TrySetResult(true); return Response.Task.WaitAsync(cancellation);
+        }
+    }
+
 }

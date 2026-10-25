@@ -35,6 +35,7 @@ async function hashFile(file) {
 
 async function listFiles(root) {
   const output = [];
+  if ((await fsp.lstat(root)).isSymbolicLink()) throw new Error(`Links are not supported in Vortex staging: ${root}`);
   async function visit(folder) {
     const entries = await fsp.readdir(folder, { withFileTypes: true });
     entries.sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
@@ -79,6 +80,8 @@ async function copyPackage(source, destination) {
   const finalInputs = await listFiles(source);
   const fingerprint = (items) => items.map((item) => `${item.relative}\0${item.size}\0${item.mtimeMs}`).join("\n");
   if (fingerprint(inputs) !== fingerprint(finalInputs)) throw new Error(`Vortex staging changed during export: ${source}`);
+  for (const file of files) if (await hashFile(path.join(source, ...file.Path.split("/"))) !== file.Sha256)
+    throw new Error(`Vortex staging changed during export: ${file.Path}`);
   return { files, contentSha256: aggregate(files) };
 }
 
@@ -88,6 +91,9 @@ function modMetadata(mod, bridgeId) {
   const sourceFileId = attributes.fileId ?? attributes.nexusFileId ?? "";
   return {
     BridgeId: bridgeId,
+    Kind: String(attributes.luzKind || "Auto"),
+    Layout: String(mod.type || ""),
+    ReplacesBridgeId: String(attributes.luzReplacesBridgeId || ""),
     Name: String(attributes.name || mod.id || bridgeId).slice(0, 240),
     Version: String(attributes.version || mod.version || "0.0.0").slice(0, 80),
     SourceModId: String(sourceModId || ""),
@@ -105,24 +111,32 @@ async function readConnection(file) {
   return descriptor;
 }
 
-async function buildSnapshot({ descriptor, stagingRoot, mods, requestId = crypto.randomBytes(16).toString("hex") }) {
+async function buildSnapshot({ descriptor, stagingRoot, mods, requestId = crypto.randomBytes(16).toString("hex"), verifyInventory = () => {} }) {
   if (!/^[a-f0-9]{32}$/.test(requestId)) throw new Error("Invalid snapshot request identity");
   const snapshots = path.join(descriptor.ExchangeRoot, "snapshots");
   const building = path.join(snapshots, `.building-${requestId}`);
   const published = path.join(snapshots, requestId);
-  await fsp.rm(building, { recursive: true, force: true });
-  await fsp.mkdir(path.join(building, "packages"), { recursive: true });
+  await fsp.mkdir(snapshots, { recursive: true });
+  if (fs.existsSync(published)) throw new Error("A snapshot with this request identity already exists");
+  await fsp.mkdir(building);
+  await fsp.mkdir(path.join(building, "packages"));
   const packages = [];
   const identities = new Set();
   try {
     for (const mod of [...mods].sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
-      const bridgeId = safeIdentity(mod.id || mod.installationPath);
+      const bridgeId = safeIdentity(mod.attributes?.luzBridgeId || mod.id || mod.installationPath);
       if (identities.has(bridgeId.toLowerCase())) throw new Error(`Duplicate Vortex package identity: ${bridgeId}`);
       identities.add(bridgeId.toLowerCase());
       if (!mod.installationPath) throw new Error(`Installed Vortex package ${bridgeId} has no staging path`);
       const source = path.resolve(stagingRoot, mod.installationPath);
       const relative = path.relative(path.resolve(stagingRoot), source);
       if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`Package staging path escapes Vortex staging: ${bridgeId}`);
+      let checked = path.resolve(stagingRoot);
+      if ((await fsp.lstat(checked)).isSymbolicLink()) throw new Error("Linked staging roots are not supported");
+      for (const part of relative.split(path.sep)) {
+        checked = path.join(checked, part);
+        if ((await fsp.lstat(checked)).isSymbolicLink()) throw new Error("Linked package staging paths are not supported");
+      }
       const destination = path.join(building, "packages", bridgeId);
       const copied = await copyPackage(source, destination);
       packages.push({
@@ -134,7 +148,7 @@ async function buildSnapshot({ descriptor, stagingRoot, mods, requestId = crypto
     }
     const revisionText = packages.map((item) => `${item.BridgeId}\0${item.ContentSha256}\0${item.SourceModId}\0${item.SourceFileId}\0${item.Version}\0${item.Variant}\n`).join("");
     const manifest = {
-      Schema: 1,
+      Schema: 2,
       RequestId: requestId,
       ConnectionId: descriptor.ConnectionId,
       GameId: GAME_ID,
@@ -143,8 +157,14 @@ async function buildSnapshot({ descriptor, stagingRoot, mods, requestId = crypto
       CreatedUtc: new Date().toISOString(),
       Packages: packages
     };
-    await fsp.rm(published, { recursive: true, force: true });
-    await fsp.mkdir(snapshots, { recursive: true });
+    for (let index = 0; index < packages.length; index++) {
+      const mod = [...mods].sort((a, b) => String(a.id).localeCompare(String(b.id)))[index];
+      const source = path.resolve(stagingRoot, mod.installationPath);
+      const current = await listFiles(source);
+      if (current.length !== packages[index].Files.length) throw new Error("Staging inventory changed before snapshot publication");
+      for (const file of packages[index].Files) if (await hashFile(path.join(source, ...file.Path.split("/"))) !== file.Sha256) throw new Error("Staging content changed before snapshot publication");
+    }
+    await verifyInventory();
     await fsp.rename(building, published);
     const manifestPath = path.join(published, "snapshot.json");
     const temporary = `${manifestPath}.tmp-${crypto.randomBytes(8).toString("hex")}`;

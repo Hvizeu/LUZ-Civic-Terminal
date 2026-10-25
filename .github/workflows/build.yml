@@ -21,7 +21,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: LUZ-with-Continuity
-          path: dist/LUZ-Civic-Terminal-*.zip*
+          path: |
+            dist/LUZ-Civic-Terminal-*.zip*
+            dist/game-nivalisnights-luz-*.zip*
   release:
     needs: windows
     if: startsWith(github.ref, 'refs/tags/v')
@@ -42,4 +44,9 @@ jobs:
           $project = [xml](Get-Content Desktop/Desktop.csproj)
           $expected = 'v' + $project.SelectSingleNode('/Project/PropertyGroup/Version').InnerText
           if ($env:GITHUB_REF_NAME -ne $expected) { throw 'Release tag and application version differ.' }
-          gh release create $env:GITHUB_REF_NAME (Get-ChildItem dist/*.zip,dist/*.sha256 | ForEach-Object FullName) --verify-tag --title "LUZ Civic Terminal $env:GITHUB_REF_NAME" --notes-file RELEASE-NOTES.txt
+          gh release view $env:GITHUB_REF_NAME --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) { Write-Output 'Release already exists; preserving its validated assets.'; exit 0 }
+          gh release create $env:GITHUB_REF_NAME (Get-ChildItem dist/*.zip,dist/*.sha256 | ForEach-Object FullName) --draft --verify-tag --title "LUZ Civic Terminal $env:GITHUB_REF_NAME" --notes-file RELEASE-NOTES.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed; no incomplete release will be published.' }
+          gh release edit $env:GITHUB_REF_NAME --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

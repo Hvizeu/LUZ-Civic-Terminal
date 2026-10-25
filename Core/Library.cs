@@ -75,7 +75,7 @@ public sealed class Library : IDisposable
     {
         if (!File.Exists(file) || new FileInfo(file).Length > 536_870_912) throw new InvalidDataException("Choose a ZIP or DLL smaller than 512 MB.");
         var hash = FileSafety.Hash(file);
-        var existing = State.Packages.FirstOrDefault(p => p.Sha256 == hash);
+        var existing = State.Packages.FirstOrDefault(p => p.Sha256 == hash && p.PreparationVersion == PackagePreparation.Version);
         if (existing != null) { AddToProfile(existing); return existing; }
         string stage = FileSafety.Under(Root, "staging/" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(stage);
         try
@@ -91,7 +91,7 @@ public sealed class Library : IDisposable
     internal ModPackage ImportTree(string raw, CatalogMod? source, string hash, string fallback, bool attach)
     {
         var all = Directory.GetFiles(raw, "*", SearchOption.AllDirectories);
-        var package = new ModPackage { Id = hash[..32], Sha256 = hash, Name = source?.Name ?? fallback, Version = source?.Version ?? "0.0.0",
+        var package = new ModPackage { Id = PackagePreparation.Identity(hash), Sha256 = hash, PreparationVersion = PackagePreparation.Version, Name = source?.Name ?? fallback, Version = source?.Version ?? "0.0.0",
             Source = source?.Source ?? "Local", SourceId = source?.Id ?? "", PageUrl = source?.PageUrl ?? "", Description = source?.Description ?? "", Dependencies = source?.Dependencies.ToList() ?? [] };
         var manifestFile = all.Where(f => Path.GetFileName(f).Equals("manifest.json", StringComparison.OrdinalIgnoreCase)).OrderBy(f => f.Length).FirstOrDefault();
         if (manifestFile != null)
@@ -121,41 +121,25 @@ public sealed class Library : IDisposable
         string payload = Path.Combine(staged, "payload"); Directory.CreateDirectory(payload);
         try
         {
-            var mapped = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            bool hasBep = all.Any(f => Path.GetRelativePath(raw, f).Replace('\\', '/').Split('/').Any(p => p.Equals("BepInEx", StringComparison.OrdinalIgnoreCase)));
-            foreach (var f in all)
+            PreparedContent prepared = PackagePreparation.Prepare(raw, package.Id);
+            if (prepared.Kind == "Loader") throw new InvalidDataException("This is a BepInEx loader bundle. Use Maintenance > Loader setup to install the latest official Windows x64 IL2CPP build. Bundled plugins and splash tools require separate review.");
+            if (prepared.Kind == "Tool") throw new InvalidDataException("This is a standalone tool or application. It cannot be deployed as a gameplay mod; review or exclude it in LUZ.");
+            if (prepared.Kind == "IncompatibleRuntime") throw new InvalidDataException("This package targets MelonLoader. Select the BepInEx 6 IL2CPP version of this mod.");
+            foreach (var file in prepared.Files)
             {
-                string rel = Path.GetRelativePath(raw, f).Replace('\\', '/'); string[] parts = rel.Split('/');
-                int bep = Array.FindIndex(parts, p => p.Equals("BepInEx", StringComparison.OrdinalIgnoreCase));
-                string? dest = null;
-                if (bep >= 0 && parts.Length > bep + 2)
+                string output = FileSafety.Under(payload, file.Destination); Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+                string input = FileSafety.Under(raw, file.Source); File.Copy(input, output); package.Files.Add(file.Destination);
+                if (file.Destination.StartsWith("plugins/", StringComparison.OrdinalIgnoreCase) && input.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                 {
-                    string area = parts[bep + 1].ToLowerInvariant();
-                    if (area is not ("plugins" or "patchers" or "config")) throw new InvalidDataException("This ZIP includes loader or unsupported BepInEx files. Use Loader setup for BepInEx itself.");
-                    dest = area + "/" + string.Join('/', parts.Skip(bep + 2));
-                }
-                else if (!hasBep)
-                {
-                    if (parts[0].Equals("plugins", StringComparison.OrdinalIgnoreCase) || parts[0].Equals("patchers", StringComparison.OrdinalIgnoreCase) || parts[0].Equals("config", StringComparison.OrdinalIgnoreCase)) dest = parts[0].ToLowerInvariant() + "/" + string.Join('/', parts.Skip(1));
-                    else if (Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(f).Equals("winhttp.dll", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("This archive contains an installer or loader. Use a mod ZIP instead.");
-                    else if (Path.GetFileName(f) is not ("manifest.json" or "icon.png" or "README.md" or "README.txt" or "CHANGELOG.md" or "LICENSE")) dest = "plugins/" + package.Id[..12] + "/" + rel;
-                }
-                if (dest == null)
-                {
-                    if (Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f).Equals(".asi", StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidDataException("This archive mixes BepInEx folders with an unmapped binary: " + rel + ". Keep each DLL and its ASI companions together inside plugins, or use a complete flat mod ZIP.");
-                    continue;
-                }
-                if (!mapped.Add(dest)) throw new InvalidDataException("Multiple files map to the same destination.");
-                string output = FileSafety.Under(payload, dest); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.Copy(f, output);
-                package.Files.Add(dest);
-                if (dest.StartsWith("plugins/", StringComparison.OrdinalIgnoreCase) && Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase))
-                {
-                    try { package.Plugins.AddRange(PluginMetadata.Read(f)); }
-                    catch (BadImageFormatException) { /* Native helper libraries have no plugin metadata. */ }
+                    try { package.Plugins.AddRange(PluginMetadata.Read(input)); }
+                    catch (BadImageFormatException) { /* Native helpers do not declare managed plugins. */ }
                 }
             }
-            if (!package.Files.Any(f => f.StartsWith("plugins/") || f.StartsWith("patchers/"))) throw new InvalidDataException("No supported plugins or patchers were found in this package.");
+            foreach (string file in prepared.References)
+            {
+                string output = FileSafety.Under(staged, "reference/" + file); Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+                File.Copy(FileSafety.Under(raw, file), output); package.ReferenceFiles.Add(file);
+            }
             if (source == null && manifestFile == null && package.Plugins.Count == 1) { package.Name = package.Plugins[0].Name; package.Version = package.Plugins[0].Version; }
             var icon = all.FirstOrDefault(f => Path.GetFileName(f).Equals("icon.png", StringComparison.OrdinalIgnoreCase));
             if (icon != null && new FileInfo(icon).Length <= 5_242_880) { File.Copy(icon, Path.Combine(staged, "icon.png")); package.Icon = "icon.png"; }

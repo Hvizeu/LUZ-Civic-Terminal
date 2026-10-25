@@ -38,7 +38,7 @@ def package_vortex_extension():
     extension_version = metadata['version']
     run('npm.cmd' if os.name == 'nt' else 'npm', '--prefix', extension, 'run', 'package')
     run(sys.executable, ROOT / 'tools/release_check.py', extension / 'dist')
-    source = extension / 'release' / ('game-nivalisnights-' + extension_version + '.zip')
+    source = extension / 'release' / ('game-nivalisnights-luz-' + extension_version + '.zip')
     if not source.is_file(): raise RuntimeError('Vortex extension package was not created')
     dist = deployment_root(); dist.mkdir(parents=True, exist_ok=True)
     destination = dist / source.name
@@ -67,8 +67,8 @@ def write_deployment_handoff():
     dist = deployment_root()
     records = [package_record(dist / ('LUZ-Civic-Terminal-' + VERSION + '-' + rid + '.zip'), APP, EDITIONS[rid]) for rid in RIDS]
     extension_version = json.loads((ROOT / 'VortexExtension/package.json').read_text(encoding='utf8'))['version']
-    bridge = dist / ('game-nivalisnights-' + extension_version + '.zip')
-    records.append(package_record(bridge, 'Nivalis Nights Support for Vortex', 'Vortex 2.9+ on Windows'))
+    bridge = dist / ('game-nivalisnights-luz-' + extension_version + '.zip')
+    records.append(package_record(bridge, 'LUZ for Nivalis Nights', 'Vortex 2.9+ on Windows'))
     records[-1]['version'] = extension_version
     (dist / 'PACKAGE RECORD.json').write_text(json.dumps(records, indent=2) + '\n', encoding='utf8')
     status = {'version': VERSION, 'published': False, 'gameBuild': 26118043, 'automatedValidation': 'passed',
@@ -79,15 +79,16 @@ def write_deployment_handoff():
     (dist / 'START HERE.md').write_text(
         '# LUZ Civic Terminal ' + VERSION + '\n\nThe four platform packages and the Windows Vortex bridge in this folder are the current locally validated candidates. '
         'They have not been published. Windows x64 is the main desktop build; Linux and macOS remain experimental.\n\n'
-        'Install the canonical Nivalis Nights extension in Vortex and choose Manage. It installs or finds LUZ and connects automatically. Use the adjacent package record for exact hashes.\n', encoding='utf8')
+        'Install LUZ for Nivalis Nights in Vortex and choose Manage. It installs or finds LUZ and connects automatically. Use the adjacent package record for exact hashes.\n', encoding='utf8')
     (dist / 'OWNER QA.md').write_text(
         '# LUZ Civic Terminal ' + VERSION + ' owner acceptance\n\n'
-        '1. Update a known mod in Vortex and press Play. Expected: LUZ opens, applies the update, and remains at its launcher.\n'
-        '2. Repeat with a disabled mod and a pinned mod. Expected: disabled remains disabled; pinned remains unchanged and is reported.\n'
-        '3. Install a new supported mod. Expected: it enters the selected LUZ profile enabled and applies.\n'
-        '4. Repeat Play without changes. Expected: no duplicate entry, deployment, or restore point.\n'
-        '5. Remove the Vortex copy of an imported mod. Expected: LUZ retains it and marks its update source unavailable.\n'
-        '6. Launch from LUZ normally. Expected: selected mods, configuration, and protected-save behavior remain intact.\n', encoding='utf8')
+        '1. With the game closed, choose Maintenance > Prepare saved-data recovery and select a disposable save with a valid older Unofficial Patch manager companion. Expected: the preview names a separate recovered slot, says native progress and originals are preserved, and identifies the manager/accounting, Inspiration and restaurant-review reset.\n'
+        '2. Cancel the preview, then select the save again. Expected: the same recovery remains available and cancellation has written no destination save.\n'
+        '3. Confirm the preview, start Nivalis yourself, and choose Settings > Mods > Recover prepared save from the idle main menu. Expected: a separate recovered timeline is published; the original slot remains untouched.\n'
+        '4. Save and reload the recovered timeline. Expected: native progress remains usable and its fresh Unofficial Patch companion loads normally.\n'
+        '5. Update a known mod in Vortex and press Play. Expected: LUZ opens, applies the update, and remains at its launcher.\n'
+        '6. Repeat with a disabled mod and a pinned mod. Expected: disabled remains disabled; pinned remains unchanged and is reported.\n'
+        '7. Repeat Play without changes. Expected: no duplicate entry, deployment, or restore point.\n', encoding='utf8')
     nexus = dist / 'Nexus'; nexus.mkdir(exist_ok=True)
     for source in (ROOT / 'Store/Nexus').iterdir():
         if source.is_file(): shutil.copy2(source, nexus / source.name)
@@ -187,6 +188,12 @@ def package(rid):
                      'BUILDING.md', 'CHANGELOG.md', 'RELEASE-NOTES.md'):
             shutil.copy2(ROOT / name, folder / name)
         if rid == 'win-x64':
+            with tempfile.TemporaryDirectory(prefix='luz-handoff-') as helper_stage:
+                helper = Path(helper_stage)
+                run('dotnet', 'publish', ROOT / 'VortexHandoff/VortexHandoff.csproj', '-c', 'Release', '-r', rid,
+                    '-p:UseSharedCompilation=false', '-m:1', '--self-contained', 'true', '-o', helper, '--nologo', '-v', 'minimal')
+                for name in ('LUZ Vortex.exe', 'LUZ Vortex.dll', 'LUZ Vortex.deps.json', 'LUZ Vortex.runtimeconfig.json'):
+                    shutil.copy2(helper / name, folder / name)
             (folder / 'luz-vortex-package.json').write_text(json.dumps({
                 'schema': 1, 'product': APP, 'gameId': 'nivalisnights', 'version': VERSION, 'platform': rid
             }, indent=2) + '\n', encoding='utf8')

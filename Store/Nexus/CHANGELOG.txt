@@ -1,7 +1,7 @@
-LUZ Civic Terminal 0.8.2
+LUZ Civic Terminal 0.8.5
 
 - Makes the Windows Main File installable through Nexus Mod Manager Download.
-- The canonical Nivalis Nights Support extension recognizes the LUZ package, pairs it headlessly, and registers it as the primary tool.
+- The LUZ for Nivalis Nights extension recognizes the LUZ package, pairs it headlessly, and registers it as the primary tool.
 - Removes the Maintenance connection step, exchange-folder choice, competing extension, and separate bridge installation.
 - Keeps routine updates to install or update in Vortex, then Play.
 - Preserves LUZ profile ownership, pins, disabled states, compatibility checks, deployment, and recovery.

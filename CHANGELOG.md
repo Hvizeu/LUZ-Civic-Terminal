@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.5
+
+- Adds the independently maintained LUZ for Nivalis Nights Vortex extension, with one-time pairing and official IL2CPP loader preparation.
+- Preserves wrapped plugin, patcher, configuration and companion layouts, including configuration-only packages.
+- Keeps Vortex Play available while LUZ is open through a short-lived handoff launcher; verifies snapshots before profile synchronization.
+- Preserves captured profiles on queued requests and retries, pinned selections, and package-declared metadata.
+
+
+## 0.8.4
+
+- Captures valid stale Unofficial Patch manager backups as immutable recovery evidence.
+- Prefers an exact matching manager backup over reset repair and refuses malformed or unsupported backups instead of ignoring them.
+
+## 0.8.3
+
+- Maintenance can prepare a separate recovery copy when a supported Unofficial Patch manager companion is valid but belongs to an older native save revision.
+- The confirmation names the patch-owned manager/accounting, Inspiration and restaurant-review records that will reset; original native and companion files remain preserved.
+- Missing, malformed, unsupported, contradictory and interrupted companions remain blocked.
+
 ## 0.8.2
 
 - Added a versioned identity marker to the Windows package so the canonical Nivalis Nights Vortex extension can distinguish LUZ from ordinary mod archives.

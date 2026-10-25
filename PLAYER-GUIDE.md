@@ -1,6 +1,6 @@
 # Player guide
 
-This guide matches LUZ 0.8.2. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
+This guide matches LUZ 0.8.5. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
 
 ## 1. Connect your game and existing mods
 
@@ -33,7 +33,7 @@ If you move Nivalis with Steam later, select the new location in Maintenance and
 
 Import adds a package to LUZ's library/profile. Apply replaces deployed plugins and patchers with the selected profile's enabled contents. A DLL alone can be missing assets or support files from its original ZIP.
 
-LUZ 0.8.2 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. The Update #6 universal package is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.12 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
+LUZ 0.8.5 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. The Update #6 universal package is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.12 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
 
 Lower rows in the deployment order win shared-file conflicts. Drag the dotted handles or use **Move up** and **Move down**. Auto-sort follows declared dependencies; BepInEx controls plugin startup order.
 
@@ -66,9 +66,9 @@ On Windows, **Maintenance > Browser downloads > Remove LUZ as NXM manager** remo
 
 ### Automatic Vortex integration on Windows
 
-The canonical **Nivalis Nights Support** extension requires Vortex 2.9.0 or newer. It owns the existing `nivalisnights` game identity and includes the LUZ handoff; there is no competing bridge extension. Vortex must have this support before it can recognize the LUZ archive as an application instead of an ordinary mod.
+The **LUZ for Nivalis Nights** extension requires Vortex 2.9.0 or newer. It owns the existing `nivalisnights` game identity and includes the LUZ handoff; there is no competing bridge extension. Vortex must have this support before it can recognize the LUZ archive as an application instead of an ordinary mod.
 
-1. Choose **Manage** for Nivalis Nights so Vortex obtains the canonical extension and finds Steam.
+1. Choose **Manage** for Nivalis Nights so Vortex obtains the LUZ extension and finds Steam.
 2. On the LUZ Nexus page, choose **Mod Manager Download**, then install the downloaded file in Vortex.
 3. Expected: Vortex recognizes the official LUZ package, installs it in its isolated tool area, pairs it to the detected game and makes it primary. No LUZ folder selection or Maintenance connection is required.
 4. Manage Nexus mod downloads and updates in Vortex.
@@ -116,7 +116,7 @@ If Apply or Play reports **Recovery required**, read the action at the top of Ma
 
 Profile backups cover mods and settings. Optional [Mod Continuity](Continuity/README.md) separately checkpoints saves and declared companions. These are different recovery operations.
 
-**Prepare saved-data recovery** is the specific recovery route for supported retired worker records. It requires matching Unofficial Patch and Object Framework components and an explicit game-side recovery action after preparation. It creates a separate recovered timeline. Use **Restore interrupted saved-data recovery** for an interrupted operation from that route. Neither button is a general repair for arbitrary save corruption.
+**Prepare saved-data recovery** handles supported retired-worker records and a validated Unofficial Patch manager-companion revision mismatch. It always creates a separate recovered timeline and requires an explicit game-side recovery action after preparation. Retired-worker/table recovery requires matching Unofficial Patch and Object Framework components. Manager-only repair requires Unofficial Patch 0.4.15, preserves native progress, and resets patch-owned manager/accounting, Inspiration and restaurant-review records. Use **Restore interrupted saved-data recovery** for an interrupted operation from that route. Neither button is a general repair for arbitrary save corruption.
 
 ## 9. After a game update
 

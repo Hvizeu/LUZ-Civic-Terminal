@@ -79,7 +79,8 @@ public sealed class App : Application
                 try
                 {
                     using var setupLibrary = new Library(root);
-                    VortexSetupResult result = VortexBridge.Configure(setupLibrary, args[1], Environment.ProcessPath ?? throw new IOException("The LUZ executable path is unavailable."));
+                    using var setupSources = new Sources();
+                    VortexSetupResult result = VortexBridge.ConfigureAndPrepare(setupLibrary, args[1], Environment.ProcessPath ?? throw new IOException("The LUZ executable path is unavailable."), setupSources).GetAwaiter().GetResult();
                     return result.Outcome is VortexSyncOutcome.Applied or VortexSyncOutcome.NoChanges ? 0 : 2;
                 }
                 catch (IOException)

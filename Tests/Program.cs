@@ -19,6 +19,25 @@ string Zip(string name, params (string Name, string Text)[] files)
 }
 try
 {
+    if (args.SequenceEqual(new[] { "--vortex-only" }))
+    {
+        PackagePreparationChecks.Run(root, Check, Reject); VortexBridgeChecks.Run(root, Check, Reject);
+        Console.WriteLine($"{passed} package and Vortex checks passed."); return;
+    }
+    if (args.SequenceEqual(new[] { "--loader-latest-only" }))
+    {
+        using var loaderSources = new Sources();
+        using var temporary = new Library(Path.Combine(root, "loader-library"));
+        string loaderGame = Path.Combine(root, "loader-game"); Directory.CreateDirectory(loaderGame);
+        File.WriteAllText(Path.Combine(loaderGame, "Nivalis Nights.exe"), "fixture; never execute");
+        File.WriteAllText(Path.Combine(loaderGame, "GameAssembly.dll"), "fixture");
+        temporary.State.GameFolder = loaderGame; temporary.Save();
+        await LoaderInstaller.InstallLatest(temporary, loaderSources, CancellationToken.None);
+        Check(File.Exists(Path.Combine(loaderGame, "BepInEx/core/BepInEx.Unity.IL2CPP.dll")) && temporary.State.LoaderSha256.Length == 64
+            && !File.Exists(Path.Combine(temporary.Root, "loader-pending.json")), "Latest official IL2CPP loader installs transactionally into disposable fixture");
+        Console.WriteLine("Official loader: " + temporary.State.LoaderVersion + " " + temporary.State.LoaderSha256 + " " + temporary.State.LoaderSourceUrl);
+        return;
+    }
     if (args.SequenceEqual(new[] { "--import-recovery" }))
     {
         ImportRecoveryChecks.Run(root, Check, Reject);
@@ -55,6 +74,7 @@ try
     if (args.Contains("--object-framework")) ObjectFrameworkCorpSecChecks.Run(root, Check);
     else Console.WriteLine("NOT RUN: optional Object Framework workspace check (use --object-framework with both built editions). Independent CorpSec fixtures ran above.");
     await NxmChecks.Run(root, Check, Reject);
+    PackagePreparationChecks.Run(root, Check, Reject);
     VortexBridgeChecks.Run(root, Check, Reject);
     foreach (var bad in new[] { "../outside", "foo/../../outside", "C:/outside", "foo:bar", "con.dll", "x/../y", "x. /y", "foo./x" }) Reject(() => FileSafety.Under(root, bad), "reject path " + bad);
     var traversal = Zip("traversal", ("../escape.txt", "bad")); Reject(() => FileSafety.Extract(traversal, Path.Combine(root, "extract")), "reject ZIP traversal");

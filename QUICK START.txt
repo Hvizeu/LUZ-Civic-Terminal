@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.8.2
+LUZ CIVIC TERMINAL 0.8.5
 Mod management, protected saves and author packaging for Nivalis Nights
 
 CHOOSE ONE DOWNLOAD
@@ -11,6 +11,17 @@ Apple Silicon Mac: osx-arm64.zip.
 Windows is the main desktop build. Linux and macOS builds are experimental.
 Protected game sessions require native Windows. .NET is included.
 Extract the whole ZIP outside the game. Keep its files together.
+
+VORTEX SETUP (WINDOWS)
+
+Install LUZ for Nivalis Nights 0.6.0 once through Vortex's global Extensions page.
+If another Nivalis extension owns deployed files, purge with it first, then disable
+it before enabling LUZ support. Restart Vortex when requested and manage the game.
+LUZ is found or obtained through Vortex. Accept the one-time connection review;
+a missing loader is prepared from the latest official Windows x64 IL2CPP build.
+Install or update mods in Vortex and press Play. Review the first Apply in LUZ.
+Further safe updates synchronize and apply while LUZ remains open. Vortex never
+starts Nivalis; launch it yourself from LUZ when ready.
 
 INSTALL LUZ
 
@@ -56,7 +67,7 @@ PLAYERS: SET UP YOUR MODS
 OPTIONAL: USE VORTEX FOR NEXUS UPDATES (WINDOWS)
 
 1. In Vortex 2.9.0 or newer, choose Manage for Nivalis Nights. Vortex obtains
-   the canonical Nivalis Nights Support extension.
+   the LUZ for Nivalis Nights extension.
 2. On the LUZ Nexus page, choose Mod Manager Download and install the file.
 3. Expected: Vortex identifies LUZ as a tool, connects it to the Steam game,
    and makes it primary. There is no LUZ Maintenance setup or bridge extension.

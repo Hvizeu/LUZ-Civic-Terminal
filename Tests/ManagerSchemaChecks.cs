@@ -78,5 +78,50 @@ internal static class ManagerSchemaChecks
         Reject(() => RecoveryPublication.VerifyOutputs(saves, config, generation), check, "recovery publication rejects manager schema 5");
         File.WriteAllText(publishedCompanion, "{\"Version\":");
         Reject(() => RecoveryPublication.VerifyOutputs(saves, config, generation), check, "recovery publication rejects malformed manager state");
+
+        string repairSlot = "Manager Revision Repair", repairNative = Path.Combine(saves, repairSlot + ".sav");
+        File.WriteAllText(repairNative, "original manager generation");
+        string oldRevision = RecoveryFiles.Hash(repairNative);
+        string repairCompanion = Path.Combine(config, "NivalisUnofficialPatch", "ManagerPolicies", Key(repairSlot) + ".json");
+        WriteManager(repairCompanion, 4, oldRevision);
+        File.WriteAllText(repairCompanion + ".required", oldRevision);
+        File.WriteAllText(repairNative, "new native generation written while the patch was absent");
+        string newRevision = RecoveryFiles.Hash(repairNative), sourceCompanionHash = RecoveryFiles.Hash(repairCompanion);
+        var repair = RecoveryFiles.Inspect(saves, config, repairSlot);
+        check(repair.NativeHash == newRevision && repair.Companions.Values.Single() == "manager-reset", "validated manager revision mismatch is classified for reset repair");
+        check(repair.Describe().Contains("resets Unofficial Patch manager policies/accounting", StringComparison.Ordinal)
+            && repair.Describe().Contains("Native save and companions are preserved", StringComparison.Ordinal), "repair preview discloses reset scope and source preservation");
+        string repairFolder = RecoveryFiles.Prepare(saves, config, repair);
+        check(RecoveryFiles.Hash(repairNative) == newRevision && RecoveryFiles.Hash(repairCompanion) == sourceCompanionHash
+            && File.ReadAllText(repairCompanion + ".required") == oldRevision, "repair preparation leaves the original native and manager files unchanged");
+        check(RecoveryFiles.Hash(Path.Combine(repairFolder, "source.sav")) == newRevision
+            && RecoveryFiles.Hash(RecoveryFiles.Under(repairFolder, "source/" + repair.Companions.Single().Key)) == sourceCompanionHash,
+            "repair preparation captures the exact mismatched native and manager inputs");
+        string repairedRelative = RecoveryFiles.TargetCompanion(repair, repair.Companions.Single().Key);
+        check(repairedRelative.Contains("ManagerPolicies", StringComparison.Ordinal) && !File.Exists(RecoveryFiles.Under(config, repairedRelative)),
+            "repair owns a distinct destination and does not prepublish stale manager state");
+
+        WriteManager(repairCompanion + ".bak", 3, oldRevision);
+        var repairWithBackup = RecoveryFiles.Inspect(saves, config, repairSlot);
+        check(repairWithBackup.Companions.Values.Count(owner => owner == "manager-reset") == 1
+            && repairWithBackup.Companions.Values.Count(owner => owner == "manager-reset-backup") == 1,
+            "all valid mismatched manager candidates are captured before reset repair");
+        string backupFolder = RecoveryFiles.Prepare(saves, config, repairWithBackup);
+        string backupRelative = repairWithBackup.Companions.Single(item => item.Value == "manager-reset-backup").Key;
+        check(RecoveryFiles.Hash(RecoveryFiles.Under(backupFolder, "source/" + backupRelative)) == RecoveryFiles.Hash(repairCompanion + ".bak"),
+            "stale manager backup is retained as immutable recovery evidence");
+        WriteManager(repairCompanion + ".bak", 4, newRevision);
+        Reject(() => RecoveryFiles.Inspect(saves, config, repairSlot), check, "matching manager backup takes precedence over reset repair");
+        File.WriteAllText(repairCompanion + ".bak", "{\"Version\":");
+        Reject(() => RecoveryFiles.Inspect(saves, config, repairSlot), check, "malformed manager backup is not ignored by reset repair");
+        File.Delete(repairCompanion + ".bak");
+
+        File.WriteAllText(repairCompanion + ".required", "pending");
+        Reject(() => RecoveryFiles.Inspect(saves, config, repairSlot), check, "interrupted manager publication is not converted into reset repair");
+        File.WriteAllText(repairCompanion + ".required", new string('A', 64));
+        Reject(() => RecoveryFiles.Inspect(saves, config, repairSlot), check, "manager marker disagreement is not converted into reset repair");
+        File.WriteAllText(repairCompanion + ".required", oldRevision);
+        WriteManager(repairCompanion, 4, "not-a-hash");
+        Reject(() => RecoveryFiles.Inspect(saves, config, repairSlot), check, "malformed manager revision is not converted into reset repair");
     }
 }

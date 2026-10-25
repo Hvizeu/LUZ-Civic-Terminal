@@ -1,18 +1,18 @@
-# Nivalis Nights Support for Vortex
+# LUZ for Nivalis Nights
 
-Manage **Nivalis Nights** in Vortex. The extension finds the Steam installation, creates an isolated deployment area, and recognizes a LUZ Civic Terminal package installed from its Nivalis Nights Nexus page. It connects LUZ and makes it the primary tool automatically.
+Windows integration for Vortex 2.9.0+ and LUZ Civic Terminal 0.8.5+.
 
-Routine use is two steps:
+1. Install this extension ZIP in Vortex and restart Vortex when requested.
+2. Manage Nivalis Nights. The extension finds Steam and an installed LUZ, or asks Vortex to download the compatible Windows Main File from the LUZ Nexus page.
+3. Accept the one-time connection review. If missing, LUZ prepares the latest official Windows x64 IL2CPP BepInEx build from builds.bepinex.dev.
+4. Install or update mods in Vortex, then press Play. LUZ synchronizes the selected profile, applies when its normal safeguards permit, and stays open. Review the first Apply in LUZ.
 
-1. Install or update a Nivalis Nights mod in Vortex.
-2. Press **Play** in Vortex.
+Vortex owns downloads, Nexus login and installer choices. LUZ owns profiles, enabled states, order, pins, compatibility, configuration and deployment. Installed Vortex packages remain available even when disabled in Vortex. Removing a Vortex package stops its update feed and keeps its LUZ copy. Vortex Play never launches Nivalis.
 
-Vortex exports the completed installer-selected packages. LUZ synchronizes them into the currently selected profile, applies that profile when its normal safeguards allow it, and stays open at its launcher. Vortex Play never launches Nivalis.
+## Migrating from another Nivalis extension
 
-LUZ owns enabled state, ordering, pins, compatibility, deployment, recovery, and game launch. Vortex enable switches do not control the LUZ profile; every installed package remains available to LUZ, including packages disabled in Vortex.
+Use Purge Mods with the previous extension still active first. Disable that extension, install/enable LUZ for Nivalis Nights, then restart Vortex and manage the game. Only one game-support extension may own Nivalis. Existing staged packages and LUZ profiles are retained. Loader bundles, standalone tools and unsupported packages require explicit review or exclusion in LUZ Maintenance; they are not gameplay plugins.
 
-## Existing Vortex users
+The extension has independent identity game-nivalisnights-luz. It preserves Nexus game identity nivalisnights (10401) and Steam 1488490. It does not require a LUZ Nexus API key and does not change NXM associations. A normal LUZ archive needs this extension already active to receive automatic Vortex setup.
 
-Version 0.5.0 replaces the previous direct-deployment behavior of the canonical `game-nivalisnights` extension. If Vortex still has old links in the game folder, use **Purge Mods** once and manage the game again. The extension does not silently remove an existing deployment.
-
-Requires Windows, Vortex 2.9.0 or later, and LUZ 0.8.2 or later. Choose **Manage** for Nivalis Nights once, then use **Mod Manager Download** on the [LUZ Nexus page](https://www.nexusmods.com/nivalisnights/mods/81). Vortex installs the marked Windows package, pairs it and registers it as the primary tool. If LUZ is still missing during setup, the extension asks Vortex to download that page's newest compatible Windows Main File using the signed-in Nexus account; LUZ needs no API key.
+Package recognition was informed by Sebastian Maute's Nivalis Nights extension 0.3.4. Required upstream license and attribution are retained. Our extension maintains its own setup, snapshots, profile integration and deployment ownership.

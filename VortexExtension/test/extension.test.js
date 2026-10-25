@@ -20,8 +20,9 @@ test("discovers Nivalis, pairs LUZ automatically, and replaces Play without game
     persistent: { mods: { nivalisnights: {} }, profiles: { active: { gameId: "nivalisnights" } } } };
   const exchange = path.join(process.env.LOCALAPPDATA, "LUZVortexBridge");
   const vortexRoot = path.join(exchange, "vortex-game");
-  const executable = path.join(process.env.LOCALAPPDATA, "Programs", "LUZ Civic Terminal", "0.8.2", "LUZ Civic Terminal.exe");
+  const executable = path.join(process.env.LOCALAPPDATA, "Programs", "LUZ Civic Terminal", "0.8.5", "LUZ Civic Terminal.exe");
   await Promise.all([fsp.mkdir(state.staging, { recursive: true }), fsp.mkdir(state.game, { recursive: true }), fsp.mkdir(path.dirname(executable), { recursive: true })]);
+  await fsp.writeFile(path.join(path.dirname(executable), "LUZ Vortex.exe"), "handoff fixture");
   await Promise.all([fsp.writeFile(executable, "fixture; never execute"), fsp.writeFile(path.join(state.game, "Nivalis Nights.exe"), "do not launch"), fsp.writeFile(path.join(state.game, "GameAssembly.dll"), "fixture")]);
   for (const id of ["enabled-mod", "disabled-mod"]) {
     const folder = path.join(state.staging, id, "BepInEx", "plugins", id);
@@ -42,7 +43,7 @@ test("discovers Nivalis, pairs LUZ automatically, and replaces Play without game
   };
   class UserCanceled extends Error {}
   const vortexApi = {
-    actions: { setModType: () => ({ type: "type" }) },
+    actions: { setModType: () => ({ type: "type" }), setPrimaryTool: () => ({ type: "primary" }), setModAttribute: () => ({ type: "attribute" }) },
     selectors,
     util: { UserCanceled, GameStoreHelper: { findByAppId: async () => ({ gamePath: state.game }) } }
   };
@@ -55,7 +56,7 @@ test("discovers Nivalis, pairs LUZ automatically, and replaces Play without game
     const request = JSON.parse(fs.readFileSync(args[1], "utf8"));
     fs.mkdirSync(path.join(exchange, "setup-results"), { recursive: true });
     fs.writeFileSync(path.join(exchange, "setup-results", `${request.RequestId}.json`), JSON.stringify({ Schema: 1, RequestId: request.RequestId, Outcome: "Applied", Message: "connected" }));
-    fs.writeFileSync(path.join(exchange, "connection.json"), JSON.stringify({ Schema: 1, ConnectionId: "a".repeat(32), GameId: "nivalisnights", GameFolder: state.game, ExchangeRoot: exchange, VortexRoot: vortexRoot, Executable: executable, Version: "0.8.2" }));
+    fs.writeFileSync(path.join(exchange, "connection.json"), JSON.stringify({ SnapshotSchemas: [1, 2], SetupComplete: true, HandoffExecutable: path.join(path.dirname(executable), "LUZ Vortex.exe"), Schema: 1, ConnectionId: "a".repeat(32), GameId: "nivalisnights", GameFolder: state.game, ExchangeRoot: exchange, VortexRoot: vortexRoot, Executable: executable, Version: "0.8.5" }));
     callback(null, "", "");
     return { kill() {} };
   };
@@ -72,31 +73,34 @@ test("discovers Nivalis, pairs LUZ automatically, and replaces Play without game
     registerModType(...args) { modTypes.push(args); },
     registerInstaller(...args) { installers.push(args); },
     once() {},
-    api: { getState: () => state, events: { emit() {} }, store: {}, sendNotification() {}, dismissNotification() {}, showErrorNotification() {}, log() {} }
+    api: { getState: () => state, events: { emit() {} }, store: { dispatch() {} }, showDialog: async () => ({ action: "Connect LUZ" }), sendNotification() {}, dismissNotification() {}, showErrorNotification() {}, log() {} }
   };
   assert.equal(extension.init(context), true);
   assert.equal(game.id, "nivalisnights");
   assert.equal(game.name, "Nivalis Nights");
   assert.equal(game.mergeMods({ id: "separate-package" }), "separate-package");
   assert.equal(await game.queryPath(), vortexRoot);
-  assert.equal(game.queryModPath(), "deployed");
+  assert.equal(game.queryModPath(), path.join(vortexRoot, "deployed"));
+  assert.equal(game.supportedTools[0].exclusive, false);
+  assert.equal(game.supportedTools[0].executable(), "LUZ Vortex.exe");
+  for (const modType of modTypes) assert.ok(path.isAbsolute(modType[3]()));
   assert.ok(fs.existsSync(path.join(vortexRoot, "luz-bridge-game.json")));
   assert.deepEqual(modTypes.map((value) => value[0]), ["luz-bridge", "nivalisnights-luz-tool"]);
 
   const toolInstaller = installers.find((value) => value[0].endsWith("-luz-tool"));
   const ordinaryInstaller = installers.find((value) => value[0].endsWith("-luz-package"));
-  assert.equal(toolInstaller[1], 25);
+  assert.equal(toolInstaller[1], 5);
   assert.equal(ordinaryInstaller[1], 90);
   const toolFiles = ["release/LUZ Civic Terminal.exe", "release/Core.dll", "release/luz-vortex-package.json"];
   const extracted = path.join(root, "extracted");
   await fsp.mkdir(path.join(extracted, "release"), { recursive: true });
-  await fsp.writeFile(path.join(extracted, "release", "luz-vortex-package.json"), JSON.stringify({ schema: 1, product: "LUZ Civic Terminal", gameId: "nivalisnights", version: "0.8.2", platform: "win-x64" }));
+  await fsp.writeFile(path.join(extracted, "release", "luz-vortex-package.json"), JSON.stringify({ schema: 1, product: "LUZ Civic Terminal", gameId: "nivalisnights", version: "0.8.5", platform: "win-x64" }));
   assert.equal((await toolInstaller[2](toolFiles, "nivalisnights")).supported, true);
   const toolInstructions = await toolInstaller[3](toolFiles, extracted);
   assert.ok(toolInstructions.instructions.some((instruction) => instruction.type === "setmodtype" && instruction.value === "nivalisnights-luz-tool"));
   assert.ok(toolInstructions.instructions.some((instruction) => instruction.destination === "LUZ Civic Terminal.exe"));
   await fsp.writeFile(path.join(extracted, "release", "luz-vortex-package.json"), JSON.stringify({ schema: 1, product: "LUZ Civic Terminal", gameId: "nivalisnights", version: "0.8.1", platform: "win-x64" }));
-  await assert.rejects(toolInstaller[3](toolFiles, extracted), /supported LUZ 0\.8\.2/);
+  await assert.rejects(toolInstaller[3](toolFiles, extracted), /supported LUZ 0\.8\.5/);
   assert.equal((await ordinaryInstaller[2](["BepInEx/plugins/example.dll"], "nivalisnights")).supported, true);
   const brokenTool = ["release/LUZ Civic Terminal.exe", "release/Core.dll"];
   assert.equal((await toolInstaller[2](brokenTool, "nivalisnights")).supported, true);
@@ -118,7 +122,10 @@ test("discovers Nivalis, pairs LUZ automatically, and replaces Play without game
 
   const beforeGame = (await fsp.readdir(state.game)).sort();
   const replaced = await startHook.callback({ executable: path.join(vortexRoot, "luz-bridge-game.json"), args: [], options: {} });
-  assert.equal(replaced.executable, executable);
+  assert.equal(replaced.executable, path.join(path.dirname(executable), "LUZ Vortex.exe"));
+  const repeated = await startHook.callback({ executable: replaced.executable, args: [], options: {} });
+  assert.equal(repeated.args[0], "--vortex-sync");
+  assert.equal(repeated.args[1], replaced.args[1], "repeated Play follows the same pending request instead of admitting another writer");
   assert.equal(replaced.args[0], "--vortex-sync");
   const snapshot = JSON.parse(await fsp.readFile(replaced.args[1], "utf8"));
   assert.deepEqual(snapshot.Packages.map((item) => item.BridgeId).sort(), ["disabled-mod", "enabled-mod"]);
@@ -135,10 +142,10 @@ test("validates versions and LUZ release archive routing", async () => {
   delete require.cache[require.resolve("../src/index")];
   const helpers = require("../src/index")._test;
   Module._load = originalLoad;
-  assert.equal(helpers.versionAtLeast("0.8.2", "0.8.2"), true);
-  assert.equal(helpers.versionAtLeast("0.8.1", "0.8.2"), false);
-  assert.equal(helpers.versionAtLeast("garbage0.8.2", "0.8.2"), false);
-  assert.equal(helpers.versionAtLeast("0.82", "0.8.2"), false);
+  assert.equal(helpers.versionAtLeast("0.8.5", "0.8.5"), true);
+  assert.equal(helpers.versionAtLeast("0.8.1", "0.8.5"), false);
+  assert.equal(helpers.versionAtLeast("garbage0.8.5", "0.8.5"), false);
+  assert.equal(helpers.versionAtLeast("0.82", "0.8.5"), false);
   assert.equal(helpers.toolArchiveRoot(["LUZ Civic Terminal.exe", "luz-vortex-package.json"]), "");
   assert.equal(helpers.toolArchiveRoot(["folder/LUZ Civic Terminal.exe", "folder/Core.dll", "folder/luz-vortex-package.json"]), "folder/");
   assert.equal(helpers.toolArchiveRoot(["folder/LUZ Civic Terminal.exe", "folder/Core.dll"]), null);
@@ -170,7 +177,7 @@ test("downloads and installs LUZ from Nexus through Vortex events", async (t) =>
   const helpers = require("../src/index")._test;
   Module._load = originalLoad;
   const notifications = [];
-  let loggedIn = false, downloadUrl = "";
+  let loggedIn = false, downloadUrl = "", automaticInstallNotification;
   const api = {
     store: { dispatch(action) { actionLog.push(action); } }, getState: () => state,
     sendNotification(value) { notifications.push(value); }, dismissNotification() { dismissed++; },
@@ -181,7 +188,7 @@ test("downloads and installs LUZ from Nexus through Vortex events", async (t) =>
         return [
           { category_id: 2, file_id: 10, file_name: "LUZ-Civic-Terminal-9.0.0-win-x64.zip", version: "9.0.0", uploaded_timestamp: 3 },
           { category_id: 1, file_id: 11, file_name: "LUZ-Civic-Terminal-0.8.1-win-x64.zip", version: "0.8.1", uploaded_timestamp: 2 },
-          { category_id: 1, file_id: 12, file_name: "LUZ-Civic-Terminal-0.8.2-win-x64.zip", version: "0.8.2", uploaded_timestamp: 1 }
+          { category_id: 1, file_id: 12, file_name: "LUZ-Civic-Terminal-0.8.5-win-x64.zip", version: "0.8.5", uploaded_timestamp: 1 }
         ];
       }
     },
@@ -192,13 +199,15 @@ test("downloads and installs LUZ from Nexus through Vortex events", async (t) =>
         const folder = path.join(state.staging, "installed-luz");
         fs.mkdirSync(folder, { recursive: true });
         fs.writeFileSync(path.join(folder, "LUZ Civic Terminal.exe"), "fixture");
-        state.persistent.mods.nivalisnights["installed-luz"] = { id: "installed-luz", installationPath: "installed-luz", state: "installed" };
+        state.persistent.mods.nivalisnights["installed-luz"] = { id: "installed-luz", installationPath: "installed-luz", state: "installed", type: "nivalisnights-luz-tool" };
+        automaticInstallNotification = helpers.configureInstalledLuz({ api }, "nivalisnights", "installed-luz");
         callback(null, "installed-luz");
       }
     } }
   };
   let dismissed = 0;
   assert.equal(await helpers.downloadLuz({ api }), path.join(state.staging, "installed-luz", "LUZ Civic Terminal.exe"));
+  assert.equal(await automaticInstallNotification, false, "bootstrap install events do not trigger a second setup review");
   assert.equal(loggedIn, true);
   assert.equal(downloadUrl, "nxm://nivalisnights/mods/81/files/12");
   assert.deepEqual(actionLog.map((action) => action.type), ["type"]);
@@ -238,7 +247,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   };
   const originalLoad = Module._load;
   Module._load = function(request, parent, isMain) { return request === "vortex-api" ? vortexApi : originalLoad.call(this, request, parent, isMain); };
-  let setupOutcome = "Applied", setupVersion = "0.8.2", connectionExecutable = executable;
+  let setupOutcome = "Applied", setupVersion = "0.8.5", connectionExecutable = executable;
   const originalExecFile = childProcess.execFile;
   childProcess.execFile = function(program, args, options, callback) {
     assert.equal(program, executable);
@@ -246,7 +255,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
     fs.mkdirSync(path.join(exchange, "setup-results"), { recursive: true });
     fs.mkdirSync(vortexRoot, { recursive: true });
     fs.writeFileSync(path.join(exchange, "setup-results", `${request.RequestId}.json`), JSON.stringify({ Outcome: setupOutcome, Message: setupOutcome === "Failed" ? "setup failed" : "connected" }));
-    fs.writeFileSync(path.join(exchange, "connection.json"), JSON.stringify({ Schema: 1, ConnectionId: "b".repeat(32), GameId: "nivalisnights", GameFolder: state.game, ExchangeRoot: exchange, VortexRoot: vortexRoot, Executable: connectionExecutable, Version: setupVersion }));
+    fs.writeFileSync(path.join(exchange, "connection.json"), JSON.stringify({ SnapshotSchemas: [1, 2], SetupComplete: true, HandoffExecutable: path.join(path.dirname(executable), "LUZ Vortex.exe"), Schema: 1, ConnectionId: "b".repeat(32), GameId: "nivalisnights", GameFolder: state.game, ExchangeRoot: exchange, VortexRoot: vortexRoot, Executable: connectionExecutable, Version: setupVersion }));
     callback(null, "", "");
     return { kill() {} };
   };
@@ -261,6 +270,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
     once(callback) { callback(); },
     api: {
       getState: () => state,
+      onAsync() {}, showDialog: async () => ({ action: "Connect LUZ" }),
       events: { on(event, callback) { if (event === "did-install-mod") didInstall = callback; } },
       store: { dispatch(action) { dispatched.push(action); } },
       sendNotification(value) { notifications.push(value); }, showErrorNotification(title, error) { reportedErrors.push({ title, error }); }, log() {}
@@ -269,7 +279,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   extension.init(context);
   assert.equal(await didInstall("nivalisnights", "download-id", "luz-from-nexus"), true);
   assert.deepEqual(dispatched.map((action) => action.type), ["type", "primary"]);
-  assert.equal(notifications.at(-1).title, "LUZ is ready");
+  assert.equal(notifications.at(-1).title, "LUZ connected");
   assert.equal(JSON.parse(await fsp.readFile(path.join(exchange, "connection.json"), "utf8")).Executable, executable);
   const alreadyRunning = path.join(root, "existing", "LUZ Civic Terminal.exe");
   await fsp.mkdir(path.dirname(alreadyRunning), { recursive: true });
@@ -279,7 +289,7 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   dispatched.length = 0; notifications.length = 0;
   assert.equal(await didInstall("nivalisnights", "download-id", "luz-from-nexus"), true);
   assert.equal(dispatched.some((action) => action.type === "primary"), true);
-  assert.equal(notifications.some((item) => item.title === "LUZ is ready"), true);
+  assert.equal(notifications.some((item) => item.title === "LUZ connected"), true);
   assert.equal(await didInstall("other-game", "download-id", "luz-from-nexus"), false);
   state.persistent.mods.nivalisnights["luz-from-nexus"].type = "luz-bridge";
   assert.equal(await didInstall("nivalisnights", "download-id", "luz-from-nexus"), false);
@@ -290,13 +300,21 @@ test("a Nexus-installed LUZ package configures itself and becomes the primary to
   dispatched.length = 0; notifications.length = 0; reportedErrors.length = 0;
   await didInstall("nivalisnights", "download-id", "luz-from-nexus");
   assert.equal(dispatched.some((action) => action.type === "primary"), false);
-  assert.equal(notifications.some((item) => item.title === "LUZ is ready"), false);
+  assert.equal(notifications.some((item) => item.title === "LUZ connected"), false);
   assert.match(String(reportedErrors.at(-1)?.error), /setup failed/);
   await fsp.rm(path.join(exchange, "connection.json"), { force: true });
   setupOutcome = "Applied"; setupVersion = "0.8.1";
   dispatched.length = 0; notifications.length = 0; reportedErrors.length = 0;
   await didInstall("nivalisnights", "download-id", "luz-from-nexus");
   assert.equal(dispatched.some((action) => action.type === "primary"), false);
-  assert.equal(notifications.some((item) => item.title === "LUZ is ready"), false);
-  assert.match(String(reportedErrors.at(-1)?.error), /requires 0\.8\.2/);
+  assert.equal(notifications.some((item) => item.title === "LUZ connected"), false);
+  assert.match(String(reportedErrors.at(-1)?.error), /requires 0\.8\.5/);
+});
+
+
+test("enabled game-extension conflicts and pending installers stop the bridge", () => {
+  const helpers = require("../src/index")._test;
+  assert.throws(() => helpers.assertNoConflicts({app:{extensions:{"game-nivalisnights":{enabled:true}}}}), /Another Nivalis/);
+  assert.doesNotThrow(() => helpers.assertNoConflicts({app:{extensions:{"game-nivalisnights":{enabled:false}, "game-nivalisnights-luz":{enabled:true}}}}));
+  assert.throws(() => helpers.inventoryFingerprint({persistent:{mods:{nivalisnights:{one:{id:"one",state:"installing"}}}}}), /still installing/);
 });

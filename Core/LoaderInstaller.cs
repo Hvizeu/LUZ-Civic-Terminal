@@ -10,17 +10,36 @@ public static class LoaderInstaller
     public static async Task<LoaderRelease> Latest(Sources sources, string root, CancellationToken ct)
     {
         string file = FileSafety.Under(root, "downloads/loader-index-" + Guid.NewGuid().ToString("N") + ".html");
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         try
         {
             await sources.Download("https://builds.bepinex.dev/projects/bepinex_be", file, ct);
             string html = await File.ReadAllTextAsync(file, ct);
-            var m = Regex.Match(html, "href=[\"'](?<url>[^\"']*BepInEx-Unity\\.IL2CPP-win-x64-(?<version>[^\"'+%]+)(?:%2[Bb]|\\+)[^\"']+\\.zip)[\"']");
-            if (!m.Success) throw new InvalidDataException("The official build listing changed. The recommended build remains available.");
-            string url = new Uri(new Uri("https://builds.bepinex.dev/projects/bepinex_be/"), System.Net.WebUtility.HtmlDecode(m.Groups["url"].Value)).AbsoluteUri;
-            if (new Uri(url).Host != "builds.bepinex.dev") throw new InvalidDataException("Unexpected loader download host.");
-            return new(m.Groups["version"].Value, url);
+            return ParseLatest(html);
         }
         finally { File.Delete(file); }
+    }
+    public static LoaderRelease ParseLatest(string html)
+    {
+        var matches = Regex.Matches(html, "href=[\"'](?<url>[^\"']*BepInEx-Unity\\.IL2CPP-win-x64-(?<version>6\\.0\\.0-be\\.(?<build>[0-9]+))(?:%2[Bb]|\\+)[^\"']+\\.zip)[\"']");
+        var selected = matches.Cast<Match>().OrderByDescending(m => int.Parse(m.Groups["build"].Value)).FirstOrDefault()
+            ?? throw new InvalidDataException("The official build listing contains no completed Windows x64 IL2CPP BepInEx 6 asset. No fallback was installed.");
+        string url = new Uri(new Uri("https://builds.bepinex.dev/projects/bepinex_be/"), System.Net.WebUtility.HtmlDecode(selected.Groups["url"].Value)).AbsoluteUri;
+        if (new Uri(url).Host != "builds.bepinex.dev" || new Uri(url).Scheme != "https") throw new InvalidDataException("Unexpected loader download host.");
+        return new(selected.Groups["version"].Value, url);
+    }
+    public static async Task InstallLatest(Library library, Sources sources, CancellationToken cancellation)
+    {
+        GameFiles.RequireClosed();
+        if (OperationRecovery.Inspect(library).Count > 0) throw new InvalidOperationException("Recover the interrupted operation before loader setup.");
+        LoaderRelease release = await Latest(sources, library.Root, cancellation).ConfigureAwait(false);
+        string archive = FileSafety.Under(library.Root, "downloads/loader-" + Guid.NewGuid().ToString("N") + ".zip");
+        try
+        {
+            await sources.Download(release.Url, archive, cancellation).ConfigureAwait(false);
+            cancellation.ThrowIfCancellationRequested(); Install(library, archive, release);
+        }
+        finally { File.Delete(archive); }
     }
     public static string Install(Library library, string archive, LoaderRelease release)
     {
@@ -42,7 +61,7 @@ public static class LoaderInstaller
             try
             {
                 foreach (var f in files) { string dest = FileSafety.PortableDestination(game, f); Directory.CreateDirectory(Path.GetDirectoryName(dest)!); File.Copy(FileSafety.Under(stage, f), dest, true); }
-                library.State.LoaderVersion = release.Version; library.Save(); File.Delete(Path.Combine(library.Root, "loader-pending.json"));
+                library.State.LoaderVersion = release.Version; library.State.LoaderSourceUrl = release.Url; library.State.LoaderSha256 = FileSafety.Hash(archive); library.Save(); File.Delete(Path.Combine(library.Root, "loader-pending.json"));
             }
             catch (Exception operation)
             {

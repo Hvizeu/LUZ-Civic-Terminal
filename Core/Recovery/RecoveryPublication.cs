@@ -72,7 +72,7 @@ public static class RecoveryPublication
         string original = receipt.TargetSlot; receipt.TargetSlot = receipt.PublishedSlot;
         try
         {
-            foreach (var pair in receipt.Companions.Where(p => p.Value != "hauling"))
+            foreach (var pair in receipt.Companions.Where(p => p.Value is not ("hauling" or "manager-reset-backup")))
             {
                 string path = RecoveryFiles.Under(config, RecoveryFiles.TargetCompanion(receipt, pair.Key));
                 if (new FileInfo(path).Length > 16 * 1024 * 1024) throw new InvalidDataException("Recovery companion exceeds its size limit.");

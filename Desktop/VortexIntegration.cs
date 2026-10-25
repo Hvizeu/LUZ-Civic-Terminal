@@ -4,7 +4,9 @@ namespace LuzDesktop;
 
 public sealed partial class MainWindow
 {
-    private sealed record VortexRequest(string Manifest, string ProfileId, string RequestId);
+    private sealed record VortexRequest(string Manifest, string ProfileId, string RequestId, string Fingerprint);
+    private readonly Queue<string> incomingVortexSetup = new();
+    private string processingVortexRequest = "";
     private readonly Queue<VortexRequest> incomingVortex = new();
     private VortexSyncResult? lastVortexResult;
     private string lastVortexManifest = "";
@@ -19,7 +21,7 @@ public sealed partial class MainWindow
             lastVortexResult = existing; lastVortexManifest = manifest; status.Text = VortexSummary(existing); return;
         }
         string profileId = existing?.ProfileId ?? library.Active.Id;
-        if (incomingVortex.Any(request => request.RequestId == snapshot.RequestId)) return;
+        if (processingVortexRequest == snapshot.RequestId || incomingVortex.Any(request => request.RequestId == snapshot.RequestId)) return;
         if (incomingVortex.Count >= 20) throw new InvalidOperationException("Finish the queued Vortex synchronizations first.");
         var queued = existing ?? new VortexSyncResult
         {
@@ -29,7 +31,7 @@ public sealed partial class MainWindow
             Message = "The Vortex snapshot was received and is waiting for LUZ.", CompletedUtc = DateTime.UtcNow
         };
         VortexBridge.SaveResult(library, queued);
-        incomingVortex.Enqueue(new(manifest, profileId, snapshot.RequestId));
+        incomingVortex.Enqueue(new(manifest, profileId, snapshot.RequestId, queued.BaseFingerprint));
         lastVortexManifest = manifest; lastVortexResult = queued;
         status.Text = "Vortex synchronization queued for “" + library.State.Profiles.Single(p => p.Id == profileId).Name + "”.";
         _ = ProcessLinks();
@@ -37,16 +39,17 @@ public sealed partial class MainWindow
 
     private async Task ProcessVortex(VortexRequest request)
     {
+        processingVortexRequest = request.RequestId;
         VortexSnapshot snapshot = JsonFiles.Read<VortexSnapshot>(request.Manifest);
         VortexSyncResult result = new()
         {
-            RequestId = snapshot.RequestId, Revision = snapshot.Revision, ProfileId = request.ProfileId,
+            RequestId = snapshot.RequestId, Revision = snapshot.Revision, ProfileId = request.ProfileId, BaseFingerprint = request.Fingerprint,
             Outcome = VortexSyncOutcome.Processing, Message = "LUZ is validating the Vortex snapshot.", CompletedUtc = DateTime.UtcNow
         };
         VortexBridge.SaveResult(library, result);
         await Busy("Synchronizing Vortex packages…", ct => Task.Run(() =>
         {
-            try { result = VortexBridge.SynchronizeAndApply(library, request.Manifest, request.ProfileId, ct); }
+            try { result = VortexBridge.SynchronizeAndApply(library, request.Manifest, request.ProfileId, ct, request.Fingerprint); }
             catch (Exception ex)
             {
                 result.Outcome = VortexSyncOutcome.Failed;
@@ -54,6 +57,7 @@ public sealed partial class MainWindow
                 result.CompletedUtc = DateTime.UtcNow;
             }
         }, ct));
+        processingVortexRequest = "";
         lastVortexResult = result; lastVortexManifest = request.Manifest;
         status.Text = VortexSummary(result);
     }
@@ -69,12 +73,27 @@ public sealed partial class MainWindow
         VortexConnection? connection = library.State.Vortex;
         content.Children.Add(Label("Manage Nivalis Nights in Vortex once. Vortex installs or finds LUZ and connects it automatically. After that, update a mod and press Play; LUZ synchronizes, applies when safe, and opens without launching Nivalis.", brush: TerminalTheme.Muted));
         content.Children.Add(Label(connection == null ? "Waiting for Vortex · no setup is required here" : "Automatic Vortex connection active", 13, connection == null ? TerminalTheme.Muted : TerminalTheme.Teal));
-        if (lastVortexResult != null) content.Children.Add(Label(VortexSummary(lastVortexResult), 13, TerminalTheme.Muted));
+        if (lastVortexResult != null)
+        {
+            content.Children.Add(Label(VortexSummary(lastVortexResult), 13, TerminalTheme.Muted));
+            foreach (var item in lastVortexResult.Packages)
+            {
+                content.Children.Add(Label(item.Name + " · " + item.Action + " · " + item.Detail, brush: TerminalTheme.Muted));
+                if (item.Action == "Blocked")
+                {
+                    string sourceId = item.BridgeId;
+                    content.Children.Add(QuietButton("Exclude " + item.Name + " from this profile's feed", async () => {
+                        if (!await Confirm("Exclude this Vortex package from the selected LUZ profile? Its Vortex files are retained. Loader bundles and tools will not be installed as mods.")) return;
+                        VortexBridge.ExcludeSource(library, sourceId); RefreshPage();
+                    }));
+                }
+            }
+        }
         var actions = Row();
         if (connection != null)
         {
             actions.Children.Add(Button("Retry Vortex sync", RetryVortex));
-            actions.Children.Add(QuietButton("Review profile", () => { page = "Registry"; RefreshPage(); }));
+            actions.Children.Add(QuietButton("Review", () => { page = lastVortexResult?.Packages.Any(p => p.Detail.Contains("loader", StringComparison.OrdinalIgnoreCase)) == true ? "Maintenance" : "Registry"; RefreshPage(); }));
             actions.Children.Add(QuietButton("Disconnect", async () =>
             {
                 if (!await Confirm("Disconnect Vortex? Imported packages and every LUZ profile will be kept. Vortex updates will stop until you reconnect.")) return;
@@ -95,7 +114,17 @@ public sealed partial class MainWindow
         }
         if (manifest.Length == 0) throw new InvalidOperationException("No Vortex snapshot is available to retry. Use Play in Vortex to create one.");
         VortexSnapshot snapshot = JsonFiles.Read<VortexSnapshot>(manifest);
-        incomingVortex.Enqueue(new(manifest, library.Active.Id, snapshot.RequestId));
+        VortexSyncResult previous = VortexBridge.ReadResult(library, snapshot.RequestId) ?? throw new InvalidOperationException("This snapshot has no captured profile. Use Play in Vortex to submit it.");
+        if (previous.ProfileId != library.Active.Id) throw new InvalidOperationException("Return to the profile captured by this request before retrying.");
+        if (processingVortexRequest == snapshot.RequestId || incomingVortex.Any(r => r.RequestId == snapshot.RequestId)) return;
+        if (previous.Outcome is VortexSyncOutcome.Applied or VortexSyncOutcome.NoChanges) { status.Text = VortexSummary(previous); return; }
+        string fingerprint = library.Fingerprint(library.Active);
+        bool resume = previous.ResultingFingerprint.Length > 0 && previous.ResultingFingerprint == fingerprint;
+        if (previous.BaseFingerprint != fingerprint && !resume) throw new InvalidOperationException("The captured profile has changed. Review it and submit a new request with Vortex Play.");
+        previous.RetryOf = snapshot.RequestId;
+        previous.BaseFingerprint = fingerprint; previous.Outcome = VortexSyncOutcome.Queued;
+        VortexBridge.SaveResult(library, previous);
+        incomingVortex.Enqueue(new(manifest, previous.ProfileId, snapshot.RequestId, fingerprint));
         _ = ProcessLinks();
     }
 

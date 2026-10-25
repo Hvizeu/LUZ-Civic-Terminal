@@ -1,0 +1,5 @@
+Nivalis Nights Vortex extension
+Original package recognition reference: Sebastian Maute, version 0.3.4.
+Upstream: https://github.com/sebastianmaute/vortex-nivalisnights
+License: EUPL-1.2; see LICENSE.
+LUZ for Nivalis Nights is maintained independently by Hvizeu.

@@ -12,10 +12,10 @@ public sealed partial class MainWindow
     {
         if (address.StartsWith(VortexBridge.SetupPrefix, StringComparison.Ordinal))
         {
-            VortexSetupResult result = VortexBridge.Configure(library, VortexBridge.ValidateSetupMessage(address),
-                Environment.ProcessPath ?? throw new IOException("The LUZ executable path is unavailable."));
-            status.Text = result.Message;
-            if (page == "Maintenance") RefreshPage();
+            string setup = VortexBridge.ValidateSetupMessage(address);
+            if (incomingVortexSetup.Count >= 20) throw new InvalidOperationException("Finish the pending Vortex setup first.");
+            if (!incomingVortexSetup.Contains(setup)) incomingVortexSetup.Enqueue(setup);
+            _ = ProcessLinks();
             return;
         }
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
@@ -43,6 +43,14 @@ public sealed partial class MainWindow
         processingLinks = true;
         try
         {
+            while (incomingVortexSetup.Count > 0 && operation == null)
+            {
+                string setup = incomingVortexSetup.Dequeue();
+                await Busy("Preparing Vortex connection and loader…", async ct => {
+                    var result = await VortexBridge.ConfigureAndPrepare(library, setup, Environment.ProcessPath ?? throw new IOException("LUZ executable is unavailable."), sources, ct);
+                    status.Text = result.Message;
+                });
+            }
             while (incomingVortex.Count > 0 && operation == null)
             {
                 VortexRequest request = incomingVortex.Dequeue();

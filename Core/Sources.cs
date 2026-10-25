@@ -77,7 +77,7 @@ public sealed class Sources : IDisposable
                 if (key != null) throw new InvalidDataException("Unexpected redirect from the Nexus API.");
                 url = next.AbsoluteUri; continue;
             }
-            if (!response.IsSuccessStatusCode) { int code = (int)response.StatusCode; response.Dispose(); throw new HttpRequestException($"Source returned HTTP {code}. For Nexus, check your API key and download entitlement; manual ZIP imports remain available."); }
+            if (!response.IsSuccessStatusCode) { int code = (int)response.StatusCode; response.Dispose(); throw new HttpRequestException($"Source returned HTTP {code}." + (uri.Host == "api.nexusmods.com" ? " For Nexus, check your API key and download entitlement; manual ZIP imports remain available." : " Retry the official source when it is available.")); }
             return response;
         }
         throw new HttpRequestException("Too many download redirects.");
