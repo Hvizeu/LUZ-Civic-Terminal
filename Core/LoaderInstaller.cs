@@ -6,7 +6,6 @@ public sealed record LoaderRelease(string Version, string Url);
 public sealed record LoaderBackup(string Game, List<string> Files, List<string> Existing);
 public static class LoaderInstaller
 {
-    public static readonly LoaderRelease Recommended = new("6.0.0-be.788", "https://builds.bepinex.dev/projects/bepinex_be/788/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788%2B5b766a3.zip");
     public static async Task<LoaderRelease> Latest(Sources sources, string root, CancellationToken ct)
     {
         string file = FileSafety.Under(root, "downloads/loader-index-" + Guid.NewGuid().ToString("N") + ".html");

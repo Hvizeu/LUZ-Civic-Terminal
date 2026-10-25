@@ -18,7 +18,7 @@ public sealed partial class MainWindow
         VortexSyncResult? existing = VortexBridge.ReadResult(library, snapshot.RequestId);
         if (existing is { Outcome: not (VortexSyncOutcome.Queued or VortexSyncOutcome.Processing) })
         {
-            lastVortexResult = existing; lastVortexManifest = manifest; status.Text = VortexSummary(existing); return;
+            ShowVortexResult(existing, manifest); return;
         }
         string profileId = existing?.ProfileId ?? library.Active.Id;
         if (processingVortexRequest == snapshot.RequestId || incomingVortex.Any(request => request.RequestId == snapshot.RequestId)) return;
@@ -58,8 +58,14 @@ public sealed partial class MainWindow
             }
         }, ct));
         processingVortexRequest = "";
-        lastVortexResult = result; lastVortexManifest = request.Manifest;
+        ShowVortexResult(result, request.Manifest);
+    }
+
+    private void ShowVortexResult(VortexSyncResult result, string manifest)
+    {
+        lastVortexResult = result; lastVortexManifest = manifest;
         status.Text = VortexSummary(result);
+        RefreshPage();
     }
 
     private Control VortexIntegrationPanel()
@@ -82,9 +88,13 @@ public sealed partial class MainWindow
                 if (item.Action == "Blocked")
                 {
                     string sourceId = item.BridgeId;
-                    content.Children.Add(QuietButton("Exclude " + item.Name + " from this profile's feed", async () => {
-                        if (!await Confirm("Exclude this Vortex package from the selected LUZ profile? Its Vortex files are retained. Loader bundles and tools will not be installed as mods.")) return;
-                        VortexBridge.ExcludeSource(library, sourceId); RefreshPage();
+                    string targetProfile = lastVortexResult.ProfileId;
+                    string targetManifest = lastVortexManifest;
+                    content.Children.Add(Button("Exclude package and retry", async () => {
+                        if (library.Active.Id != targetProfile) throw new InvalidOperationException("Return to the profile captured by this synchronization before excluding a package.");
+                        if (!await Confirm("Exclude “" + item.Name + "” from this profile's Vortex feed and retry? Its Vortex files and the installed loader are retained.")) return;
+                        if (library.Active.Id != targetProfile) throw new InvalidOperationException("The selected profile changed. Return to the captured profile before excluding this package.");
+                        VortexBridge.ExcludeSource(library, sourceId); RetryVortex(targetManifest);
                     }));
                 }
             }
@@ -104,9 +114,10 @@ public sealed partial class MainWindow
         return content;
     }
 
-    private void RetryVortex()
+    private void RetryVortex() => RetryVortex(lastVortexManifest);
+
+    private void RetryVortex(string manifest)
     {
-        string manifest = lastVortexManifest;
         if (manifest.Length == 0 && library.State.Vortex is { } connection)
         {
             string snapshots = Path.Combine(connection.ExchangeRoot, "snapshots");

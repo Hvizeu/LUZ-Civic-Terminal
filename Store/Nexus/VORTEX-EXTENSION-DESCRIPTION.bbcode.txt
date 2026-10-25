@@ -5,14 +5,14 @@ Download and update your Nivalis Nights mods through Vortex, then use LUZ to man
 Install or update a mod in Vortex and press [b]Play[/b]. LUZ opens, synchronizes the selected profile and applies it when its normal checks allow. [b]Vortex Play opens LUZ. Launch Nivalis from LUZ when you are ready.[/b]
 
 [url=https://www.nexusmods.com/nivalisnights/mods/81]Get LUZ Civic Terminal on Nexus[/url]
-[url=https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest]LUZ 0.8.6 application downloads on GitHub[/url]
+[url=https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest]LUZ 0.8.7 application downloads on GitHub[/url]
 [url=https://github.com/Hvizeu/LUZ-Civic-Terminal]Source code[/url]
 
 [size=5][b]Requirements[/b][/size]
 [list]
 [*]Windows and an installed Steam copy of Nivalis Nights.
 [*]Vortex 2.9.0 or newer.
-[*]LUZ Civic Terminal 0.8.6 or newer. Setup can find an installed copy or ask Vortex to download the compatible Windows package from Nexus.
+[*]LUZ Civic Terminal 0.8.7 or newer. Setup can find an installed copy or ask Vortex to download the compatible Windows package from Nexus.
 [/list]
 
 [size=5][b]First-time setup[/b][/size]

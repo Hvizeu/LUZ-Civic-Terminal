@@ -1,6 +1,6 @@
 # Player guide
 
-This guide matches LUZ 0.8.6. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
+This guide matches LUZ 0.8.7. Start with [QUICK START.txt](QUICK%20START.txt) for installation. Mod authors should use the separate [CorpSec guide](CORPSEC-GUIDE.md).
 
 ## 1. Connect your game and existing mods
 
@@ -15,11 +15,11 @@ If you move Nivalis with Steam later, select the new location in Maintenance and
 
 ## 2. Install BepInEx
 
-1. In Maintenance, choose **Install recommended BepInEx**.
-2. Review and confirm. LUZ downloads BepInEx 6.0.0-be.788, Windows x64 IL2CPP, from its official server and backs up replaced loader files.
+1. In Maintenance, choose **Install or update latest BepInEx**.
+2. Review the latest official Windows x64 IL2CPP build LUZ found and confirm. LUZ downloads that build from the official server and backs up replaced loader files. A failed lookup stops the operation instead of installing an older fallback.
 3. On a first-time setup, launch the game yourself once, wait for loader initialization, then close it before applying mods.
 
-**Check latest official build** is a separate upstream choice. The recommended loader remains the default. Use the BepInEx controls for loader ZIPs rather than importing them as mods. **Restore loader backup** reverses a loader installation using its matching backup.
+The recommended loader is always the latest completed official Windows x64 IL2CPP build. A failed check does not fall back to an older version. Use the BepInEx controls for loader ZIPs rather than importing them as mods. **Restore loader backup** reverses a loader installation using its matching backup.
 
 ## 3. Import and apply a mod
 
@@ -33,7 +33,7 @@ If you move Nivalis with Steam later, select the new location in Maintenance and
 
 Import adds a package to LUZ's library/profile. Apply replaces deployed plugins and patchers with the selected profile's enabled contents. A DLL alone can be missing assets or support files from its original ZIP.
 
-LUZ 0.8.6 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. The Update #6 universal package is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.12 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
+LUZ 0.8.7 reads Nivalis Expanded's hard dependency from its compiled plugin metadata. The Update #6 universal package is valid when exactly one enabled plugin has GUID `hvizeu.nivalis.unofficialpatch` and version `>=0.4.12 <0.5.0`. A missing, disabled, out-of-range or duplicate Unofficial Patch remains a profile error. Storefront package dependencies used by unrelated mods retain their normal package checks.
 
 Lower rows in the deployment order win shared-file conflicts. Drag the dotted handles or use **Move up** and **Move down**. Auto-sort follows declared dependencies; BepInEx controls plugin startup order.
 

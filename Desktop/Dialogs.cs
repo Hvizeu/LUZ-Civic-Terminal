@@ -17,6 +17,9 @@ public sealed partial class MainWindow
     }
     private async Task<bool> Confirm(string title, string message, string continueLabel, double height = 560, double width = 760)
     {
+#if PREVIEW_TOOL
+        if (preview && previewConfirmation != null) return await previewConfirmation();
+#endif
         if (preview) return false;
         var window = ConfirmationDialog(title, message, continueLabel, height, width);
         return await window.ShowDialog<bool>(this);

@@ -6,6 +6,7 @@ using Avalonia.VisualTree;
 namespace LuzDesktop;
 public sealed partial class MainWindow
 {
+    private Func<Task<bool>>? previewConfirmation;
     private void PreviewRecoveryState(string value)
     {
         if (!preview) throw new InvalidOperationException();
@@ -29,6 +30,61 @@ public sealed partial class MainWindow
         status.Text = Luz.OperationRecovery.CompletionMessage(library);
     }
     public void PreviewMaintenanceBottom() { if (body.Children[1] is ScrollViewer view) view.ScrollToEnd(); }
+    private void PreviewVortexStatus(Action<bool, string> check)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var previousConnection = library.State.Vortex;
+        var previousResult = lastVortexResult;
+        string previousManifest = lastVortexManifest;
+        bool previousProcessing = processingLinks;
+        var previousExclusions = library.Active.Vortex.Exclusions.ToList();
+        try
+        {
+            string exchange = Path.Combine(library.Root, "preview-vortex-exchange"), requestId = Guid.NewGuid().ToString("N");
+            library.State.Vortex = new() { Id = Guid.NewGuid().ToString("N"), ExchangeRoot = exchange };
+            string manifest = Path.Combine(exchange, "snapshots", requestId, "snapshot.json");
+            JsonFiles.Write(manifest, new VortexSnapshot { RequestId = requestId });
+            var result = new VortexSyncResult { RequestId = requestId, ProfileId = library.Active.Id,
+                BaseFingerprint = library.Fingerprint(library.Active), ResultingFingerprint = library.Fingerprint(library.Active),
+                Outcome = VortexSyncOutcome.NeedsAttention, Message = "A legacy loader needs review.",
+                Packages = [new() { BridgeId = "legacy-loader", Name = "Legacy loader fixture", Action = "Blocked", Detail = "loader" }] };
+            VortexBridge.SaveResult(library, result);
+            ReceiveVortex(VortexBridge.Message(manifest)); Dispatcher.UIThread.RunJobs();
+            check(body.GetLogicalDescendants().OfType<TextBlock>().Any(t => t.Text?.Contains("Legacy loader fixture · Blocked") == true),
+                "A received Vortex result refreshes the visible Maintenance panel");
+            check(body.GetLogicalDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Exclude package and retry"),
+                "Vortex exclusion has a short explicit action label");
+            processingLinks = true;
+            previewConfirmation = () => {
+                string otherId = Guid.NewGuid().ToString("N"), otherManifest = Path.Combine(exchange, "snapshots", otherId, "snapshot.json");
+                JsonFiles.Write(otherManifest, new VortexSnapshot { RequestId = otherId });
+                VortexBridge.SaveResult(library, new() { RequestId = otherId, ProfileId = library.Active.Id,
+                    Outcome = VortexSyncOutcome.NeedsAttention, BaseFingerprint = library.Fingerprint(library.Active),
+                    ResultingFingerprint = library.Fingerprint(library.Active), Message = "Another terminal request arrived during confirmation." });
+                ReceiveVortex(VortexBridge.Message(otherManifest));
+                return Task.FromResult(true);
+            };
+            var exclude = body.GetLogicalDescendants().OfType<Button>().Single(b => AutomationProperties.GetName(b) == "Exclude package and retry");
+            exclude.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); Dispatcher.UIThread.RunJobs();
+            check(library.Active.Vortex.Exclusions.Contains("legacy-loader") && incomingVortex.Count == 1 && incomingVortex.Peek().RequestId == requestId,
+                "Exclusion retries the captured request even when another result arrives during confirmation");
+            incomingVortex.Clear(); previewConfirmation = null; processingLinks = previousProcessing;
+            result.Message = "Packages were synchronized; review compatibility before Apply.";
+            result.Packages = [new() { Action = "Excluded", Name = "Legacy loader fixture" },
+                new() { Action = "Added", Name = "First mod" }, new() { Action = "Added", Name = "Second mod" }, new() { Action = "Added", Name = "Third mod" }];
+            VortexBridge.SaveResult(library, result);
+            ReceiveVortex(VortexBridge.Message(manifest)); Dispatcher.UIThread.RunJobs();
+            check(body.GetLogicalDescendants().OfType<TextBlock>().Any(t => t.Text?.Contains("Added 3") == true && t.Text.Contains("Excluded 1"))
+                && !body.GetLogicalDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Exclude package and retry"),
+                "Completed Vortex synchronization replaces the old blocked panel with the actual added/excluded result");
+        }
+        finally
+        {
+            library.State.Vortex = previousConnection; lastVortexResult = previousResult; lastVortexManifest = previousManifest;
+            library.Active.Vortex.Exclusions = previousExclusions; incomingVortex.Clear(); previewConfirmation = null; processingLinks = previousProcessing;
+            RefreshPage();
+        }
+    }
     public void PreviewCorpProjectBottom()
     {
         var button = body.GetLogicalDescendants().OfType<Button>().Single(control => AutomationProperties.GetName(control) == "Remove from My mods"); button.GetVisualAncestors().OfType<ScrollViewer>().First().ScrollToEnd();
@@ -72,6 +128,10 @@ public sealed partial class MainWindow
             ? body.GetVisualDescendants().OfType<TextBlock>().Any(label => label.Text?.Contains("no setup is required", StringComparison.OrdinalIgnoreCase) == true)
             : body.GetVisualDescendants().OfType<TextBlock>().Any(label => label.Text?.Contains("Windows only", StringComparison.OrdinalIgnoreCase) == true),
             "Vortex integration exposes the supported-host setup state");
+        PreviewVortexStatus(Check);
+        Check(body.GetLogicalDescendants().OfType<Button>().Any(b => AutomationProperties.GetName(b) == "Install or update latest BepInEx")
+            && !body.GetLogicalDescendants().OfType<TextBlock>().Any(t => t.Text?.Contains("Recommended: BepInEx 6.0.0-be.788") == true),
+            "Latest official BepInEx is the single default loader update action");
         PreviewPage("Maintenance-recovery-both"); Dispatcher.UIThread.RunJobs();
         Check(!applyButton.IsEnabled && !playButton.IsEnabled && profileLabel.Text!.Contains("Profile and BepInEx"), "Both journals show specific recovery status and block unsafe actions");
         foreach (string action in new[] { "Recover profile deployment", "Recover BepInEx installation" })

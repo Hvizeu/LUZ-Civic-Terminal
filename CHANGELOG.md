@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.7
+
+- Make the latest official Windows x64 IL2CPP BepInEx build the default and only loader update target.
+- Refresh Vortex status after synchronization and retry automatically after excluding a package.
+
 ## 0.8.6
 
 - Fix Vortex synchronization failing on linked files in Vortex's separate deployment area.

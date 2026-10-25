@@ -45,8 +45,8 @@ public sealed partial class MainWindow
         location.Children.Add(Button("Import existing installation", async () => { if (await Confirm("Copy the current plugins, patchers and configuration into this profile? Nothing in the game folder will be changed.")) _ = Busy("Importing installed mods…", ct => Task.Run(() => library.ImportInstalled(library.State.GameFolder), ct)); })); section.Children.Add(location);
         section = Group("MOD LOADER");
         section.Children.Add(Label(SafeLoaderStatus() + (library.State.LoaderVersion.Length > 0 ? " · installed by this terminal: " + library.State.LoaderVersion : "")));
-        section.Children.Add(Label("Recommended: BepInEx 6.0.0-be.788, Windows x64 IL2CPP. Installing preserves mods and settings. Newer builds are experimental.", brush: TerminalTheme.Muted));
-        var loader = Row(); loader.Children.Add(Button("Install recommended BepInEx", () => _ = SetupLoader(false), primary: true)); loader.Children.Add(QuietButton("Check latest official build", () => _ = SetupLoader(true))); loader.Children.Add(QuietButton("Restore loader backup", RestoreLoader)); section.Children.Add(loader);
+        section.Children.Add(Label("Recommended: the latest official Windows x64 IL2CPP BepInEx build. LUZ checks the official server before installation and preserves mods and settings.", brush: TerminalTheme.Muted));
+        var loader = Row(); loader.Children.Add(Button("Install or update latest BepInEx", () => _ = SetupLoader(), primary: true)); loader.Children.Add(QuietButton("Restore loader backup", RestoreLoader)); section.Children.Add(loader);
         panel.Children.Add(PlatformSettings());
         section = Group("AFTER A GAME UPDATE");
         section.Children.Add(Label("Check which component reported the problem. LUZ updates, generated game bindings and mod compatibility are separate.", brush: TerminalTheme.Muted));
@@ -104,18 +104,16 @@ public sealed partial class MainWindow
         }
         catch (Exception ex) { Error(ex); }
     }
-    private async Task SetupLoader(bool latest)
+    private async Task SetupLoader()
     {
-        LoaderRelease release = LoaderInstaller.Recommended;
-        if (latest)
-        {
-            bool fetched = false; await Busy("Checking official BepInEx builds…", async ct => { release = await LoaderInstaller.Latest(sources, library.Root, ct); fetched = true; }); if (!fetched) return;
-        }
+        LoaderRelease? release = null;
+        await Busy("Checking official BepInEx builds…", async ct => { release = await LoaderInstaller.Latest(sources, library.Root, ct); });
+        if (release == null) return;
         if (!await Confirm($"Install BepInEx {release.Version} from builds.bepinex.dev?\n\nClose the game first. Loader files will be backed up before replacement. Plugins and configuration are preserved. This does not launch the game.")) return;
         await Busy("Downloading and installing BepInEx…", async ct =>
         {
             GameFiles.Validate(library.State.GameFolder); GameFiles.RequireClosed();
-            if (File.Exists(Path.Combine(library.Root, "loader-pending.json"))) throw new InvalidOperationException("Restore the interrupted loader backup first.");
+            if (OperationRecovery.Inspect(library).Count > 0) throw new InvalidOperationException("Recover the interrupted operation before updating BepInEx.");
             string file = FileSafety.Under(library.Root, "downloads/loader-" + Guid.NewGuid().ToString("N") + ".zip");
             try { await sources.Download(release.Url, file, ct); ct.ThrowIfCancellationRequested(); await Task.Run(() => LoaderInstaller.Install(library, file, release), ct); }
             finally { File.Delete(file); }
