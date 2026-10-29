@@ -13,7 +13,7 @@ public static class UpdateChecks
         const string version="9.8.7", rid="win-x64";
         string asset=$"LUZ-Civic-Terminal-{version}-{rid}.zip";
         string url=$"https://github.com/{LauncherUpdates.Repository}/releases/download/v{version}/{asset}";
-        byte[] Package(string runtime=rid,string dllVersion="real",string? extra=null,bool continuity=true) {
+        byte[] Package(string runtime=rid,string dllVersion="real",string? extra=null,bool continuity=true,bool additiveContinuity=false) {
             using var buffer=new MemoryStream();
             using(var z=new ZipArchive(buffer,ZipArchiveMode.Create,true)) {
                 string prefix=$"LUZ Civic Terminal {version} {rid}/";
@@ -28,6 +28,7 @@ public static class UpdateChecks
                         ["Luz.Continuity.Runtime.dll"] = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory,"UpdateFixture.dll")),
                         ["catalog.json"] = Encoding.UTF8.GetBytes("{\"Schema\":1,\"Version\":\"fixture\",\"Builds\":[]}"),
                         ["maintained-support.json"] = Encoding.UTF8.GetBytes("{\"Schema\":1,\"Modules\":[]}") };
+                    if (additiveContinuity) contents["support/new-format.json"] = Encoding.UTF8.GetBytes("{\"Schema\":1}");
                     foreach (var item in contents) Add("Continuity/"+item.Key,item.Value);
                     Add("Continuity/payload.json",JsonSerializer.SerializeToUtf8Bytes(contents.ToDictionary(p=>p.Key,p=>Convert.ToHexString(SHA256.HashData(p.Value)))));
                 }
@@ -70,9 +71,23 @@ public static class UpdateChecks
         _ = RegistryRecovery.Read(existingRoot);
         string existingArchive = await updater.Download(selected, existingRoot, CancellationToken.None);
         string existingPrepared = LauncherUpdates.Prepare(selected, existingArchive);
+        string oldApplication = Path.Combine(root, "installed-old-version"); Directory.CreateDirectory(oldApplication);
+        string oldCore = Path.Combine(oldApplication, "Core.dll"); File.WriteAllText(oldCore, "retained old application fixture; never execute");
+        string oldHash = FileSafety.Hash(oldCore);
         DesktopInstallation.InstallFiles(existingPrepared, Path.Combine(root, "installed-existing-library"));
         using (var reopened = new Library(existingRoot))
-            check(reopened.Active.Id == selectedProfile && reopened.State.Profiles.Count == 2 && reopened.Active.Mods.Count == 1 && !reopened.Active.Mods[0].Enabled && reopened.State.Packages.Single(p => p.Id == reopened.Active.Mods[0].PackageId).Files.Count == 2 && File.ReadAllText(Path.Combine(reopened.ConfigRoot(selectedProfile), "keep.cfg")) == "retained configuration" && File.ReadAllText(Path.Combine(existingRoot, "pending.json")) == "retained recovery record", "Self-update reopens realistic profiles with selected identity, configuration and recovery records intact");
+            check(reopened.Active.Id == selectedProfile && reopened.State.Profiles.Count == 2 && reopened.Active.Mods.Count == 1 && !reopened.Active.Mods[0].Enabled && reopened.State.Packages.Single(p => p.Id == reopened.Active.Mods[0].PackageId).Files.Count == 2 && File.ReadAllText(Path.Combine(reopened.ConfigRoot(selectedProfile), "keep.cfg")) == "retained configuration" && File.ReadAllText(Path.Combine(existingRoot, "pending.json")) == "retained recovery record" && FileSafety.Hash(oldCore) == oldHash, "A new version installs alongside old application files and reopens profiles, configuration and recovery records intact");
+        byte[] additive = Package(additiveContinuity: true);
+        string additiveFolder = Path.Combine(root, "update-additive"); Directory.CreateDirectory(additiveFolder);
+        string additiveArchive = Path.Combine(additiveFolder, "update.zip"); File.WriteAllBytes(additiveArchive, additive);
+        var additiveRelease = selected with { Size = additive.Length, Sha256 = FileSafety.Hash(additiveArchive) };
+        string additivePrepared = LauncherUpdates.Prepare(additiveRelease, additiveArchive);
+        string additiveInstalled = Path.Combine(root, "installed-additive");
+        DesktopInstallation.InstallFiles(additivePrepared, additiveInstalled);
+        check(File.Exists(Path.Combine(additiveInstalled, "Continuity/support/new-format.json"))
+            && File.ReadAllText(Path.Combine(data, "registry.json")) == "preserve profile",
+            "A verified additive Continuity update stages and installs successfully while preserving the separate library");
+        ContinuityUpdateChecks.Run(root, check, reject);
         DesktopInstallation.InstallFiles(prepared,destination);
         check(Directory.Exists(destination),"Interrupted shortcut step can retry an identical installed version");
         File.AppendAllText(Path.Combine(destination,"Core.dll"),"changed");

@@ -54,6 +54,8 @@ A running game, interrupted operation, unrelated unapplied profile changes or a 
 
 [size=5][b]Credits and support[/b][/size]
 
+[b]BepInEx opens but LUZ does not:[/b] Update this extension to 0.6.4 through Home > Extensions and restart Vortex. This version fixes a saved Vortex shortcut that could start the paired game executable directly. Check that LUZ Civic Terminal is the primary Nivalis tool and only one Nivalis game-support extension is enabled. Launching the game through Steam or its executable does not open LUZ. If the previous extension still owns a direct deployment, follow the migration steps above.
+
 Maintained by Hvizeu. Package recognition was informed by Sebastian Maute's Nivalis Nights Vortex extension. Required licenses and third-party notices are included.
 
 For a problem report, include the mod name, LUZ and Vortex versions, the action you took and the exact error. LUZ's [b]Maintenance > Export diagnostics[/b] can help identify the failed step.

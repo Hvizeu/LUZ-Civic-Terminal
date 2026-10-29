@@ -21,7 +21,7 @@ def validate(object_framework=False):
         with (output / name).open('w', encoding='utf8') as log:
             environment = {**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'}
             commands = [
-                ['dotnet', 'build', project, '-c', 'Release', '-p:UseSharedCompilation=false', '-m:1', *build_properties],
+                ['dotnet', 'build', project, '-c', 'Release', '-p:UseSharedCompilation=false', *build_properties],
                 ['dotnet', 'run', '--project', project, '-c', 'Release', '--no-build', '--no-restore',
                  '-p:UseSharedCompilation=false', *build_properties, *run_arguments]]
             for command in commands:

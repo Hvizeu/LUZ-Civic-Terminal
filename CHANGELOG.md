@@ -1,4 +1,15 @@
+# 0.8.9
+
+- Updated for Nivalis Nights Update #7, Steam build 26295359.
+- Added the exact Update #7 native/metadata pair to the bundled Continuity catalogue. Existing supported build identities, profiles and recovery formats are retained.
+
 # Changelog
+
+## 0.8.8
+
+- Validate launcher update Continuity payloads against the destination release instead of the running version's exact file count.
+- Verify every additional manifest file and report missing files, unsupported manifests and checksum failures separately.
+- Document manual update recovery for already-installed older validators while retaining profiles, configuration and recovery records.
 
 ## 0.8.7
 

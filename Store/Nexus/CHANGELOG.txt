@@ -1,3 +1,14 @@
+LUZ Civic Terminal 0.8.9
+
+- Added the exact Nivalis Nights Update #7 native and metadata identity to the bundled Continuity catalogue.
+- Retained existing supported builds, profiles, save ownership and recovery safeguards.
+
+LUZ Civic Terminal 0.8.8
+
+- Accepts complete newer Continuity update payloads with safe additional manifest files, verifying every declared checksum.
+- Uses destination-version requirements and distinguishes missing files, checksum mismatches and unsupported manifests.
+- Adds manual recovery instructions for old updaters, preserving the separate profiles, library and recovery records.
+
 LUZ Civic Terminal 0.8.7
 
 - Makes the Windows Main File installable through Nexus Mod Manager Download.

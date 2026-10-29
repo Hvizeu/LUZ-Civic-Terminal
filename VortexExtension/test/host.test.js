@@ -53,7 +53,7 @@ async function fixture(t, sources) {
   await fsp.writeFile(path.join(gameFolder, "GameAssembly.dll"), "fixture");
   const state = { app: { appVersion: "2.9.0", extensions: {} }, settings: { gameMode: { discovered: {} } },
     persistent: { mods: { nivalisnights: {} }, profiles: {} } };
-  const notifications = [], errors = [], actions = [], downloads = [], ready = [], tools = [], hooks = [], types = [];
+  const notifications = [], errors = [], actions = [], downloads = [], dialogs = [], ready = [], tools = [], hooks = [], types = [];
   class UserCanceled extends Error {}
   class ProcessCanceled extends Error {}
   let active, game;
@@ -75,7 +75,7 @@ async function fixture(t, sources) {
     ext: { ensureLoggedIn: async () => {}, nexusGetModFiles: async () => [
       { file_name: "LUZ-Civic-Terminal-0.8.5-win-x64.zip", version: "0.8.5", category_id: 1, file_id: 123 }
     ] },
-    showDialog: async () => ({ action: "Connect LUZ" }),
+    showDialog: async (...args) => { dialogs.push(args); return { action: "Connect LUZ" }; },
     showErrorNotification: (title, error) => errors.push({ title, error }),
     sendNotification: value => notifications.push(value), dismissNotification() {}, onAsync() {},
     store: { getState: () => state, dispatch(action) {
@@ -111,11 +111,13 @@ async function fixture(t, sources) {
     setPrimaryTool: (...args) => ({ type: "primary", args }), setModType: (...args) => ({ type: "type", args }),
     addDiscoveredTool: (...args) => ({ type: "tool", args }), setModAttribute: (...args) => ({ type: "attribute", args })
   }, selectors, log() {}, util: { UserCanceled, ProcessCanceled, GameStoreHelper: { findByAppId: async () => ({ gamePath: gameFolder }) } } };
-  const load = Module._load;
-  Module._load = function(request, parent, main) { return request === "vortex-api" ? vortexApi : load.call(this, request, parent, main); };
-  let extension;
-  try { delete require.cache[require.resolve("../src/index")]; extension = require("../src/index"); }
-  finally { Module._load = load; }
+  function loadExtension() {
+    const load = Module._load;
+    Module._load = function(request, parent, main) { return request === "vortex-api" ? vortexApi : load.call(this, request, parent, main); };
+    try { delete require.cache[require.resolve("../src/index")]; return require("../src/index"); }
+    finally { Module._load = load; }
+  }
+  const extension = loadExtension();
   const guardSource = between(sources("ExtensionManager.ts"), "class APIProxyHandler ", "class APIProxyCreator ");
   const Guard = evaluate(guardSource, "APIProxyHandler", {
     ExtEventHandler: class { constructor(events) { return events; } }, convertExtInfo: value => value
@@ -155,7 +157,15 @@ async function fixture(t, sources) {
   const validatePrimary = evaluate(primarySource, "testPrimaryTool", { path, PromiseBB, fs: { statAsync: fsp.stat },
     getSafe, truthy: Boolean, activeGameId: () => active?.gameId, gameName: () => game.name, gameById: () => game,
     setPrimaryTool: (...args) => ({ type: "primary", args }) });
-  return { game, state, notifications, errors, downloads, actions, tools, hooks, gameFolder, staging, UserCanceled,
+  return { game, state, notifications, errors, downloads, dialogs, actions, tools, hooks, gameFolder, staging, exchange, UserCanceled,
+    async restartWithStoreLookup(lookup) {
+      vortexApi.util.GameStoreHelper.findByAppId = lookup;
+      types.length = 0; hooks.length = 0; ready.length = 0;
+      const restartedGuard = new Guard({}, false, api.events);
+      assert.equal(loadExtension().init({ ...context, api: new Proxy(api, restartedGuard) }), true);
+      restartedGuard.enable(); for (const callback of ready) await callback();
+      return game;
+    },
     discover: () => quickTools(game.id, game.supportedTools, (id, tool) => tools.push(tool)),
     activate() { active = { id: "profile", gameId: "nivalisnights" }; state.persistent.profiles.profile = active; },
     paths: root => new Proxy(game, handler).getModPaths(root),
@@ -210,4 +220,73 @@ test("installed Vortex start chain preserves cancellation and its original reaso
   f.state.settings.gameMode.discovered.nivalisnights.path = f.gameFolder;
   await assert.rejects(f.run({ executable: path.join(f.staging, "luz", "LUZ Vortex.exe"), args: [], options: {} }),
     error => error instanceof f.UserCanceled && /isolated LUZ deployment root/.test(error.message));
+});
+
+test("saved native game shortcut hands off to LUZ without executing the game", { skip }, async t => {
+  const f = await fixture(t, hostSources());
+  const root = await f.game.queryPath();
+  f.state.settings.gameMode.discovered.nivalisnights = { path: root };
+  f.activate();
+  await f.game.setup({ path: root });
+  const request = { executable: path.join(f.gameFolder, "Nivalis Nights.exe"), args: ["old-game-argument"], options: {} };
+  const result = await f.run(request);
+  assert.equal(result.executable, path.join(f.staging, "luz", "LUZ Vortex.exe"));
+  assert.equal(result.args[0], "--vortex-sync");
+  assert.equal(result.args.length, 2, "Game arguments must not reach the LUZ handoff");
+  const manifest = JSON.parse(await fsp.readFile(result.args[1], "utf8"));
+  assert.equal(manifest.GameFolder, f.gameFolder);
+  const repeated = await f.run(request);
+  assert.deepEqual(repeated.args, result.args, "The saved shortcut reuses its pending synchronization");
+  const unrelated = { ...request, executable: path.join(f.staging, "Nivalis Nights.exe") };
+  assert.equal(await f.run(unrelated), unrelated, "A filename match must not capture another installation or tool");
+  f.state.settings.gameMode.discovered.nivalisnights.path = f.gameFolder;
+  await assert.rejects(f.run(request), error => error instanceof f.UserCanceled && /isolated LUZ deployment root/.test(error.message));
+});
+
+test("reopening Vortex revalidates its paired game before Steam discovery is ready", { skip }, async t => {
+  const f = await fixture(t, hostSources());
+  const root = await f.game.queryPath();
+  f.state.settings.gameMode.discovered.nivalisnights = { path: root };
+  f.activate(); await f.game.setup({ path: root });
+  assert.equal(f.dialogs.length, 1, "Initial setup has one connection review");
+  const descriptorFile = path.join(f.exchange, "connection.json");
+  const descriptor = await fsp.readFile(descriptorFile, "utf8");
+  let lookups = 0;
+  const reopened = await f.restartWithStoreLookup(async () => { lookups++; throw new Error("Game entry not found"); });
+  // The actual host restores the active profile before quick discovery.
+  await reopened.setup({ path: root });
+  assert.equal(await reopened.queryPath(), root);
+  await f.validatePrimary();
+  assert.equal(lookups, 0, "A verified paired installation does not depend on an empty startup store cache");
+  assert.equal(await fsp.readFile(descriptorFile, "utf8"), descriptor, "Restart retains the connection identity and selected installation");
+  assert.equal(f.downloads.length, 1, "Restart does not bootstrap another LUZ installation");
+  assert.equal(f.dialogs.length, 1, "Restart does not repeat the completed connection review");
+  const executable = JSON.parse(descriptor).Executable;
+  await fsp.rename(executable, executable + ".hidden");
+  assert.equal(await reopened.queryPath(), root, "Game discovery survives a LUZ executable awaiting repair");
+  await fsp.rename(executable + ".hidden", executable);
+  await fsp.rename(path.join(f.gameFolder, "GameAssembly.dll"), path.join(f.gameFolder, "GameAssembly.hidden"));
+  await assert.rejects(reopened.setup({ path: root }), /Game entry not found|GameAssembly|paired Nivalis/);
+  assert.equal(lookups, 1, "A removed paired installation is rechecked rather than accepted from the process cache");
+  assert.equal(await fsp.readFile(descriptorFile, "utf8"), descriptor);
+  const malformed = JSON.parse(descriptor); malformed.GameFolder = "relative-game-path";
+  await fsp.writeFile(descriptorFile, JSON.stringify(malformed));
+  await assert.rejects(reopened.queryPath(), /invalid GameFolder|invalid paired/);
+  assert.equal(lookups, 1, "Malformed pairing metadata is not replaced with an arbitrary store match");
+  const foreign = JSON.parse(descriptor); foreign.ExchangeRoot = path.dirname(f.exchange);
+  await fsp.writeFile(descriptorFile, JSON.stringify(foreign));
+  await assert.rejects(reopened.queryPath(), /invalid paired exchange/);
+  assert.equal(lookups, 1);
+  await fsp.writeFile(descriptorFile, descriptor);
+  await fsp.mkdir(path.join(f.gameFolder, "GameAssembly.dll"));
+  await assert.rejects(reopened.queryPath(), /invalid GameAssembly/);
+  assert.equal(lookups, 1, "A directory cannot stand in for a native game file");
+  await fsp.rmdir(path.join(f.gameFolder, "GameAssembly.dll"));
+  const moved = path.join(f.exchange, "moved-game");
+  await fsp.mkdir(moved);
+  for (const file of ["Nivalis Nights.exe", "GameAssembly.dll"]) await fsp.writeFile(path.join(moved, file), "never execute");
+  const rediscovered = await f.restartWithStoreLookup(async () => { lookups++; return { gamePath: moved }; });
+  assert.equal(await rediscovered.queryPath(), root, "A stale pairing can be rediscovered through the store");
+  assert.equal(lookups, 2);
+  assert.equal(await fsp.readFile(descriptorFile, "utf8"), descriptor, "Discovery alone does not re-pair the installation");
 });

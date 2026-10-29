@@ -7,7 +7,7 @@ const fsp = fs.promises;
 const path = require("path");
 const PromiseBB = require("bluebird");
 const { actions, selectors, util } = require("vortex-api");
-const { GAME_ID, buildSnapshot, readConnection, safeIdentity } = require("./snapshot");
+const { GAME_ID, buildSnapshot, readConnection, readConnectionDescriptor, safeIdentity } = require("./snapshot");
 
 const MOD_TYPE = "luz-bridge";
 const LUZ_TOOL_TYPE = "nivalisnights-luz-tool";
@@ -65,9 +65,27 @@ function versionAtLeast(actual, minimum) {
 }
 
 async function findActualGame() {
+  let descriptor;
+  try { descriptor = await readConnectionDescriptor(descriptorPath()); }
+  catch (error) { if (error.code !== "ENOENT") throw error; }
+  if (descriptor) {
+    if (!samePath(descriptor.ExchangeRoot, exchangeRoot()) || !samePath(descriptor.VortexRoot, virtualRoot()))
+      throw new Error("LUZ connection has an invalid paired exchange location");
+    // Vortex restores its active profile before its Steam inventory is necessarily ready.
+    try { return await validateGameFolder(descriptor.GameFolder); }
+    catch (error) { if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error; }
+  }
   const discovered = await util.GameStoreHelper.findByAppId(STEAM_APP_ID, "steam");
-  const game = path.resolve(discovered.gamePath);
-  await Promise.all([fsp.access(path.join(game, GAME_EXE)), fsp.access(path.join(game, "GameAssembly.dll"))]);
+  return validateGameFolder(discovered.gamePath);
+}
+
+async function validateGameFolder(folder) {
+  if (!path.isAbsolute(folder || "")) throw new Error("Nivalis discovery returned an invalid game folder");
+  const game = path.resolve(folder);
+  for (const file of [GAME_EXE, "GameAssembly.dll"]) {
+    if (!(await fsp.stat(path.join(game, file))).isFile())
+      throw new Error(`The paired Nivalis installation has an invalid ${file}`);
+  }
   actualGameFolder = game;
   return game;
 }
@@ -381,7 +399,7 @@ async function setup(context, discovery) {
   const vortexVersion = context.api.getState().app?.appVersion;
   if (!versionAtLeast(vortexVersion, MIN_VORTEX)) throw new Error(`LUZ integration requires Vortex ${MIN_VORTEX} or later; found ${vortexVersion || "an unknown version"}`);
   if (!discovery?.path || !samePath(discovery.path, virtualRoot())) throw new Error("Vortex did not select the isolated LUZ deployment root");
-  const game = actualGameFolder || await findActualGame();
+  const game = await findActualGame();
   if (await directDeploymentEvidence(game)) throw new Error("This installation still contains a previous direct Vortex deployment. Use Purge Mods once, then Manage Nivalis Nights again. LUZ will preserve the installed mod packages.");
   const executable = await ensureLuz(context);
   const descriptor = await queueSetup(() => ensureLuzConnection(executable, game, context));
@@ -430,7 +448,7 @@ async function configureInstalledLuz(context, gameId, modId) {
   const executable = managedLuzPath(context.api, modId);
   if (!executable) return false;
   context.api.store.dispatch(actions.setModType(GAME_ID, modId, LUZ_TOOL_TYPE));
-  const game = actualGameFolder || await findActualGame();
+  const game = await findActualGame();
   const descriptor = await queueSetup(() => ensureLuzConnection(executable, game, context));
   await registerLuzTool(context, descriptor);
   context.api.sendNotification({ id: `${GAME_ID}-luz-ready`, type: "success", title: "LUZ connected",
@@ -510,10 +528,13 @@ function init(context) {
     const discovery = selectors.discoveryByGame(state, GAME_ID);
     const marker = discovery?.path ? path.join(discovery.path, BRIDGE_MARKER) : "";
     const tool = path.basename(runRequest.executable).toLowerCase() === HANDOFF_EXE.toLowerCase();
-    if ((!marker || !samePath(runRequest.executable, marker)) && !tool) return runRequest;
-    assertNoConflicts(state);
+    const nativeGame = path.basename(runRequest.executable).toLowerCase() === GAME_EXE.toLowerCase();
+    if ((!marker || !samePath(runRequest.executable, marker)) && !tool && !nativeGame) return runRequest;
     try {
-      const game = actualGameFolder || await findActualGame();
+      const game = await findActualGame();
+      // Vortex can retain a custom primary tool from before the LUZ migration.
+      if (nativeGame && !samePath(runRequest.executable, path.join(game, GAME_EXE))) return runRequest;
+      assertNoConflicts(state);
       const executable = await ensureLuz(context);
       await queueSetup(() => ensureLuzConnection(executable, game, context));
       const exported = await queueExport(() => exportInventory(context));

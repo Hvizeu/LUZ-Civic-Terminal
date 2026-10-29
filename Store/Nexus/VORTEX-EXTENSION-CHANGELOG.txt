@@ -1,0 +1,6 @@
+0.6.4
+- Route saved Vortex shortcuts for the paired Nivalis Nights executable through LUZ synchronization. These shortcuts could previously start the game directly and skip LUZ.
+- Preserve shortcuts for other installations and tools, and keep migration and deployment checks active.
+- Add troubleshooting steps for BepInEx opening without the LUZ window.
+
+Update this ZIP through Vortex's Home > Extensions page and restart Vortex. This extension repair does not require a LUZ application update.

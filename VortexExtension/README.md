@@ -19,6 +19,18 @@ Package recognition was informed by Sebastian Maute's Nivalis Nights extension 0
 
 Version 0.6.2 keeps registration separate from runtime API calls. Game scanning only discovers existing LUZ installations; downloads start during Manage/setup. Setup registers the handoff tool immediately, including on a first install, and creates every exchange destination. Play preserves the original error when synchronization is cancelled.
 
+Version 0.6.3 revalidates the paired game installation when Vortex reopens, before consulting Steam discovery. This prevents a startup `Game entry not found` error while Steam's inventory is still unavailable. Missing installations still require rediscovery; invalid connection metadata stops setup. The existing connection and LUZ profile are retained. Update the extension ZIP once; LUZ 0.8.7 needs no application update for this repair.
+
+Version 0.6.4 routes a saved Vortex shortcut for the paired `Nivalis Nights.exe` through LUZ synchronization. Earlier versions could let that shortcut start the game directly. Shortcuts for other installations and tools keep their existing behavior. An incomplete migration still stops with an error; the extension never purges files automatically.
+
+## BepInEx opens but LUZ does not
+
+BepInEx belongs to game startup. LUZ is a separate desktop application. Launching Nivalis through Steam or its executable does not open LUZ.
+
+If this happens after pressing Play in Vortex, update this extension to 0.6.4 through **Home > Extensions**, enable it and restart Vortex. Check that **LUZ Civic Terminal** is the primary tool for Nivalis and that only one Nivalis game-support extension is enabled. If Vortex still uses a previous extension's direct deployment, follow the migration steps above before managing the game again.
+
+If it still fails, include the extension, Vortex and LUZ versions, the exact button or shortcut used, a screenshot of Nivalis's Vortex tools, and the relevant Vortex error/log. If LUZ opens, **Maintenance > Export diagnostics** provides its side of the report. BepInEx output alone cannot identify why LUZ did not open.
+
 **Browse Extensions** is a catalog search, separate from the Extensions page where ZIPs are installed. Vortex lists one game extension per game, so this independently installed extension may be absent from Browse. Use the direct Files page above; a missing catalog entry does not diagnose whether the installed extension registered successfully.
 
 Developer checks: `npm ci --legacy-peer-deps --ignore-scripts`, then `npm test`. On a Windows machine with Vortex 2.9.0, set `LUZ_VORTEX_ASAR` to its `resources/app.asar` and run `npm run test:host`. These checks read the installed host's API guard, discovery, deployment-path and start-hook implementation into disposable fixtures. They do not open Vortex, execute LUZ or establish native UI acceptance.

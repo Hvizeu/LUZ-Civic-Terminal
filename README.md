@@ -2,7 +2,7 @@
 
 LUZ manages Nivalis Nights mods, profiles, BepInEx setup and protected save timelines. Its **CorpSec Terminal** workspace helps mod authors turn their build folders into release packages with optional LUZ recovery support.
 
-**Current candidate: 0.8.5.** On Windows, the LUZ Nexus page's **Mod Manager Download** sends the package to Vortex; the LUZ for Nivalis Nights extension installs, pairs and registers it automatically. Manual platform ZIPs remain available from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Linux x64, macOS Intel and Apple Silicon builds are experimental.
+**Version 0.8.9.** On Windows, the LUZ Nexus page's **Mod Manager Download** sends the package to Vortex; the LUZ for Nivalis Nights extension installs, pairs and registers it automatically. Manual platform ZIPs remain available from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Linux x64, macOS Intel and Apple Silicon builds are experimental.
 
 ## Start here
 
@@ -27,7 +27,7 @@ All four desktop ZIPs include these guides. LUZ includes .NET; users do not need
 - **Compatibility guidance:** check compiled references before Apply and Play. Warnings explain the affected mod, the uncertainty and the next action. An accepted warning is remembered only for the same inspected action and setup.
 - **Recovery and diagnostics:** restore profile or loader backups, recover interrupted operations, diagnose game-update errors and refresh stale generated bindings.
 - **Object Studio collections:** receive a project through Studio's **Send to LUZ** workflow, then apply it with the required Object Framework Runtime.
-- **LUZ updates:** download and verify platform releases from GitHub. Startup checks and automatic installation have separate preferences.
+- **LUZ updates:** download and verify platform releases from GitHub. Update validation follows the destination release's Continuity requirements and checks additional declared files. Startup checks and automatic installation have separate preferences. See the [manual recovery steps](PLAYER-GUIDE.md#10-update-luz) if an older updater rejects a complete package.
 
 **Import** adds a package to LUZ. **Apply profile** installs the selected profile's enabled files. **Play Nivalis** starts the game. Import your existing installation before the first Apply if you want to keep those mods.
 
@@ -56,7 +56,7 @@ The [CorpSec guide](CORPSEC-GUIDE.md) includes the complete first release, subse
 
 Supported features can preserve dormant data while unavailable and validate restoration when a compatible implementation returns. Original checkpoints and retained timelines remain available. Interrupted saves retain recovery records instead of silently continuing.
 
-Protected sessions require **native Windows**, a catalogued Nivalis Nights build (**26118043** or retained recovery identity **25984046**), **BepInEx 6.0.0-be.788**, and compatible mod declarations or maintained integrations. LUZ checks the exact native binary, metadata and loader identities. It cannot make an arbitrary mod or unknown game build safe by generating a descriptor. Wine/Proton protected sessions are unsupported.
+Protected sessions require **native Windows**, a catalogued Nivalis Nights build (**26295359** or retained recovery identity **25984046**), **BepInEx 6.0.0-be.788**, and compatible mod declarations or maintained integrations. LUZ checks the exact native binary, metadata and loader identities. It cannot make an arbitrary mod or unknown game build safe by generating a descriptor. Wine/Proton protected sessions are unsupported.
 
 See [Mod Continuity](Continuity/README.md) before enabling protection or removing a mod used by your save.
 

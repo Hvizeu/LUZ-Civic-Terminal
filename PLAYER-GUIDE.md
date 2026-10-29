@@ -133,7 +133,16 @@ Use **Maintenance > LUZ updates > Check LUZ updates**. Startup checks run at mos
 
 LUZ checks the platform download's SHA-256 and version before installing it to a per-user version folder and updating the shortcut. Profiles, library contents and CorpSec settings remain in the separate data folder. Updating LUZ does not launch Nivalis.
 
-LUZ 0.4.0 and newer can use the updater. Users on 0.3.x need one manual installation. For manual updates, close LUZ, extract the whole new package and run its installer. Do not mix executable files from different releases or downgrade a registry to an older unsupported reader.
+LUZ 0.4.0 and newer can use the updater. Users on 0.3.x need one manual installation. Older Continuity-aware versions may reject a complete newer package with **Continuity bundle is incomplete** because their validator expects an older file set. Updating the new release cannot change that already-installed validator.
+
+If that happens:
+
+1. Note the LUZ version shown in the application and your operating system. Close LUZ normally.
+2. Download the complete matching platform ZIP from the [official GitHub release](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest), and extract it into a fresh folder outside Nivalis and outside the old LUZ application folder.
+3. Run **Install LUZ.exe** on Windows, **Install LUZ** on Linux, or the supplied preparation and install helpers on macOS. The installer creates a separate version folder and updates the shortcut. Portable users can instead open **LUZ Civic Terminal** from the complete newly extracted folder.
+4. Open the new version and check the displayed version, selected profile, enabled mods and pending recovery actions before applying changes. The library and profiles should be retained from the separate data folder listed below.
+
+Keep your LUZ data folder, save files, configurations and recovery records. There is no need to uninstall LUZ or delete its library to complete this update. Do not mix executable files from different releases or downgrade the library to an older reader. If the new version still reports missing or mismatched files, retain the exact error and export diagnostics; do not clear recovery records.
 
 ## Linux and macOS
 

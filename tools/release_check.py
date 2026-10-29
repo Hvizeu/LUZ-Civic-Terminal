@@ -8,7 +8,7 @@ import sys
 import zipfile
 import zlib
 
-MARKERS = re.compile(r'(?i)chatgpt|openai|codex|claude|copilot|(?:AI|LLM)[- ](?:generated|assisted)|[A-Z]:[\\/]Users[\\/]|(?<![A-Za-z0-9.])/(?:Users|home)/|/mnt/data/')
+MARKERS = re.compile(r'(?i)chatgpt|openai|codex|claude|copilot|(?:AI|LLM)[- ](?:generated|assisted)|[A-Z]:[\\/]Users[\\/]|[A-Z]:[\\/](?:Modding2?|UnrealProjects)[\\/]|(?<![A-Za-z0-9.])/(?:Users|home)/|/mnt/data/')
 PRIVATE = {'.pdb', '.cs', '.csproj', '.py', '.ps1', '.jsonl'}
 
 def check(name, data, owned=True):

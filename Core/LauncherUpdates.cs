@@ -113,7 +113,7 @@ public sealed class LauncherUpdates(HttpClient http)
             var identity = AssemblyName.GetAssemblyName(Path.Combine(binaries, "LUZ Civic Terminal.dll"));
             if (!File.Exists(exe) || !File.Exists(Path.Combine(binaries, "Core.dll")) || identity.Name != "LUZ Civic Terminal" || identity.Version?.ToString(3) != release.Version)
                 throw new InvalidDataException("The downloaded application does not match the release version.");
-            if (Version.Parse(release.Version) >= new Version(0, 5, 0)) _ = ModContinuity.VerifyBundle(Path.Combine(binaries, "Continuity"));
+            if (Version.Parse(release.Version) >= new Version(0, 5, 0)) _ = ModContinuity.VerifyUpdateBundle(Path.Combine(binaries, "Continuity"), Version.Parse(release.Version));
             using var deps = JsonDocument.Parse(File.ReadAllText(Path.Combine(binaries, "LUZ Civic Terminal.deps.json")));
             if (!deps.RootElement.GetProperty("runtimeTarget").GetProperty("name").GetString()!.EndsWith("/" + release.Rid, StringComparison.Ordinal)) throw new InvalidDataException("LUZ update platform mismatch.");
             if (!OperatingSystem.IsWindows()) {

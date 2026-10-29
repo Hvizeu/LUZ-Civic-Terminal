@@ -28,9 +28,22 @@ def deployment_root():
 
 def retain_one(dist, current, pattern):
     root = dist.resolve()
+    if not current.is_file() or current.is_symlink() or current.resolve().parent != root:
+        raise RuntimeError('Current package is missing or redirected: ' + str(current))
     for old in dist.glob(pattern):
-        if old.name == current.name or old.resolve().parent != root or old.is_symlink(): continue
-        old.unlink()
+        if old.name == current.name: continue
+        if old.is_symlink() or old.resolve().parent != root:
+            raise RuntimeError('Redirected superseded package: ' + str(old))
+        for parent in (old.parent, *old.parent.parents):
+            if parent.is_symlink() or (hasattr(parent, 'is_junction') and parent.is_junction()):
+                raise RuntimeError('Redirected package parent: ' + str(parent))
+        if os.name == 'nt':
+            subprocess.run(['powershell', '-NoProfile', '-Command',
+                'Remove-Item -LiteralPath $env:NIVALIS_SUPERSEDED_PACKAGE -ErrorAction Stop'],
+                env={**os.environ, 'NIVALIS_SUPERSEDED_PACKAGE': str(old.resolve())}, check=True)
+        else: old.unlink()
+        if old.exists(): raise RuntimeError('Superseded package remains: ' + str(old))
+
 
 def package_vortex_extension():
     extension = ROOT / 'VortexExtension'
@@ -71,7 +84,7 @@ def write_deployment_handoff():
     records.append(package_record(bridge, 'LUZ for Nivalis Nights', 'Vortex 2.9+ on Windows'))
     records[-1]['version'] = extension_version
     (dist / 'PACKAGE RECORD.json').write_text(json.dumps(records, indent=2) + '\n', encoding='utf8')
-    status = {'version': VERSION, 'published': False, 'gameBuild': 26118043, 'automatedValidation': 'passed',
+    status = {'version': VERSION, 'published': False, 'gameBuild': 26295359, 'automatedValidation': 'passed',
               'nativeVortexAcceptance': False, 'gameplayAcceptance': False, 'packages': records, 'releaseUrl': None}
     (dist / 'PACKAGE STATUS.json').write_text(json.dumps(status, indent=2) + '\n', encoding='utf8')
     for name in ('README.md', 'QUICK START.txt', 'PLAYER-GUIDE.md', 'CORPSEC-GUIDE.md', 'BUILDING.md', 'CHANGELOG.md', 'RELEASE-NOTES.md'):
@@ -180,7 +193,7 @@ def package(rid):
         bundle = folder / (APP + '.app')
         publish = bundle / 'Contents/MacOS' if rid.startswith('osx-') else folder
         run('dotnet', 'publish', ROOT / 'Desktop/Desktop.csproj', '-c', 'Release', '-r', rid,
-            '-p:RenderTools=false', '-p:UseSharedCompilation=false', '-m:1', '--self-contained', 'true', '-o', publish, '--nologo', '-v', 'minimal')
+            '-p:RenderTools=false', '-p:UseSharedCompilation=false', '--self-contained', 'true', '-o', publish, '--nologo', '-v', 'minimal')
         for symbols in publish.rglob('*.pdb'): symbols.unlink()
         verify_target(publish, rid)
         notices(publish)
@@ -191,7 +204,7 @@ def package(rid):
             with tempfile.TemporaryDirectory(prefix='luz-handoff-') as helper_stage:
                 helper = Path(helper_stage)
                 run('dotnet', 'publish', ROOT / 'VortexHandoff/VortexHandoff.csproj', '-c', 'Release', '-r', rid,
-                    '-p:UseSharedCompilation=false', '-m:1', '--self-contained', 'true', '-o', helper, '--nologo', '-v', 'minimal')
+                    '-p:UseSharedCompilation=false', '--self-contained', 'true', '-o', helper, '--nologo', '-v', 'minimal')
                 for name in ('LUZ Vortex.exe', 'LUZ Vortex.dll', 'LUZ Vortex.deps.json', 'LUZ Vortex.runtimeconfig.json'):
                     shutil.copy2(helper / name, folder / name)
             (folder / 'luz-vortex-package.json').write_text(json.dumps({

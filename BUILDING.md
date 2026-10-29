@@ -53,3 +53,9 @@ Validate on each native platform before claiming native support. A build or head
 Core/Recovery contains the release snapshot of the shared Nivalis recovery source, compiled directly into Core. SOURCE-HASHES.json records its SHA-256 hashes. A clean checkout needs no sibling projects or additional runtime DLL. When updating the shared recovery implementation, copy all five files from the maintained NivalisShared source and refresh the hashes together; run the recovery fixtures before packaging.
 
 Git preserves the recovery files byte-for-byte so checkout line-ending conversion cannot invalidate the manifest. Packaging verifies the manifest and, when present, the maintained sibling sources.
+
+## Launcher update payload validation
+
+Staged updates use the destination release's Continuity requirements: releases from 0.5.0 through 0.7.1 require the runtime, API and catalog; 0.7.2 and later also require maintained support. Each declared file, including additive files in a newer release, must have a safe unique path and matching SHA-256. Installed-runtime validation separately requires this implementation's complete supported file set. Outer release digest, application version and target platform checks still apply.
+
+An old installed validator cannot be updated by an archive it rejects before installation. The player guide documents the full-ZIP manual installation route, preserving the separate library and recovery records.

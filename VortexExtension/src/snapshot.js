@@ -103,10 +103,15 @@ function modMetadata(mod, bridgeId) {
   };
 }
 
-async function readConnection(file) {
+async function readConnectionDescriptor(file) {
   const descriptor = JSON.parse(await fsp.readFile(file, "utf8"));
   if (descriptor.Schema !== 1 || descriptor.GameId !== GAME_ID || !/^[a-f0-9]{32}$/.test(descriptor.ConnectionId || "")) throw new Error("LUZ connection descriptor is incompatible");
   for (const field of ["GameFolder", "ExchangeRoot", "VortexRoot", "Executable"]) if (!path.isAbsolute(descriptor[field] || "")) throw new Error(`LUZ connection has an invalid ${field}`);
+  return descriptor;
+}
+
+async function readConnection(file) {
+  const descriptor = await readConnectionDescriptor(file);
   await Promise.all([fsp.access(descriptor.GameFolder), fsp.access(descriptor.ExchangeRoot), fsp.access(descriptor.VortexRoot), fsp.access(descriptor.Executable)]);
   return descriptor;
 }
@@ -177,4 +182,4 @@ async function buildSnapshot({ descriptor, stagingRoot, mods, requestId = crypto
   }
 }
 
-module.exports = { GAME_ID, aggregate, buildSnapshot, copyPackage, readConnection, safeIdentity };
+module.exports = { GAME_ID, aggregate, buildSnapshot, copyPackage, readConnection, readConnectionDescriptor, safeIdentity };

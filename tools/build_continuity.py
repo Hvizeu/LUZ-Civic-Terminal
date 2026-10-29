@@ -33,8 +33,10 @@ def catalog():
         ('25984046-be788', 'C65362434D61434A6FF5BFF771E7C2C44F2AEEABFDB1398C10B25FD9CBCF424E',
          '012A276B3D48E5CD85E0AD910B427742C0052FA9F974BFFDCEA30A30A4915FC5'),
         ('26118043-be788', '8A1265FF519B6D876E5403684CA9581FB18825FA6F818DCA1C5346AD8C147E46',
-         'C894031A903839ED1A382D8496EF2C746C196C9FF8CFB9823050C1D97BB1033E')]
-    return dict(Schema=1, Version='0.2.1', Builds=[dict(Id=build_id, Identity=dict(
+         'C894031A903839ED1A382D8496EF2C746C196C9FF8CFB9823050C1D97BB1033E'),
+        ('26295359-be788', '86545EF32D8D28969E166FA4DCF8DAD7922315ED8F1913A22D8635848633639A',
+         '5581C98E405E7FA01DA89A392F38D9C8701F2776B7413325ED350490DDBC1DB6')]
+    return dict(Schema=1, Version='0.2.2', Builds=[dict(Id=build_id, Identity=dict(
         Native=native, Metadata=metadata, Loader=LOADER_HASH), Capabilities=rules)
         for build_id, native, metadata in identities])
 
@@ -81,7 +83,7 @@ def build(loader=None):
         for name in ('BepInEx.Core.dll', 'BepInEx.Unity.IL2CPP.dll', '0Harmony.dll'):
             if (loader / name).resolve() != (references / name).resolve(): shutil.copy2(loader / name, references / name)
         subprocess.run(['dotnet', 'build', str(ROOT / 'Continuity/Runtime/Runtime.csproj'), '-c', 'Release',
-                        '--nologo', '-v', 'minimal', '-m:1', '-p:UseSharedCompilation=false', '-p:LoaderDirectory=' + str(references)], cwd=ROOT, check=True, env={**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'})
+                        '--nologo', '-v', 'minimal', '-p:UseSharedCompilation=false', '-p:LoaderDirectory=' + str(references)], cwd=ROOT, check=True, env={**os.environ, 'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0'})
         output = ROOT / 'Continuity/Payload'; output.mkdir(parents=True, exist_ok=True)
         for name in ('Luz.Continuity.Runtime.dll', 'Luz.Continuity.dll'):
             shutil.copy2(ROOT / 'Continuity/Runtime/bin/Release/net6.0' / name, output / name)

@@ -68,10 +68,50 @@ public static class ModContinuity
     }
     public static Dictionary<string, string> VerifyBundle(string folder)
     {
-        var manifest = SafeFiles.Read<Dictionary<string, string>>(Path.Combine(folder, "payload.json"));
         string[] required = { "Luz.Continuity.Runtime.dll", "Luz.Continuity.dll", "catalog.json", "maintained-support.json" };
-        if (manifest.Count != required.Length || required.Any(f => !manifest.ContainsKey(f))) throw new InvalidDataException("Continuity bundle is incomplete.");
-        foreach (var pair in manifest) if (SafeFiles.Hash(SafeFiles.Under(folder, pair.Key)) != pair.Value) throw new IOException("Continuity update payload failed verification: " + pair.Key);
+        return VerifyBundle(folder, required, false);
+    }
+    public static Dictionary<string, string> VerifyUpdateBundle(string folder, Version destinationVersion)
+    {
+        if (destinationVersion < new Version(0, 5, 0)) throw new ArgumentOutOfRangeException(nameof(destinationVersion));
+        string[] required = destinationVersion < new Version(0, 7, 2)
+            ? new[] { "Luz.Continuity.Runtime.dll", "Luz.Continuity.dll", "catalog.json" }
+            : new[] { "Luz.Continuity.Runtime.dll", "Luz.Continuity.dll", "catalog.json", "maintained-support.json" };
+        return VerifyBundle(folder, required, true);
+    }
+    private static Dictionary<string, string> VerifyBundle(string folder, string[] required, bool update)
+    {
+        string manifestPath = SafeFiles.Under(folder, "payload.json");
+        if (!File.Exists(manifestPath)) throw new InvalidDataException("Continuity manifest is missing. Extract the complete LUZ package before installing it.");
+        JsonElement document;
+        try { document = SafeFiles.Read<JsonElement>(manifestPath); }
+        catch (JsonException error) { throw new InvalidDataException("Unsupported Continuity manifest format. Install the complete newer LUZ release manually.", error); }
+        if (document.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("Unsupported Continuity manifest format. Install the complete newer LUZ release manually.");
+        var manifest = new Dictionary<string, string>(StringComparer.Ordinal);
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in document.EnumerateObject())
+        {
+            _ = SafeFiles.Under(folder, entry.Name);
+            if (!paths.Add(entry.Name)) throw new InvalidDataException("Duplicate Continuity manifest path: " + entry.Name);
+            if (entry.Value.ValueKind != JsonValueKind.String || entry.Value.GetString() is not { } digest
+                || digest.Length != 64 || !digest.All(Uri.IsHexDigit))
+                throw new InvalidDataException("Unsupported Continuity manifest entry: " + entry.Name + ". Install the complete newer LUZ release manually.");
+            manifest.Add(entry.Name, digest);
+        }
+        string[] missing = required.Where(file => !manifest.ContainsKey(file)).ToArray();
+        if (missing.Length != 0) throw new InvalidDataException("Continuity bundle is missing required manifest entries: " + string.Join(", ", missing) + ". Download the complete LUZ package.");
+        // A staged release can add verified payload files without depending on
+        // the older launcher's runtime capabilities. Installed support stays exact.
+        if (!update && manifest.Count != required.Length)
+            throw new InvalidDataException("This LUZ runtime does not support the Continuity manifest's additional files. Install the matching complete LUZ release.");
+        foreach (var pair in manifest)
+        {
+            string path = SafeFiles.Under(folder, pair.Key);
+            if (!File.Exists(path)) throw new InvalidDataException("Continuity payload file is missing: " + pair.Key);
+            if (!SafeFiles.Hash(path).Equals(pair.Value, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Continuity payload checksum mismatch: " + pair.Key);
+        }
         return manifest;
     }
     public static bool InstallBundle(Library library)
