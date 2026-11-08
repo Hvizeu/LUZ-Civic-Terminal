@@ -13,8 +13,15 @@ internal static class BindingProvenance
         if (!File.Exists(marker) || !File.Exists(Path.Combine(bindings, "Assembly-CSharp.dll")) || !Directory.Exists(libs)) return "Bindings or generation inputs are missing. Refresh game bindings, then launch to regenerate them.";
         try
         {
-            if(!FileSafety.Hash(Path.Combine(core,"BepInEx.Unity.IL2CPP.dll")).Equals("46CF1EF802BDF8CB6587FC1E4D98F7AF1073A60487B39A64E230E6F6E4C23AEC",StringComparison.OrdinalIgnoreCase))return "Loader build is not recognized; its generation recipe must be verified first.";
-            using var loader = AssemblyDefinition.ReadAssembly(Path.Combine(core, "BepInEx.Unity.IL2CPP.dll"));
+            string loaderPath = Path.Combine(core, "BepInEx.Unity.IL2CPP.dll");
+            // These exact Windows loader builds use the ComputeHash recipe below.
+            string loaderHash = FileSafety.Hash(loaderPath).ToUpperInvariant();
+            if (loaderHash is not (
+                "46CF1EF802BDF8CB6587FC1E4D98F7AF1073A60487B39A64E230E6F6E4C23AEC" or // be.788
+                "2060949CA0DB6FDBF47F4A9C5D9AEB3535292EFA79C05C438661F406A40B30AC" or // be.791
+                "BD556379B6AD83F5FDC57B768776C1138BAD45EEF491D18F832806D5F1FFECAE"))   // be.793
+                return "Loader build is not recognized; its generation recipe must be verified first.";
+            using var loader = AssemblyDefinition.ReadAssembly(loaderPath);
             var manager = loader.MainModule.Types.FirstOrDefault(t => t.Name == "Il2CppInteropManager");
             var compute = manager?.Methods.FirstOrDefault(m => m.Name == "ComputeHash");
             // Recognize the inspected BepInEx 6 recipe by its calls. A changed

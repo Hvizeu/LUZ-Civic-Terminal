@@ -1,3 +1,11 @@
+# 0.8.11
+
+- LUZ now verifies generated game bindings for BepInEx be.791 and be.793. A matching cache passes the Play check. Stale bindings and unknown loader builds still produce a warning.
+
+# 0.8.10
+
+- Adds protected-session support for Nivalis Nights Update #8, Steam build 26480394, with BepInEx 6.0.0-be.788 on Windows x64.
+
 # 0.8.9
 
 - Updated for Nivalis Nights Update #7, Steam build 26295359.

@@ -1,5 +1,3 @@
-# LUZ Civic Terminal 0.8.9
+# LUZ Civic Terminal 0.8.11
 
-Added the exact Update #7 native/metadata pair to the bundled Continuity catalogue. Existing supported build identities, profiles and recovery formats are retained.
-
-Updating LUZ keeps the existing separate library and does not launch Nivalis.
+LUZ now verifies generated game bindings for BepInEx be.791 and be.793. A matching cache passes the Play check. Stale bindings and unknown loader builds still produce a warning.
