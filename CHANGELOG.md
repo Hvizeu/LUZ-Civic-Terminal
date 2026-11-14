@@ -1,3 +1,7 @@
+# 0.8.12
+
+Protected saves now support Nivalis Nights Update #9 (Steam build 26631852) on Windows x64 with BepInEx 6.0.0-be.788.
+
 # 0.8.11
 
 - LUZ now verifies generated game bindings for BepInEx be.791 and be.793. A matching cache passes the Play check. Stale bindings and unknown loader builds still produce a warning.

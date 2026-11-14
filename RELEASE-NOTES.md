@@ -1,3 +1,3 @@
-# LUZ Civic Terminal 0.8.11
+# LUZ Civic Terminal 0.8.12
 
-LUZ now verifies generated game bindings for BepInEx be.791 and be.793. A matching cache passes the Play check. Stale bindings and unknown loader builds still produce a warning.
+Protected saves now support Nivalis Nights Update #9 (Steam build 26631852) on Windows x64 with BepInEx 6.0.0-be.788.

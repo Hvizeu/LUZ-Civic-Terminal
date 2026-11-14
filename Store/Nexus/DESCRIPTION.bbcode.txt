@@ -9,7 +9,7 @@
 
 Installing and updating Nivalis mods has been more confusing than it should be. I made LUZ to put BepInEx setup, mod installation and profiles in one place. CorpSec Terminal gives mod authors a saved workspace for preparing their releases.
 
-[b]Version 0.8.11 | Windows x64 | Experimental Linux and macOS downloads[/b]
+[b]Version 0.8.12 | Windows x64 | Experimental Linux and macOS downloads[/b]
 
 [url=https://ko-fi.com/henriquevizeu]Support my work on Ko-fi[/url]
 [url=https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest]GitHub downloads and source[/url]
@@ -89,7 +89,7 @@ Optional [b]Mod Continuity[/b] creates a verified original checkpoint and a sepa
 
 Use [b]Restore original checkpoint[/b] to start another protected timeline from the historical checkpoint, or [b]Resume protected timeline[/b] to return to retained progress. Interrupted saves keep recovery records and can be handled through [b]Recover interrupted save[/b].
 
-[b]Protected sessions require native Windows, catalogued Nivalis Nights build 26480394, 26295359, 26118043 or 25984046, BepInEx 6.0.0-be.788 and compatible mod support.[/b] Actual native, metadata and loader identities are checked together. Wine/Proton protected sessions are unsupported. Ordinary profiles can continue without enabling protection.
+[b]Protected sessions require native Windows, catalogued Nivalis Nights build 26631852, 26480394, 26295359, 26118043 or 25984046, BepInEx 6.0.0-be.788 and compatible mod support.[/b] Actual native, metadata and loader identities are checked together. Wine/Proton protected sessions are unsupported. Ordinary profiles can continue without enabling protection.
 
 [size=5][color=#8EE3A1][b]PRESERVE AND RESTORE SUPPORTED FEATURES[/b][/color][/size]
 

@@ -84,7 +84,7 @@ def write_deployment_handoff():
     records.append(package_record(bridge, 'LUZ for Nivalis Nights', 'Vortex 2.9+ on Windows'))
     records[-1]['version'] = extension_version
     (dist / 'PACKAGE RECORD.json').write_text(json.dumps(records, indent=2) + '\n', encoding='utf8')
-    status = {'version': VERSION, 'published': False, 'gameBuild': 26480394, 'automatedValidation': 'passed',
+    status = {'version': VERSION, 'published': False, 'gameBuild': 26631852, 'automatedValidation': 'passed',
               'nativeVortexAcceptance': False, 'gameplayAcceptance': False, 'packages': records, 'releaseUrl': None}
     (dist / 'PACKAGE STATUS.json').write_text(json.dumps(status, indent=2) + '\n', encoding='utf8')
     for name in ('README.md', 'QUICK START.txt', 'PLAYER-GUIDE.md', 'CORPSEC-GUIDE.md', 'BUILDING.md', 'CHANGELOG.md', 'RELEASE-NOTES.md'):
