@@ -2,7 +2,7 @@
 
 LUZ manages Nivalis Nights mods, profiles, BepInEx setup and protected save timelines. Its **CorpSec Terminal** workspace helps mod authors turn their build folders into release packages with optional LUZ recovery support.
 
-**Version 0.8.12.** On Windows, the LUZ Nexus page's **Mod Manager Download** sends the package to Vortex; the LUZ for Nivalis Nights extension installs, pairs and registers it automatically. Manual platform ZIPs remain available from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Linux x64, macOS Intel and Apple Silicon builds are experimental.
+**Version 0.8.13.** On Windows, the LUZ Nexus page's **Mod Manager Download** sends the package to Vortex; the LUZ for Nivalis Nights extension installs, pairs and registers it automatically. Manual platform ZIPs remain available from [GitHub Releases](https://github.com/Hvizeu/LUZ-Civic-Terminal/releases/latest). Linux x64, macOS Intel and Apple Silicon builds are experimental.
 
 ## Start here
 
@@ -56,7 +56,7 @@ The [CorpSec guide](CORPSEC-GUIDE.md) includes the complete first release, subse
 
 Supported features can preserve dormant data while unavailable and validate restoration when a compatible implementation returns. Original checkpoints and retained timelines remain available. Interrupted saves retain recovery records instead of silently continuing.
 
-Protected sessions require **native Windows**, a catalogued Nivalis Nights build (**26631852**, **26480394**, **26295359**, **26118043** or **25984046**), **BepInEx 6.0.0-be.788**, and compatible mod declarations or maintained integrations. LUZ checks the exact native binary, metadata and loader identities. It cannot make an arbitrary mod or unknown game build safe by generating a descriptor. Wine/Proton protected sessions are unsupported.
+Protected sessions require **native Windows**, a catalogued Nivalis Nights build (**26799517**, **26631852**, **26480394**, **26295359**, **26118043** or **25984046**), **BepInEx 6.0.0-be.788**, and compatible mod declarations or maintained integrations. LUZ checks the exact native binary, metadata and loader identities. It cannot make an arbitrary mod or unknown game build safe by generating a descriptor. Wine/Proton protected sessions are unsupported.
 
 See [Mod Continuity](Continuity/README.md) before enabling protection or removing a mod used by your save.
 

@@ -1,4 +1,4 @@
-LUZ CIVIC TERMINAL 0.8.12 - NEXUS UPLOAD
+LUZ CIVIC TERMINAL 0.8.13 - NEXUS UPLOAD
 
 Use the existing LUZ Civic Terminal listing.
 Keep the listing on the Nivalis Nights Nexus domain so its NXM downloads use
@@ -12,29 +12,29 @@ Upload the four platform ZIPs from the LUZ deployment folder as separate files. 
 Do not re-ZIP them or upload the private QA/status records.
 
 Main Windows file
-  Filename: LUZ-Civic-Terminal-0.8.12-win-x64.zip
-  Display name: LUZ Civic Terminal 0.8.12 - Windows x64
+  Filename: LUZ-Civic-Terminal-0.8.13-win-x64.zip
+  Display name: LUZ Civic Terminal 0.8.13 - Windows x64
   Description: Main Vortex-enabled Windows package. With LUZ for Nivalis
   Nights active, Mod Manager Download installs, pairs and registers
   LUZ automatically. Manual users may extract it outside the game and run
   Install LUZ.exe.
 
 Optional Linux file
-  Filename: LUZ-Civic-Terminal-0.8.12-linux-x64.zip
-  Display name: LUZ Civic Terminal 0.8.12 - Linux x64 (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.13-linux-x64.zip
+  Display name: LUZ Civic Terminal 0.8.13 - Linux x64 (experimental)
   Description: Graphical glibc desktop build. Requires X11/XWayland and xdg-open.
   Includes installation and author guides. Protected game sessions require
   native Windows.
 
 Optional Intel Mac file
-  Filename: LUZ-Civic-Terminal-0.8.12-osx-x64.zip
-  Display name: LUZ Civic Terminal 0.8.12 - macOS Intel (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.13-osx-x64.zip
+  Display name: LUZ Civic Terminal 0.8.13 - macOS Intel (experimental)
   Description: macOS 15 or newer. Follow Prepare macOS.command and
   Install LUZ.command. Not notarized. Protected game sessions require Windows.
 
 Optional Apple Silicon file
-  Filename: LUZ-Civic-Terminal-0.8.12-osx-arm64.zip
-  Display name: LUZ Civic Terminal 0.8.12 - macOS Apple Silicon (experimental)
+  Filename: LUZ-Civic-Terminal-0.8.13-osx-arm64.zip
+  Display name: LUZ Civic Terminal 0.8.13 - macOS Apple Silicon (experimental)
   Description: macOS 15 or newer on M-series hardware. Follow the included
   preparation and installer helpers. Not notarized. Protected game sessions
   require Windows.
@@ -66,7 +66,7 @@ the release package. Players need only the ZIP for their platform.
 
 PAGE UPDATE
 
-1. Set the LUZ version to 0.8.12.
+1. Set the LUZ version to 0.8.13.
 2. Paste DESCRIPTION.bbcode.txt into the existing page's BBCode description.
    Keep the endorsement image and the clickable Ko-fi banner directly below it.
    Keep any existing gallery images and required credits.
@@ -79,7 +79,7 @@ PAGE UPDATE
    save features and purple maintenance features should have large headings.
 7. Check that the page's current requirements distinguish ordinary mod
    management from protected saves, which require native Windows, supported
-   game build 26631852 or a retained catalogued build, loader
+   game build 26799517 or a retained catalogued build, loader
    6.0.0-be.788 and compatible mod support.
 
 UPGRADE NOTES
